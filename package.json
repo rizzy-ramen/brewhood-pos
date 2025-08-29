@@ -1,0 +1,21 @@
+{
+  "name": "food-stall-pos",
+  "version": "1.0.0",
+  "description": "Point of Sale system for food stall with counter and delivery interfaces",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "cd backend && npm run dev",
+    "client": "cd frontend && HOST=0.0.0.0 npm start",
+    "build": "cd frontend && npm run build",
+    "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "migrate-firebase": "cd backend && node migrateToFirebase.js",
+    "firebase-setup": "echo '🔥 Firebase setup complete! Check FIREBASE_SETUP_GUIDE.md for next steps.'"
+  },
+  "keywords": ["pos", "food", "stall", "orders", "delivery"],
+  "author": "Food Stall POS",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
