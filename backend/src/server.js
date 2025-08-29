@@ -13,6 +13,7 @@ const { createRateLimiter } = require('./middleware/auth');
 
 // Import routes
 const orderRoutes = require('./routes/orders');
+const productRoutes = require('./routes/products');
 
 // Initialize Express app
 const app = express();
@@ -84,6 +85,7 @@ app.get('/health', (req, res) => {
 
 // API routes
 app.use('/api/orders', orderRoutes);
+app.use('/api/products', productRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -97,9 +99,15 @@ app.use('*', (req, res) => {
       'GET /api/orders/status/:status',
       'GET /api/orders/:orderId',
       'PATCH /api/orders/:orderId/status',
-      'PATCH /api/orders/:orderId/items/:itemId/preparation',
-      'GET /api/orders/stats/overview',
-      'DELETE /api/orders/:orderId'
+      'PATCH /api/orders/:orderId/items/:itemId',
+      'DELETE /api/orders/:orderId',
+      'GET /api/products',
+      'GET /api/products/:id',
+      'POST /api/products',
+      'PATCH /api/products/:id',
+      'DELETE /api/products/:id',
+      'PATCH /api/products/:id/availability',
+      'GET /api/orders/stats/overview'
     ]
   });
 });

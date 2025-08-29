@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import './AdminDashboard.css';
-import { productsService, realtimeService } from '../services/firestoreService';
+import { apiService } from '../services/api';
 import LoadingScreen from './LoadingScreen';
 import { 
   Plus, 
@@ -88,12 +88,13 @@ const AdminDashboard = ({ user, onLogout }) => {
 
   const fetchProducts = async () => {
     try {
-      // Fetch ALL products (both active and hidden) for admin dashboard
-      const products = await productsService.getAllProducts();
-      console.log('Fetched all products:', products);
+      // Fetch ALL products from backend API
+      const products = await apiService.getProducts();
+      console.log('Fetched all products from backend:', products);
       setProducts(products);
     } catch (error) {
-      toast.error('Failed to fetch products');
+      console.error('Failed to fetch products from backend:', error);
+      toast.error('Failed to fetch products from backend');
     } finally {
       setLoading(false);
     }
@@ -102,15 +103,14 @@ const AdminDashboard = ({ user, onLogout }) => {
   useEffect(() => {
     fetchProducts();
     
-    // Initialize Firebase real-time listeners
-    const unsubscribeProducts = realtimeService.onProductsChange((products) => {
-      console.log('🔄 Admin Dashboard - Real-time products update:', products.length, 'products received');
-      console.log('🔄 Products status:', products.map(p => `${p.name}: ${p.is_available}`));
-      setProducts(products);
-    });
+    // Set up polling for backend API updates (every 10 seconds)
+    const pollInterval = setInterval(() => {
+      console.log('🔄 Admin Dashboard - Polling backend for product updates');
+      fetchProducts();
+    }, 10000); // Poll every 10 seconds
 
     return () => {
-      unsubscribeProducts();
+      clearInterval(pollInterval);
     };
   }, []);
 
@@ -166,11 +166,11 @@ const AdminDashboard = ({ user, onLogout }) => {
         console.log('Original product is_available === 1:', editingProduct.is_available === 1);
         console.log('Original product is_available === true:', editingProduct.is_available === true);
         
-        await productsService.updateProduct(editingProduct.id, updateData);
+        await apiService.updateProduct(editingProduct.id, updateData);
         toast.success('Product updated successfully');
       } else {
         // Create new product
-        await productsService.createProduct({ ...formData, price: parseFloat(formData.price) });
+        await apiService.createProduct({ ...formData, price: parseFloat(formData.price) });
         toast.success('Product created successfully');
       }
       
@@ -205,9 +205,10 @@ const AdminDashboard = ({ user, onLogout }) => {
 
     try {
       console.log('🗑️ Deleting product with ID:', productId);
-      await productsService.deleteProduct(productId);
-      toast.success('Product deleted permanently');
-      // Don't call fetchProducts() here - let the real-time listener handle it
+                      await apiService.deleteProduct(productId);
+        toast.success('Product deleted permanently');
+        // Refresh products immediately since we're not using real-time listeners
+        await fetchProducts();
       console.log('✅ Product deleted, waiting for real-time update...');
     } catch (error) {
       console.error('❌ Error deleting product:', error);
@@ -229,11 +230,12 @@ const AdminDashboard = ({ user, onLogout }) => {
       const newStatus = !(currentProduct.is_available === 1 || currentProduct.is_available === true);
       console.log('🔄 New status will be:', newStatus);
       
-      await productsService.toggleProductAvailability(product.id, newStatus);
+      await apiService.updateProduct(product.id, { is_available: newStatus });
       toast.success(`Product ${currentProduct.is_available ? 'disabled' : 'enabled'} successfully`);
       
-      // Don't call fetchProducts() here - let the real-time listener handle it
-      console.log('✅ Product availability updated, waiting for real-time update...');
+      // Refresh products immediately since we're not using real-time listeners
+      await fetchProducts();
+      console.log('✅ Product availability updated, products refreshed');
     } catch (error) {
       console.error('❌ Error toggling availability:', error);
       toast.error('Failed to update product availability');
@@ -251,11 +253,12 @@ const AdminDashboard = ({ user, onLogout }) => {
       
       console.log('🔄 Enabling product:', currentProduct.name);
       
-      await productsService.toggleProductAvailability(product.id, true);
+      await apiService.updateProduct(product.id, { is_available: true });
       toast.success('Product enabled successfully');
       
-      // Don't call fetchProducts() here - let the real-time listener handle it
-      console.log('✅ Product enabled, waiting for real-time update...');
+      // Refresh products immediately since we're not using real-time listeners
+      await fetchProducts();
+      console.log('✅ Product enabled, products refreshed');
     } catch (error) {
       console.error('❌ Error enabling product:', error);
       toast.error('Failed to enable product');

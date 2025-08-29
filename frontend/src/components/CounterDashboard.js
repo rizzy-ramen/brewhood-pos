@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { ShoppingCart, Plus, Minus, X, User, LogOut } from 'lucide-react';
-import { ordersService } from '../services/firestoreService';
+import { apiService } from '../services/api';
 import LoadingScreen from './LoadingScreen';
 
 const CounterDashboard = ({ user, onLogout }) => {
@@ -24,18 +24,28 @@ const CounterDashboard = ({ user, onLogout }) => {
     return () => clearTimeout(timer);
   }, []);
 
-  // Initialize with mock data for testing
+  // Initialize with products from backend API
   useEffect(() => {
-    // Simulate loading
-    setTimeout(() => {
-      setProducts([
-        { id: '1', name: 'Iced Tea', price: 89, description: 'Refreshing iced tea', image_url: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=400' },
-        { id: '2', name: 'Hot Chocolate', price: 100, description: 'Rich hot chocolate', image_url: 'https://images.unsplash.com/photo-1542990253-0d0f5be5f0ed?w=400' },
-        { id: '3', name: 'Lemon Mint Cooler', price: 60, description: 'Fresh lemon mint cooler', image_url: 'https://images.unsplash.com/photo-1621263764928-df1444c5e859?w=400' }
-      ]);
-      setRecentOrders([]);
-      setLoading(false);
-    }, 1000);
+    const fetchProducts = async () => {
+      try {
+        const products = await apiService.getProducts();
+        console.log('Fetched products from backend:', products);
+        setProducts(products);
+      } catch (error) {
+        console.error('Failed to fetch products from backend:', error);
+        toast.error('Failed to fetch products from backend');
+        // Fallback to mock data if backend fails
+        setProducts([
+          { id: '1', name: 'Iced Tea', price: 89, description: 'Refreshing iced tea', image_url: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=400' },
+          { id: '2', name: 'Hot Chocolate', price: 100, description: 'Rich hot chocolate', image_url: 'https://images.unsplash.com/photo-1542990253-0d0f5be5f0ed?w=400' },
+          { id: '3', name: 'Lemon Mint Cooler', price: 60, description: 'Fresh lemon mint cooler', image_url: 'https://images.unsplash.com/photo-1621263764928-df1444c5e859?w=400' }
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
   }, []);
 
   // Function to get proper image URL or fallback
@@ -108,7 +118,7 @@ const CounterDashboard = ({ user, onLogout }) => {
         created_at: new Date()
       };
 
-      await ordersService.createOrder(orderData);
+      const createdOrder = await apiService.createOrder(orderData);
       
       // Reset form
       setCart([]);

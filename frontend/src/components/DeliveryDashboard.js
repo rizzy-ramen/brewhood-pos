@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { Package, CheckCircle, User, LogOut, Clock, RefreshCw, X } from 'lucide-react';
-import { ordersService, realtimeService } from '../services/firestoreService';
+import { apiService } from '../services/api';
 import LoadingScreen from './LoadingScreen';
 
 const DeliveryDashboard = ({ user, onLogout }) => {
@@ -19,6 +19,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
   const [showRefreshNotification, setShowRefreshNotification] = useState(false);
   const [viewedSections, setViewedSections] = useState(new Set());
   const [updateTimeout, setUpdateTimeout] = useState(null);
+  const [backendAvailable, setBackendAvailable] = useState(true);
 
 
 
@@ -86,8 +87,8 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       console.log('🔄 Fetching orders for filter:', currentFilter);
       
       const orders = currentFilter === 'all' 
-        ? await ordersService.getAllOrders()
-        : await ordersService.getOrdersByStatus(currentFilter);
+        ? await apiService.getOrders()
+        : await apiService.getOrders(currentFilter);
       
       console.log('📋 Fetched orders:', orders?.length || 0, 'for filter:', currentFilter);
       
@@ -200,29 +201,51 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     setUpdateTimeout(timeout);
   }, [updateTimeout]);
 
-  // Initialize data fetching with immediate update capability
+  // Initialize data fetching with new backend API
   useEffect(() => {
     let pollInterval;
     
-    console.log('🚀 Setting up delivery dashboard with immediate updates');
+    console.log('🚀 Setting up delivery dashboard with new backend API');
     
-    // Initial fetch
-    fetchOrders(filter);
+    // Check backend health first
+    const checkBackendHealth = async () => {
+      try {
+        const health = await apiService.checkHealth();
+        if (health.status === 'OK') {
+          setBackendAvailable(true);
+          console.log('✅ Backend is healthy and available');
+        } else {
+          setBackendAvailable(false);
+          console.warn('⚠️ Backend health check failed');
+        }
+      } catch (error) {
+        setBackendAvailable(false);
+        console.error('❌ Backend health check failed:', error);
+      }
+    };
     
-    // Set up responsive polling for immediate updates
-    const startPolling = () => {
-      console.log('⏰ Starting responsive polling (every 3 seconds)');
-      pollInterval = setInterval(() => {
-        console.log('🔄 Responsive polling...');
-        // Always poll for maximum responsiveness
+    // Initial health check and fetch
+    checkBackendHealth().then(() => {
+      if (backendAvailable) {
         fetchOrders(filter);
-      }, 3000); // Poll every 3 seconds for responsiveness
+      }
+    });
+    
+    // Set up responsive polling for immediate updates (every 5 seconds for backend)
+    const startPolling = () => {
+      console.log('⏰ Starting backend API polling (every 5 seconds)');
+      pollInterval = setInterval(() => {
+        console.log('🔄 Backend API polling...');
+        if (backendAvailable) {
+          fetchOrders(filter);
+        }
+      }, 5000); // Poll every 5 seconds for backend responsiveness
     };
     
     // Start polling after initial load
     const initialPollTimer = setTimeout(() => {
       startPolling();
-    }, 1000); // Start polling sooner
+    }, 2000); // Start polling after 2 seconds
     
     // Listen for immediate order updates from counter app
     const handleOrderUpdate = (event) => {
@@ -329,7 +352,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
 
   const updateOrderStatus = async (orderId, status) => {
     try {
-      await ordersService.updateOrderStatus(orderId, status);
+      await apiService.updateOrderStatus(orderId, status);
       
       const statusMessages = {
         'preparing': 'Order marked as preparing!',
@@ -385,7 +408,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     );
 
     // Update Firestore in background - no await to block UI
-    ordersService.updateItemPreparation(orderId, itemId, newQuantity)
+    apiService.updateItemPreparation(orderId, itemId, newQuantity)
       .catch(error => {
         toast.error('Failed to save changes');
         // Note: Real-time listener will restore correct values
@@ -471,6 +494,43 @@ const DeliveryDashboard = ({ user, onLogout }) => {
             Logout
           </button>
         </div>
+      </div>
+
+      {/* Backend Status Indicator */}
+      <div style={{ 
+        padding: '12px', 
+        marginBottom: '20px', 
+        borderRadius: '8px', 
+        backgroundColor: backendAvailable ? '#d4edda' : '#f8d7da',
+        border: `1px solid ${backendAvailable ? '#c3e6cb' : '#f5c6cb'}`,
+        color: backendAvailable ? '#155724' : '#721c24',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        fontSize: '14px'
+      }}>
+        <div style={{
+          width: '8px',
+          height: '8px',
+          borderRadius: '50%',
+          backgroundColor: backendAvailable ? '#28a745' : '#dc3545',
+          animation: backendAvailable ? 'pulse 2s infinite' : 'none'
+        }}></div>
+        <span>
+          {backendAvailable 
+            ? '✅ Connected to Backend API' 
+            : '❌ Backend API Unavailable - Using Fallback'
+          }
+        </span>
+        {!backendAvailable && (
+          <button 
+            className="btn btn-sm btn-primary" 
+            style={{ marginLeft: 'auto' }}
+            onClick={() => window.location.reload()}
+          >
+            Retry Connection
+          </button>
+        )}
       </div>
 
       <div className="delivery-main-layout" style={{ display: 'grid', gridTemplateColumns: selectedOrder ? '1fr 400px' : '1fr', gap: '20px' }}>

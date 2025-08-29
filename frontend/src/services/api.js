@@ -1,6 +1,6 @@
-// API Service for communicating with your local backend
-// Update this URL to match your local backend IP address
-const API_BASE_URL = 'http://localhost:5000/api';
+// API Service for communicating with your internet-accessible backend
+// Your backend is now accessible via LocalTunnel
+const API_BASE_URL = 'https://thin-plants-dream.loca.lt/api';
 
 // Generate a simple demo token (replace with proper JWT in production)
 const generateDemoToken = () => {
@@ -103,6 +103,123 @@ export const apiService = {
       return await response.json();
     } catch (error) {
       console.error('❌ API Error - getOrderStats:', error);
+      throw error;
+    }
+  },
+
+  // Products
+  getProducts: async () => {
+    try {
+      const token = generateDemoToken();
+      const response = await fetch(`${API_BASE_URL}/products`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to fetch products');
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('❌ API Error - getProducts:', error);
+      throw error;
+    }
+  },
+
+  createProduct: async (productData) => {
+    try {
+      const token = generateDemoToken();
+      const response = await fetch(`${API_BASE_URL}/products`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(productData)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create product');
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('❌ API Error - createProduct:', error);
+      throw error;
+    }
+  },
+
+  updateProduct: async (productId, productData) => {
+    try {
+      const token = generateDemoToken();
+      const response = await fetch(`${API_BASE_URL}/products/${productId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(productData)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update product');
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('❌ API Error - updateProduct:', error);
+      throw error;
+    }
+  },
+
+  deleteProduct: async (productId) => {
+    try {
+      const token = generateDemoToken();
+      const response = await fetch(`${API_BASE_URL}/products/${productId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete product');
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('❌ API Error - deleteProduct:', error);
+      throw error;
+    }
+  },
+
+  // Update item preparation status
+  updateItemPreparation: async (orderId, itemId, preparedQuantity) => {
+    try {
+      const token = generateDemoToken();
+      const response = await fetch(`${API_BASE_URL}/orders/${orderId}/items/${itemId}/preparation`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ prepared_quantity: preparedQuantity })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update item preparation');
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('❌ API Error - updateItemPreparation:', error);
       throw error;
     }
   },
