@@ -4,7 +4,16 @@ const { authenticateToken, requireRole } = require('../middleware/auth');
 const { getFirestore } = require('../config/firebase');
 
 const router = express.Router();
-const db = getFirestore();
+
+// Helper function to get Firestore instance when needed
+const getDb = () => {
+  try {
+    return getFirestore();
+  } catch (error) {
+    console.error('❌ Firebase not ready yet:', error.message);
+    throw new Error('Firebase not initialized');
+  }
+};
 
 // Validation middleware
 const validateProduct = [
@@ -19,6 +28,7 @@ const validateProduct = [
 // GET /api/products - Get all products
 router.get('/', authenticateToken, async (req, res) => {
   try {
+    const db = getDb();
     const productsRef = db.collection('products');
     const snapshot = await productsRef.get();
     
@@ -43,6 +53,7 @@ router.get('/', authenticateToken, async (req, res) => {
 // GET /api/products/:id - Get product by ID
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
+    const db = getDb();
     const { id } = req.params;
     const productRef = db.collection('products').doc(id);
     const productDoc = await productRef.get();
@@ -81,6 +92,7 @@ router.post('/', authenticateToken, requireRole(['admin']), validateProduct, asy
       });
     }
     
+    const db = getDb();
     const productData = {
       ...req.body,
       created_at: new Date(),
@@ -124,6 +136,7 @@ router.patch('/:id', authenticateToken, requireRole(['admin']), validateProduct,
       });
     }
     
+    const db = getDb();
     const updateData = {
       ...req.body,
       updated_at: new Date()
@@ -167,6 +180,7 @@ router.patch('/:id', authenticateToken, requireRole(['admin']), validateProduct,
 router.delete('/:id', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
     const { id } = req.params;
+    const db = getDb();
     const productRef = db.collection('products').doc(id);
     const productDoc = await productRef.get();
     
@@ -211,6 +225,7 @@ router.patch('/:id/availability', authenticateToken, requireRole(['admin']), asy
       });
     }
     
+    const db = getDb();
     const productRef = db.collection('products').doc(id);
     const productDoc = await productRef.get();
     
