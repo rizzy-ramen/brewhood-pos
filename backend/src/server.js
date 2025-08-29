@@ -44,15 +44,44 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false
 }));
 
-// CORS middleware
+// Enhanced CORS middleware
 app.use(cors({
-  origin: process.env.CORS_ORIGIN?.split(',') || [
-    'http://localhost:3000',
-    'https://brewhood-pos.web.app'
-  ],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'https://brewhood-pos.web.app',
+      'https://brewhood-pos.firebaseapp.com',
+      // Allow any LocalTunnel URLs
+      /^https:\/\/.*\.loca\.lt$/,
+      /^https:\/\/.*\.trycloudflare\.com$/
+    ];
+    
+    // Check if origin matches any allowed pattern
+    const isAllowed = allowedOrigins.some(allowed => {
+      if (typeof allowed === 'string') {
+        return origin === allowed;
+      } else if (allowed instanceof RegExp) {
+        return allowed.test(origin);
+      }
+      return false;
+    });
+    
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      console.log('🚫 CORS blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Origin', 'Accept'],
+  exposedHeaders: ['Content-Length', 'Content-Type'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
 
 // Compression middleware
@@ -72,6 +101,9 @@ const globalRateLimit = createRateLimiter(
   'Too many requests from this IP. Please try again later.'
 );
 app.use(globalRateLimit);
+
+// Handle preflight OPTIONS requests
+app.options('*', cors());
 
 // Health check endpoint
 app.get('/health', (req, res) => {

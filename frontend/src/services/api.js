@@ -1,14 +1,10 @@
 // API Service for communicating with your internet-accessible backend
-// Your backend is now accessible via LocalTunnel
-const API_BASE_URL = 'https://thin-plants-dream.loca.lt/api';
+// Your backend is now accessible via Cloudflare Tunnel
+const API_BASE_URL = 'https://anthony-privacy-rn-near.trycloudflare.com/api';
 
 // Generate a simple demo token (replace with proper JWT in production)
 const generateDemoToken = () => {
-  return btoa(JSON.stringify({
-    id: 'demo-user',
-    role: 'counter',
-    firebaseToken: 'demo-token'
-  }));
+  return 'demo-token';
 };
 
 export const apiService = {
