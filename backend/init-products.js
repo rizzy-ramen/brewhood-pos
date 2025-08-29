@@ -66,6 +66,9 @@ async function initializeProducts() {
     // Skip existing products check to avoid quota issues
     console.log('📦 Creating default products (skipping existing check to avoid quota)...');
     
+    // Get products collection reference
+    const productsRef = db.collection('products');
+    
     // Add default products in smaller batches to avoid quota issues
     const batchSize = 2; // Process 2 products at a time
     
