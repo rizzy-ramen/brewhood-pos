@@ -63,26 +63,29 @@ async function initializeProducts() {
     const db = getFirestore();
     console.log('✅ Firebase initialized successfully');
     
-    // Check if products already exist
-    const productsRef = db.collection('products');
-    const snapshot = await productsRef.get();
+    // Skip existing products check to avoid quota issues
+    console.log('📦 Creating default products (skipping existing check to avoid quota)...');
     
-    if (!snapshot.empty) {
-      console.log(`📦 Found ${snapshot.size} existing products, skipping initialization`);
-      return;
+    // Add default products in smaller batches to avoid quota issues
+    const batchSize = 2; // Process 2 products at a time
+    
+    for (let i = 0; i < defaultProducts.length; i += batchSize) {
+      const batch = db.batch();
+      const batchProducts = defaultProducts.slice(i, i + batchSize);
+      
+      batchProducts.forEach(product => {
+        const productRef = productsRef.doc();
+        batch.set(productRef, product);
+      });
+      
+      await batch.commit();
+      console.log(`✅ Batch ${Math.floor(i/batchSize) + 1} completed: ${batchProducts.length} products`);
+      
+      // Small delay between batches to be gentle on quota
+      if (i + batchSize < defaultProducts.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
     }
-    
-    console.log('📦 No existing products found, creating default products...');
-    
-    // Add default products
-    const batch = db.batch();
-    
-    defaultProducts.forEach(product => {
-      const productRef = productsRef.doc();
-      batch.set(productRef, product);
-    });
-    
-    await batch.commit();
     
     console.log(`✅ Successfully created ${defaultProducts.length} default products`);
     console.log('📋 Products created:');
