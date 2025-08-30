@@ -246,7 +246,16 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         console.log('🔄 Current filter when updating status:', currentFilter);
         console.log('🔄 Calling fetchOrders with filter:', currentFilter);
         // Debounce the API call to prevent rate limiting
-        debouncedUpdate(() => fetchOrders(currentFilter), 1000);
+        debouncedUpdate(() => {
+          fetchOrders(currentFilter).then(() => {
+            // Clear loading state for this order after list is refreshed
+            setUpdatingOrders(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(data.orderId);
+              return newSet;
+            });
+          });
+        }, 1000);
         // Removed toast notification for cleaner UI
       });
       
@@ -408,16 +417,17 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       
       // Removed toast notifications for cleaner UI
       // Real-time updates will handle the UI refresh via socket
+      // Loading state will be cleared when orders list is refreshed via WebSocket
     } catch (error) {
       toast.error('Failed to update order status');
-    } finally {
-      // Clear loading state for this order
+      // Clear loading state on error
       setUpdatingOrders(prev => {
         const newSet = new Set(prev);
         newSet.delete(orderId);
         return newSet;
       });
     }
+    // Removed finally block - loading state persists until list refresh
   };
 
   const markOrderDelivered = async (orderId) => {
