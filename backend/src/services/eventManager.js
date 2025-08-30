@@ -14,14 +14,24 @@ class EventManager {
 
   // Register a client connection
   registerClient(socketId, userData) {
-    this.connectedClients.set(socketId, {
-      id: socketId,
-      user: userData,
-      rooms: new Set(),
-      connectedAt: new Date()
-    });
+    // Check if client already exists
+    const existingClient = this.connectedClients.get(socketId);
     
-    console.log(`🔌 Client registered: ${socketId} (${userData?.role || 'unknown'})`);
+    if (existingClient) {
+      // Update existing client data but preserve rooms
+      existingClient.user = userData;
+      console.log(`🔌 Client updated: ${socketId} (${userData?.role || 'unknown'}) - preserved ${existingClient.rooms.size} rooms`);
+    } else {
+      // Create new client
+      this.connectedClients.set(socketId, {
+        id: socketId,
+        user: userData,
+        rooms: new Set(),
+        connectedAt: new Date()
+      });
+      console.log(`🔌 Client registered: ${socketId} (${userData?.role || 'unknown'})`);
+    }
+    
     console.log(`📊 Total clients now: ${this.connectedClients.size}`);
   }
 
@@ -51,6 +61,9 @@ class EventManager {
       this.roomSubscriptions.get(room).add(socketId);
       
       console.log(`👥 Client ${socketId} joined room: ${room}`);
+      console.log(`📊 Client ${socketId} now has ${client.rooms.size} rooms: [${Array.from(client.rooms).join(', ')}]`);
+    } else {
+      console.log(`❌ Warning: Client ${socketId} not found when trying to join room: ${room}`);
     }
   }
 
