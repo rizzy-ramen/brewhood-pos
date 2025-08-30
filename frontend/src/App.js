@@ -6,6 +6,7 @@ import CounterDashboard from './components/CounterDashboard';
 import DeliveryDashboard from './components/DeliveryDashboard';
 import AdminDashboard from './components/AdminDashboard';
 import TailwindTest from './components/TailwindTest';
+import BackendStatusIndicator from './components/BackendStatusIndicator';
 import './App.css';
 
 function App() {
@@ -54,6 +55,22 @@ function App() {
     <Router>
       <div className="App">
         <Toaster position="top-right" />
+        
+        {/* Backend Status Indicator - Shows on all pages */}
+        {user && (
+          <BackendStatusIndicator 
+            position="top-right"
+            size="medium"
+            showDetails={true}
+            onStatusChange={(status, data) => {
+              if (status === 'offline') {
+                toast.error('Backend connection lost');
+              } else if (status === 'online') {
+                toast.success('Backend connected');
+              }
+            }}
+          />
+        )}
         
         <Routes>
           <Route 

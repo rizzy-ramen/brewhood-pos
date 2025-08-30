@@ -496,41 +496,18 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         </div>
       </div>
 
-      {/* Backend Status Indicator */}
+      {/* Backend Status Info - Now handled by global indicator */}
       <div style={{ 
         padding: '12px', 
         marginBottom: '20px', 
         borderRadius: '8px', 
-        backgroundColor: backendAvailable ? '#d4edda' : '#f8d7da',
-        border: `1px solid ${backendAvailable ? '#c3e6cb' : '#f5c6cb'}`,
-        color: backendAvailable ? '#155724' : '#721c24',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        fontSize: '14px'
+        backgroundColor: '#e3f2fd',
+        border: '1px solid #90caf9',
+        color: '#1565c0',
+        fontSize: '14px',
+        textAlign: 'center'
       }}>
-        <div style={{
-          width: '8px',
-          height: '8px',
-          borderRadius: '50%',
-          backgroundColor: backendAvailable ? '#28a745' : '#dc3545',
-          animation: backendAvailable ? 'pulse 2s infinite' : 'none'
-        }}></div>
-        <span>
-          {backendAvailable 
-            ? '✅ Connected to Backend API' 
-            : '❌ Backend API Unavailable - Using Fallback'
-          }
-        </span>
-        {!backendAvailable && (
-          <button 
-            className="btn btn-sm btn-primary" 
-            style={{ marginLeft: 'auto' }}
-            onClick={() => window.location.reload()}
-          >
-            Retry Connection
-          </button>
-        )}
+        <span>🌐 Backend Status: Check the indicator in the top-right corner</span>
       </div>
 
       <div className="delivery-main-layout" style={{ display: 'grid', gridTemplateColumns: selectedOrder ? '1fr 400px' : '1fr', gap: '20px' }}>
