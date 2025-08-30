@@ -87,12 +87,29 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     try {
       console.log('🔄 fetchOrders called with filter:', currentFilter);
       
-      const orders = currentFilter === 'all' 
+      const response = currentFilter === 'all' 
         ? await apiService.getOrders()
         : await apiService.getOrders(currentFilter);
       
-      console.log('📡 API response received:', orders?.length || 0, 'orders');
-      console.log('📡 API response data:', orders);
+      console.log('📡 API response received:', response);
+      
+      // Extract orders from the response structure
+      let orders;
+      if (response && response.orders) {
+        // Backend returns {success: true, orders: [...], count: X}
+        orders = response.orders;
+        console.log('📦 Extracted orders from response.orders:', orders?.length || 0, 'orders');
+      } else if (Array.isArray(response)) {
+        // Direct array response
+        orders = response;
+        console.log('📦 Direct array response:', orders?.length || 0, 'orders');
+      } else {
+        // Fallback
+        orders = [];
+        console.log('⚠️ No orders found in response, using empty array');
+      }
+      
+      console.log('📡 Final orders data:', orders);
       
       // Only update if we actually got orders (prevent clearing on error)
       if (orders && orders.length >= 0) {
