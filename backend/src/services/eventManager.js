@@ -22,6 +22,7 @@ class EventManager {
     });
     
     console.log(`🔌 Client registered: ${socketId} (${userData?.role || 'unknown'})`);
+    console.log(`📊 Total clients now: ${this.connectedClients.size}`);
   }
 
   // Unregister a client connection
@@ -186,6 +187,12 @@ class EventManager {
     
     this.roomSubscriptions.forEach((clients, room) => {
       roomStats[room] = clients.size;
+    });
+
+    // Debug: Log all connected clients
+    console.log('🔍 EventManager Debug - Connected Clients:');
+    this.connectedClients.forEach((client, socketId) => {
+      console.log(`  - ${socketId}: ${client.user?.role || 'unknown'} (${client.rooms.size} rooms)`);
     });
 
     return {
