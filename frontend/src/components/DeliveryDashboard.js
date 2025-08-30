@@ -28,7 +28,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
   const [updateTimeout, setUpdateTimeout] = useState(null);
   const [websocketStatus, setWebsocketStatus] = useState('connecting');
   const [updatingOrders, setUpdatingOrders] = useState(new Set()); // Track orders being updated
-  const [currentRequestId, setCurrentRequestId] = useState(0); // Track current API request
+  const [isSectionLoading, setIsSectionLoading] = useState(false); // Track if current section is loading
 
 
 
@@ -98,15 +98,12 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       console.log('🔄 Current filter parameter:', currentFilter);
       console.log('🔄 Filter values match?', filter === currentFilter);
       
+      // Set section loading state
+      setIsSectionLoading(true);
+      
       const response = currentFilter === 'all' 
         ? await apiService.getOrders()
         : await apiService.getOrders(currentFilter);
-      
-      // Check if this response is still relevant (filter hasn't changed)
-      if (currentFilter !== filterRef.current) {
-        console.log('⚠️ Ignoring outdated response for filter:', currentFilter, 'Current filter:', filterRef.current);
-        return;
-      }
       
       console.log('📡 API response received:', response);
       
@@ -189,6 +186,8 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       // toast.error(`Failed to fetch orders: ${error.message}`);
     } finally {
       setLoading(false);
+      // Clear section loading state
+      setIsSectionLoading(false);
     }
   }, [filter, calculateNotifications, markSectionAsViewed]); // Include necessary dependencies
 
@@ -605,6 +604,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
                 <button
                   className={`filter-tab ${filter === 'pending' ? 'active' : ''}`}
                   onClick={() => handleFilterChange('pending')}
+                  disabled={isSectionLoading}
                 >
                   <span className="tab-label">Pending</span>
                   <NotificationBadge count={notifications.pending} />
@@ -612,6 +612,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
                 <button
                   className={`filter-tab ${filter === 'preparing' ? 'active' : ''}`}
                   onClick={() => handleFilterChange('preparing')}
+                  disabled={isSectionLoading}
                 >
                   <span className="tab-label">Preparing</span>
                   <NotificationBadge count={notifications.preparing} />
@@ -619,6 +620,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
                 <button
                   className={`filter-tab ${filter === 'ready' ? 'active' : ''}`}
                   onClick={() => handleFilterChange('ready')}
+                  disabled={isSectionLoading}
                 >
                   <span className="tab-label">Ready</span>
                   <NotificationBadge count={notifications.ready} />
@@ -626,6 +628,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
                 <button
                   className={`filter-tab ${filter === 'delivered' ? 'active' : ''}`}
                   onClick={() => handleFilterChange('delivered')}
+                  disabled={isSectionLoading}
                 >
                   <span className="tab-label">Delivered</span>
                   <NotificationBadge count={notifications.delivered} />
@@ -633,6 +636,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
                 <button
                   className={`filter-tab ${filter === 'all' ? 'active' : ''}`}
                   onClick={() => handleFilterChange('all')}
+                  disabled={isSectionLoading}
                 >
                   <span className="tab-label">All Orders</span>
                 </button>
@@ -646,7 +650,12 @@ const DeliveryDashboard = ({ user, onLogout }) => {
               Orders ({orders.length})
             </h3>
             
-            {orders.length === 0 ? (
+            {isSectionLoading ? (
+              <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>
+                <RefreshCw size={48} className="animate-spin" style={{ opacity: 0.7, marginBottom: '16px' }} />
+                <p>Loading orders...</p>
+              </div>
+            ) : orders.length === 0 ? (
               <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>
                 <Package size={48} style={{ opacity: 0.3, marginBottom: '16px' }} />
                 <p>No orders found</p>
