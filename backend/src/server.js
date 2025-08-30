@@ -213,18 +213,21 @@ app.use((error, req, res, next) => {
 // Socket.io connection handling with Event Manager
 io.on('connection', (socket) => {
   console.log('🔌 New client connected:', socket.id);
+  console.log('📊 Total connections now:', io.engine.clientsCount);
   
   // Register client with Event Manager
   eventManager.registerClient(socket.id, { role: 'unknown' });
   
   // Join room based on user role
   socket.on('joinRoom', (room) => {
+    console.log(`🎯 Received joinRoom event from ${socket.id} for room: ${room}`);
     eventManager.joinRoom(socket.id, room);
     console.log(`👥 Client ${socket.id} joined room: ${room}`);
   });
   
   // Handle user authentication
   socket.on('authenticate', (userData) => {
+    console.log(`🎯 Received authenticate event from ${socket.id} with data:`, userData);
     eventManager.registerClient(socket.id, userData);
     console.log(`🔐 Client ${socket.id} authenticated as ${userData.role}`);
   });
