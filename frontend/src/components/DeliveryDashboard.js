@@ -449,6 +449,11 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     
     setFilter(newFilter);
     
+    // If switching to "All Orders", mark all sections as viewed
+    if (newFilter === 'all') {
+      setViewedSections(prev => new Set([...prev, 'pending', 'preparing', 'ready', 'delivered']));
+    }
+    
     // Clear ALL notifications when switching filters
     setNotifications({
       pending: 0,
