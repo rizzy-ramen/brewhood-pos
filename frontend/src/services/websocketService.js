@@ -14,14 +14,12 @@ class WebSocketService {
   // Connect to the backend WebSocket
   connect() {
     if (this.socket && this.isConnected) {
-      console.log('🔌 WebSocket already connected');
       return;
     }
 
     try {
       // Extract base URL from API_BASE_URL (remove /api)
       const baseUrl = API_BASE_URL.replace('/api', '');
-      console.log('🔌 Connecting to WebSocket:', baseUrl);
       
       this.socket = io(baseUrl, {
         transports: ['websocket', 'polling'],
@@ -42,7 +40,6 @@ class WebSocketService {
     if (!this.socket) return;
 
     this.socket.on('connect', () => {
-      console.log('✅ WebSocket connected:', this.socket.id);
       this.isConnected = true;
       this.reconnectAttempts = 0;
       
@@ -57,7 +54,6 @@ class WebSocketService {
     });
 
     this.socket.on('disconnect', (reason) => {
-      console.log('🔌 WebSocket disconnected:', reason);
       this.isConnected = false;
       
       if (reason === 'io server disconnect') {
@@ -72,34 +68,28 @@ class WebSocketService {
     });
 
     this.socket.on('reconnect', (attemptNumber) => {
-      console.log('🔄 WebSocket reconnected after', attemptNumber, 'attempts');
       this.isConnected = true;
       this.reconnectAttempts = 0;
     });
 
     this.socket.on('reconnect_failed', () => {
-      console.error('❌ WebSocket reconnection failed after', this.maxReconnectAttempts, 'attempts');
       this.reconnectAttempts = this.maxReconnectAttempts;
     });
 
     // Handle real-time order updates
     this.socket.on('orderPlaced', (order) => {
-      console.log('📦 Real-time order placed:', order);
       this.emit('orderPlaced', order);
     });
 
     this.socket.on('orderStatusUpdated', (data) => {
-      console.log('🔄 Real-time order status updated:', data);
       this.emit('orderStatusUpdated', data);
     });
 
     this.socket.on('itemPreparationUpdated', (data) => {
-      console.log('🍳 Real-time item preparation updated:', data);
       this.emit('itemPreparationUpdated', data);
     });
 
     this.socket.on('orderDeleted', (orderId) => {
-      console.log('🗑️ Real-time order deleted:', orderId);
       this.emit('orderDeleted', orderId);
     });
   }
@@ -136,7 +126,6 @@ class WebSocketService {
   // Disconnect WebSocket
   disconnect() {
     if (this.socket) {
-      console.log('🔌 Disconnecting WebSocket');
       this.socket.disconnect();
       this.socket = null;
       this.isConnected = false;

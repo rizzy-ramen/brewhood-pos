@@ -85,13 +85,9 @@ const DeliveryDashboard = ({ user, onLogout }) => {
   // Fetch orders function with stable state management
   const fetchOrders = useCallback(async (currentFilter = filter) => {
     try {
-      console.log('🔄 Fetching orders for filter:', currentFilter);
-      
       const orders = currentFilter === 'all' 
         ? await apiService.getOrders()
         : await apiService.getOrders(currentFilter);
-      
-      console.log('📋 Fetched orders:', orders?.length || 0, 'for filter:', currentFilter);
       
       // Only update if we actually got orders (prevent clearing on error)
       if (orders && orders.length >= 0) {
@@ -130,27 +126,6 @@ const DeliveryDashboard = ({ user, onLogout }) => {
           return timeA - timeB;
         });
         
-        console.log('📅 Orders sorted by creation time (oldest first)');
-        
-        // Log the first few orders to verify sorting
-        if (sortedOrders.length > 0) {
-          console.log('📋 First order (oldest):', {
-            id: sortedOrders[0].id,
-            customer: sortedOrders[0].customer_name,
-            created: sortedOrders[0].created_at,
-            status: sortedOrders[0].status
-          });
-          
-          if (sortedOrders.length > 1) {
-            console.log('📋 Last order (newest):', {
-              id: sortedOrders[sortedOrders.length - 1].id,
-              customer: sortedOrders[sortedOrders.length - 1].customer_name,
-              created: sortedOrders[sortedOrders.length - 1].created_at,
-              status: sortedOrders[sortedOrders.length - 1].status
-            });
-          }
-        }
-        
         // Calculate notifications for fetched orders (smart calculation)
         calculateNotifications(sortedOrders);
         
@@ -161,7 +136,6 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         
         // Update orders without clearing them first
         setOrders(sortedOrders);
-        console.log('✅ Orders updated for filter:', currentFilter, 'with chronological sorting');
       }
     } catch (error) {
       console.error('❌ Error fetching orders:', error);
@@ -202,43 +176,35 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     setUpdateTimeout(timeout);
   }, [updateTimeout]);
 
-  // Initialize data fetching with new backend API
-  useEffect(() => {
-  
+      // Initialize data fetching with new backend API
+    useEffect(() => {
+      // Initial data fetch
+      fetchOrders(filter);
     
-    console.log('🚀 Setting up delivery dashboard with new backend API');
-    
-    // Initial data fetch
-    fetchOrders(filter);
+    let statusInterval; // Declare in the right scope
     
     // Set up WebSocket real-time updates instead of polling
     const setupWebSocket = () => {
-      console.log('🔌 Setting up WebSocket real-time updates');
-      
       // Connect to WebSocket
       websocketService.connect();
       
       // Listen for real-time order updates
       websocketService.on('orderPlaced', (order) => {
-        console.log('📦 Real-time order placed, refreshing orders');
         fetchOrders(filter);
         toast.success(`New order received: ${order.customer_name}`);
       });
       
       websocketService.on('orderStatusUpdated', (data) => {
-        console.log('🔄 Real-time order status updated, refreshing orders');
         fetchOrders(filter);
         toast.success(`Order ${data.orderId} status: ${data.status}`);
       });
       
       websocketService.on('itemPreparationUpdated', (data) => {
-        console.log('🍳 Real-time item preparation updated, refreshing orders');
         fetchOrders(filter);
         toast.success(`Item preparation updated for order ${data.orderId}`);
       });
       
       websocketService.on('orderDeleted', (orderId) => {
-        console.log('🗑️ Real-time order deleted, refreshing orders');
         fetchOrders(filter);
         toast.success('Order deleted');
       });
@@ -250,7 +216,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       };
       
       // Check status every 2 seconds
-      const statusInterval = setInterval(updateWebSocketStatus, 2000);
+      statusInterval = setInterval(updateWebSocketStatus, 2000);
       
       // Initial status check
       updateWebSocketStatus();
@@ -326,7 +292,6 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     window.addEventListener('storage', handleStorageChange);
     
     return () => {
-      console.log('🧹 Cleaning up delivery dashboard');
       clearTimeout(initialWebSocketTimer);
       
       // Clean up WebSocket listeners
@@ -348,11 +313,9 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     };
   }, []); // Empty dependency array - only set up once on mount
 
-  // Handle filter changes without recreating polling
+  // Handle filter changes
   useEffect(() => {
-    console.log('🔄 Filter changed to:', filter, '- refetching orders');
     // When filter changes, refetch data for the new filter
-    // But don't start a new polling cycle
     fetchOrders(filter);
   }, [filter]); // Only refetch when filter changes
 
