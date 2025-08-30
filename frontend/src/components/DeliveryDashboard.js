@@ -85,9 +85,14 @@ const DeliveryDashboard = ({ user, onLogout }) => {
   // Fetch orders function with stable state management
   const fetchOrders = useCallback(async (currentFilter = filter) => {
     try {
+      console.log('🔄 fetchOrders called with filter:', currentFilter);
+      
       const orders = currentFilter === 'all' 
         ? await apiService.getOrders()
         : await apiService.getOrders(currentFilter);
+      
+      console.log('📡 API response received:', orders?.length || 0, 'orders');
+      console.log('📡 API response data:', orders);
       
       // Only update if we actually got orders (prevent clearing on error)
       if (orders && orders.length >= 0) {
@@ -141,6 +146,11 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       }
     } catch (error) {
       console.error('❌ Error fetching orders:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        stack: error.stack,
+        filter: currentFilter
+      });
       // Don't show error toast on every poll - only on user-initiated actions
       // toast.error(`Failed to fetch orders: ${error.message}`);
     } finally {
