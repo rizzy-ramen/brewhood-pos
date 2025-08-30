@@ -28,6 +28,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
   const [updateTimeout, setUpdateTimeout] = useState(null);
   const [websocketStatus, setWebsocketStatus] = useState('connecting');
   const [updatingOrders, setUpdatingOrders] = useState(new Set()); // Track orders being updated
+  const [currentRequestId, setCurrentRequestId] = useState(0); // Track current API request
 
 
 
@@ -91,8 +92,12 @@ const DeliveryDashboard = ({ user, onLogout }) => {
 
   // Fetch orders function with stable state management
   const fetchOrders = useCallback(async (currentFilter = filter) => {
+    // Generate a unique request ID for this call
+    const requestId = currentRequestId + 1;
+    setCurrentRequestId(requestId);
+    
     try {
-      console.log('🔄 fetchOrders called with filter:', currentFilter);
+      console.log('🔄 fetchOrders called with filter:', currentFilter, 'Request ID:', requestId);
       console.log('🔄 Original filter value:', filter);
       console.log('🔄 Current filter parameter:', currentFilter);
       console.log('🔄 Filter values match?', filter === currentFilter);
@@ -100,6 +105,12 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       const response = currentFilter === 'all' 
         ? await apiService.getOrders()
         : await apiService.getOrders(currentFilter);
+      
+      // Check if this response is still relevant (not outdated)
+      if (requestId !== currentRequestId) {
+        console.log('⚠️ Ignoring outdated response for request ID:', requestId, 'Current:', currentRequestId);
+        return;
+      }
       
       console.log('📡 API response received:', response);
       
