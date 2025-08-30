@@ -86,6 +86,9 @@ const DeliveryDashboard = ({ user, onLogout }) => {
   const fetchOrders = useCallback(async (currentFilter = filter) => {
     try {
       console.log('🔄 fetchOrders called with filter:', currentFilter);
+      console.log('🔄 Original filter value:', filter);
+      console.log('🔄 Current filter parameter:', currentFilter);
+      console.log('🔄 Filter values match?', filter === currentFilter);
       
       const response = currentFilter === 'all' 
         ? await apiService.getOrders()
@@ -232,6 +235,9 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       });
       
       websocketService.on('itemPreparationUpdated', (data) => {
+        console.log('🍽️ ItemPreparationUpdated event received:', data);
+        console.log('🍽️ Current filter when updating item:', filter);
+        console.log('🍽️ Calling fetchOrders with filter:', filter);
         fetchOrders(filter);
         toast.success(`Item preparation updated for order ${data.orderId}`);
       });
