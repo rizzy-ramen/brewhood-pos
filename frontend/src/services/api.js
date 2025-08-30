@@ -1,6 +1,6 @@
 // API Service for communicating with your internet-accessible backend
-// Your backend is now accessible via Cloudflare Tunnel: https://gentleman-title-ebook-seattle.trycloudflare.com
-export const API_BASE_URL = 'https://gentleman-title-ebook-seattle.trycloudflare.com/api';
+// Your backend is now accessible via Cloudflare Tunnel: https://fy-tested-relevance-warnings.trycloudflare.com
+export const API_BASE_URL = 'https://fy-tested-relevance-warnings.trycloudflare.com/api';
 
 // Generate a simple demo token (replace with proper JWT in production)
 const generateDemoToken = () => {
