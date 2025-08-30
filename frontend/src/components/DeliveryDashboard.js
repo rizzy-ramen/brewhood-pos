@@ -234,28 +234,26 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       // Listen for real-time order updates
       websocketService.on('orderPlaced', (order) => {
         console.log('📦 DeliveryDashboard: Received orderPlaced event:', order);
-        // Get the current filter value from ref to avoid stale closure
-        const currentFilter = filterRef.current;
-        console.log('🔄 Current filter when order placed:', currentFilter);
-        console.log('🔄 Calling fetchOrders with filter:', currentFilter);
         
         // Update notification for pending section (new orders are always pending)
         setNotifications(prev => ({
           ...prev,
-          pending: prev.pending + 1
+          pending: (prev.pending || 0) + 1
         }));
         
-        // Debounce the API call to prevent rate limiting
-        debouncedUpdate(() => fetchOrders(currentFilter), 1000);
+        // Only fetch orders if we're currently viewing the pending section
+        const currentFilter = filterRef.current;
+        if (currentFilter === 'pending') {
+          console.log('🔄 Currently viewing pending section, refreshing orders');
+          debouncedUpdate(() => fetchOrders(currentFilter), 1000);
+        } else {
+          console.log('🔄 Not viewing pending section, notification badge updated');
+        }
         // Removed toast notification for cleaner UI
       });
       
       websocketService.on('orderStatusUpdated', (data) => {
         console.log('🔄 OrderStatusUpdated event received:', data);
-        // Get the current filter value from ref to avoid stale closure
-        const currentFilter = filterRef.current;
-        console.log('🔄 Current filter when updating status:', currentFilter);
-        console.log('🔄 Calling fetchOrders with filter:', currentFilter);
         
         // Update notifications based on status change
         setNotifications(prev => {
@@ -273,38 +271,52 @@ const DeliveryDashboard = ({ user, onLogout }) => {
           return newNotifications;
         });
         
-        // Debounce the API call to prevent rate limiting
-        debouncedUpdate(() => {
-          fetchOrders(currentFilter).then(() => {
-            // Clear loading state for this order after list is refreshed
-            setUpdatingOrders(prev => {
-              const newSet = new Set(prev);
-              newSet.delete(data.orderId);
-              return newSet;
+        // Only fetch orders if we're currently viewing the affected section
+        const currentFilter = filterRef.current;
+        if (currentFilter === data.status) {
+          console.log(`🔄 Currently viewing ${data.status} section, refreshing orders`);
+          debouncedUpdate(() => {
+            fetchOrders(currentFilter).then(() => {
+              // Clear loading state for this order after list is refreshed
+              setUpdatingOrders(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(data.orderId);
+                return newSet;
+              });
             });
+          }, 1000);
+        } else {
+          console.log(`🔄 Not viewing ${data.status} section, notification badge updated`);
+          // Clear loading state immediately since we're not refreshing
+          setUpdatingOrders(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(data.orderId);
+            return newSet;
           });
-        }, 1000);
+        }
         // Removed toast notification for cleaner UI
       });
       
       websocketService.on('itemPreparationUpdated', (data) => {
         console.log('🍽️ ItemPreparationUpdated event received:', data);
-        // Get the current filter value from ref to avoid stale closure
+        
+        // Only fetch orders if we're currently viewing the preparing section
         const currentFilter = filterRef.current;
-        console.log('🍽️ Current filter when updating item:', currentFilter);
-        console.log('🍽️ Calling fetchOrders with filter:', currentFilter);
-        // Debounce the API call to prevent rate limiting
-        debouncedUpdate(() => fetchOrders(currentFilter), 1000);
+        if (currentFilter === 'preparing') {
+          console.log('🍽️ Currently viewing preparing section, refreshing orders');
+          debouncedUpdate(() => fetchOrders(currentFilter), 1000);
+        } else {
+          console.log('🍽️ Not viewing preparing section, no refresh needed');
+        }
         // Removed toast notification for cleaner UI
       });
       
       websocketService.on('orderDeleted', (orderId) => {
         console.log('🗑️ OrderDeleted event received:', orderId);
-        // Get the current filter value from ref to avoid stale closure
+        
+        // Always refresh orders when an order is deleted (affects all sections)
         const currentFilter = filterRef.current;
-        console.log('🗑️ Current filter when order deleted:', currentFilter);
-        console.log('🗑️ Calling fetchOrders with filter:', currentFilter);
-        // Debounce the API call to prevent rate limiting
+        console.log('🗑️ Order deleted, refreshing current section:', currentFilter);
         debouncedUpdate(() => fetchOrders(currentFilter), 1000);
         // Removed toast notification for cleaner UI
       });
@@ -665,9 +677,20 @@ const DeliveryDashboard = ({ user, onLogout }) => {
 
           {/* Orders List */}
           <div className="card">
-            <h3 style={{ marginBottom: '16px' }}>
-              Orders ({orders.length})
-            </h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0 }}>
+                Orders ({orders.length})
+              </h3>
+              <button 
+                className="btn btn-sm btn-outline"
+                onClick={() => fetchOrders(filter)}
+                disabled={isSectionLoading}
+                title="Refresh orders"
+              >
+                <RefreshCw size={16} className={isSectionLoading ? 'animate-spin' : ''} />
+                Refresh
+              </button>
+            </div>
             
             {isSectionLoading ? (
               <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>
