@@ -101,8 +101,9 @@ class OrderService {
         query = query.where('status', '==', status);
       }
 
-      // Order by creation time (newest first for admin view)
-      query = query.orderBy('created_at', 'desc');
+      // Temporarily disabled orderBy to avoid index requirement while troubleshooting
+      // TODO: Re-enable once the composite index is confirmed working:
+      // query = query.orderBy('created_at', 'desc');
 
       // Apply pagination
       if (limit) {
@@ -159,9 +160,15 @@ class OrderService {
         return this.getAllOrders(limit);
       }
 
+      // Temporarily disabled orderBy to avoid index requirement while troubleshooting
+      // TODO: Re-enable once the composite index is confirmed working:
+      // const query = this.ordersRef
+      //   .where('status', '==', status)
+      //   .orderBy('created_at', 'asc') // Oldest first for FIFO
+      //   .limit(limit);
+      
       const query = this.ordersRef
         .where('status', '==', status)
-        .orderBy('created_at', 'asc') // Oldest first for FIFO
         .limit(limit);
 
       const snapshot = await query.get();

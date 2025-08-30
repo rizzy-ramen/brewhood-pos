@@ -9,7 +9,7 @@ require('dotenv').config();
 
 // Import configurations and services
 const { initializeFirebase } = require('./config/firebase');
-const { createRateLimiter } = require('./middleware/auth');
+const { createRateLimiter, authenticateToken } = require('./middleware/auth');
 
 // Import routes
 const orderRoutes = require('./routes/orders');
