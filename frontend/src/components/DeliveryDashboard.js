@@ -233,7 +233,8 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         const currentFilter = filterRef.current;
         console.log('🔄 Current filter when order placed:', currentFilter);
         console.log('🔄 Calling fetchOrders with filter:', currentFilter);
-        fetchOrders(currentFilter);
+        // Debounce the API call to prevent rate limiting
+        debouncedUpdate(() => fetchOrders(currentFilter), 1000);
         toast.success(`New order received: ${order.customer_name}`);
       });
       
@@ -243,7 +244,8 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         const currentFilter = filterRef.current;
         console.log('🔄 Current filter when updating status:', currentFilter);
         console.log('🔄 Calling fetchOrders with filter:', currentFilter);
-        fetchOrders(currentFilter);
+        // Debounce the API call to prevent rate limiting
+        debouncedUpdate(() => fetchOrders(currentFilter), 1000);
         toast.success(`Order ${data.orderId} status: ${data.status}`);
       });
       
@@ -253,7 +255,8 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         const currentFilter = filterRef.current;
         console.log('🍽️ Current filter when updating item:', currentFilter);
         console.log('🍽️ Calling fetchOrders with filter:', currentFilter);
-        fetchOrders(currentFilter);
+        // Debounce the API call to prevent rate limiting
+        debouncedUpdate(() => fetchOrders(currentFilter), 1000);
         toast.success(`Item preparation updated for order ${data.orderId}`);
       });
       
@@ -263,7 +266,8 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         const currentFilter = filterRef.current;
         console.log('🗑️ Current filter when order deleted:', currentFilter);
         console.log('🗑️ Calling fetchOrders with filter:', currentFilter);
-        fetchOrders(currentFilter);
+        // Debounce the API call to prevent rate limiting
+        debouncedUpdate(() => fetchOrders(currentFilter), 1000);
         toast.success('Order deleted');
       });
       
