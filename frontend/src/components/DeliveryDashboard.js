@@ -101,9 +101,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       // Set section loading state
       setIsSectionLoading(true);
       
-      const response = currentFilter === 'all' 
-        ? await apiService.getOrders()
-        : await apiService.getOrders(currentFilter);
+      const response = await apiService.getOrders(currentFilter);
       
       console.log('📡 API response received:', response);
       
@@ -240,6 +238,13 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         const currentFilter = filterRef.current;
         console.log('🔄 Current filter when order placed:', currentFilter);
         console.log('🔄 Calling fetchOrders with filter:', currentFilter);
+        
+        // Update notification for pending section (new orders are always pending)
+        setNotifications(prev => ({
+          ...prev,
+          pending: prev.pending + 1
+        }));
+        
         // Debounce the API call to prevent rate limiting
         debouncedUpdate(() => fetchOrders(currentFilter), 1000);
         // Removed toast notification for cleaner UI
@@ -251,6 +256,23 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         const currentFilter = filterRef.current;
         console.log('🔄 Current filter when updating status:', currentFilter);
         console.log('🔄 Calling fetchOrders with filter:', currentFilter);
+        
+        // Update notifications based on status change
+        setNotifications(prev => {
+          const newNotifications = { ...prev };
+          
+          // Determine which section should get the notification
+          if (data.status === 'preparing') {
+            newNotifications.preparing = (newNotifications.preparing || 0) + 1;
+          } else if (data.status === 'ready') {
+            newNotifications.ready = (newNotifications.ready || 0) + 1;
+          } else if (data.status === 'delivered') {
+            newNotifications.delivered = (newNotifications.delivered || 0) + 1;
+          }
+          
+          return newNotifications;
+        });
+        
         // Debounce the API call to prevent rate limiting
         debouncedUpdate(() => {
           fetchOrders(currentFilter).then(() => {
@@ -449,18 +471,16 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     
     setFilter(newFilter);
     
-    // If switching to "All Orders", mark all sections as viewed
-    if (newFilter === 'all') {
-      setViewedSections(prev => new Set([...prev, 'pending', 'preparing', 'ready', 'delivered']));
-    }
+
     
-    // Clear ALL notifications when switching filters
-    setNotifications({
-      pending: 0,
-      preparing: 0,
-      ready: 0,
-      delivered: 0
-    });
+    // Clear notifications for the current section being viewed
+    setNotifications(prev => ({
+      ...prev,
+      [newFilter]: 0
+    }));
+    
+    // Mark the current section as viewed
+    setViewedSections(prev => new Set([...prev, newFilter]));
   };
 
   // Simple and fast item preparation update
@@ -638,13 +658,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
                   <span className="tab-label">Delivered</span>
                   <NotificationBadge count={notifications.delivered} />
                 </button>
-                <button
-                  className={`filter-tab ${filter === 'all' ? 'active' : ''}`}
-                  onClick={() => handleFilterChange('all')}
-                  disabled={isSectionLoading}
-                >
-                  <span className="tab-label">All Orders</span>
-                </button>
+
               </div>
             </div>
           </div>
