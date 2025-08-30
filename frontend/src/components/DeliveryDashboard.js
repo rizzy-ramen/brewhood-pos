@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { Package, CheckCircle, User, LogOut, Clock, RefreshCw, X } from 'lucide-react';
 import { apiService } from '../services/api';
+import websocketService from '../services/websocketService';
 import LoadingScreen from './LoadingScreen';
 
 const DeliveryDashboard = ({ user, onLogout }) => {
@@ -19,7 +20,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
   const [showRefreshNotification, setShowRefreshNotification] = useState(false);
   const [viewedSections, setViewedSections] = useState(new Set());
   const [updateTimeout, setUpdateTimeout] = useState(null);
-  const [backendAvailable, setBackendAvailable] = useState(true);
+  const [websocketStatus, setWebsocketStatus] = useState('connecting');
 
 
 
@@ -231,21 +232,55 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       }
     });
     
-    // Set up responsive polling for immediate updates (every 5 seconds for backend)
-    const startPolling = () => {
-      console.log('⏰ Starting backend API polling (every 5 seconds)');
-      pollInterval = setInterval(() => {
-        console.log('🔄 Backend API polling...');
-        if (backendAvailable) {
-          fetchOrders(filter);
-        }
-      }, 5000); // Poll every 5 seconds for backend responsiveness
+    // Set up WebSocket real-time updates instead of polling
+    const setupWebSocket = () => {
+      console.log('🔌 Setting up WebSocket real-time updates');
+      
+      // Connect to WebSocket
+      websocketService.connect();
+      
+      // Listen for real-time order updates
+      websocketService.on('orderPlaced', (order) => {
+        console.log('📦 Real-time order placed, refreshing orders');
+        fetchOrders(filter);
+        toast.success(`New order received: ${order.customer_name}`);
+      });
+      
+      websocketService.on('orderStatusUpdated', (data) => {
+        console.log('🔄 Real-time order status updated, refreshing orders');
+        fetchOrders(filter);
+        toast.success(`Order ${data.orderId} status: ${data.status}`);
+      });
+      
+      websocketService.on('itemPreparationUpdated', (data) => {
+        console.log('🍳 Real-time item preparation updated, refreshing orders');
+        fetchOrders(filter);
+        toast.success(`Item preparation updated for order ${data.orderId}`);
+      });
+      
+      websocketService.on('orderDeleted', (orderId) => {
+        console.log('🗑️ Real-time order deleted, refreshing orders');
+        fetchOrders(filter);
+        toast.success('Order deleted');
+      });
+      
+      // Update WebSocket status
+      const updateWebSocketStatus = () => {
+        const status = websocketService.getConnectionStatus();
+        setWebsocketStatus(status.isConnected ? 'connected' : 'disconnected');
+      };
+      
+      // Check status every 2 seconds
+      const statusInterval = setInterval(updateWebSocketStatus, 2000);
+      
+      // Initial status check
+      updateWebSocketStatus();
     };
     
-    // Start polling after initial load
-    const initialPollTimer = setTimeout(() => {
-      startPolling();
-    }, 2000); // Start polling after 2 seconds
+    // Start WebSocket after initial load
+    const initialWebSocketTimer = setTimeout(() => {
+      setupWebSocket();
+    }, 2000); // Start WebSocket after 2 seconds
     
     // Listen for immediate order updates from counter app
     const handleOrderUpdate = (event) => {
@@ -313,10 +348,19 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     
     return () => {
       console.log('🧹 Cleaning up delivery dashboard');
-      clearTimeout(initialPollTimer);
-      if (pollInterval) {
-        clearInterval(pollInterval);
+      clearTimeout(initialWebSocketTimer);
+      
+      // Clean up WebSocket listeners
+      websocketService.off('orderPlaced');
+      websocketService.off('orderStatusUpdated');
+      websocketService.off('itemPreparationUpdated');
+      websocketService.off('orderDeleted');
+      
+      // Clean up status interval
+      if (statusInterval) {
+        clearInterval(statusInterval);
       }
+      
       window.removeEventListener('message', handleOrderUpdate);
       window.removeEventListener('storage', handleStorageChange);
       if (broadcastChannel) {
@@ -485,6 +529,22 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         <h1 className="header-title">Delivery Dashboard</h1>
         <div className="user-info">
           <div className="role-badge">Delivery</div>
+          
+          {/* WebSocket Status Indicator */}
+          <div className="flex items-center space-x-2 px-3 py-1 rounded-lg text-sm mr-3">
+            <div className={`w-2 h-2 rounded-full ${
+              websocketStatus === 'connected' ? 'bg-green-500' : 
+              websocketStatus === 'connecting' ? 'bg-yellow-500' : 'bg-red-500'
+            }`}></div>
+            <span className={`${
+              websocketStatus === 'connected' ? 'text-green-700' : 
+              websocketStatus === 'connecting' ? 'text-yellow-700' : 'text-red-700'
+            }`}>
+              {websocketStatus === 'connected' ? 'Real-time' : 
+               websocketStatus === 'connecting' ? 'Connecting' : 'Disconnected'}
+            </span>
+          </div>
+          
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <User size={18} />
             <span>{user.username}</span>
