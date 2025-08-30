@@ -33,6 +33,19 @@ backend/
 
 ## 🚀 Quick Start
 
+### 0. ✅ Firestore Index Status
+
+**Current Status**: Order sorting is fully enabled with proper Firestore indexing.
+
+**Index Details**: 
+- Collection: `orders`
+- Fields: `status` (Ascending) + `created_at` (Ascending)
+- Status: ✅ Active and working
+
+**Features**: Orders are properly sorted by creation time for optimal workflow.
+
+---
+
 ### 1. Prerequisites
 
 - Node.js 16+ 

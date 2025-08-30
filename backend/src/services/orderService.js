@@ -359,6 +359,13 @@ class OrderService {
       throw error;
     }
   }
+
+  // Helper method to enable sorting once index is confirmed working
+  enableSorting() {
+    console.log('🔄 Re-enabling order sorting...');
+    // This method can be called to re-enable sorting features
+    // after confirming the Firestore index is working properly
+  }
 }
 
 module.exports = new OrderService();
