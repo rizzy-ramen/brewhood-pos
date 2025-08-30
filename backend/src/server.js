@@ -142,22 +142,7 @@ app.get('/events/stats', (req, res) => {
   }
 });
 
-// Test endpoint to check orderService code
-app.get('/test-orders', authenticateToken, async (req, res) => {
-  try {
-    const orderService = require('./services/orderService');
-    const method = orderService.getOrdersByStatus.toString();
-    
-    res.json({
-      message: 'OrderService method check',
-      hasOrderBy: method.includes('orderBy'),
-      methodLength: method.length,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+
 
 // API routes
 app.use('/api/orders', orderRoutes);
