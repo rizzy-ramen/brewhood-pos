@@ -83,8 +83,11 @@ router.post('/',
 
       const order = await orderService.createOrder(orderData);
 
-      // Emit real-time update via Socket.io
-      req.app.get('io').emit('orderPlaced', order);
+      // Emit real-time update via Event Manager
+      const eventManager = req.app.get('eventManager');
+      if (eventManager) {
+        eventManager.notifyOrderCreated(order);
+      }
 
       res.status(201).json({
         success: true,
@@ -241,12 +244,11 @@ router.patch('/:orderId/status',
       
       const updatedOrder = await orderService.updateOrderStatus(orderId, status, req.user.id);
 
-      // Emit real-time update via Socket.io
-      req.app.get('io').emit('orderStatusUpdated', {
-        orderId,
-        status,
-        updatedOrder
-      });
+      // Emit real-time update via Event Manager
+      const eventManager = req.app.get('eventManager');
+      if (eventManager) {
+        eventManager.notifyOrderStatusChanged(orderId, status, req.user.id);
+      }
 
       res.json({
         success: true,
@@ -294,12 +296,11 @@ router.patch('/:orderId/items/:itemId/preparation',
       
       const result = await orderService.updateItemPreparation(orderId, itemId, prepared_quantity);
 
-      // Emit real-time update via Socket.io
-      req.app.get('io').emit('itemPreparationUpdated', {
-        orderId,
-        itemId,
-        ...result
-      });
+      // Emit real-time update via Event Manager
+      const eventManager = req.app.get('eventManager');
+      if (eventManager) {
+        eventManager.notifyItemPreparationUpdated(orderId, itemId, result);
+      }
 
       res.json({
         success: true,
@@ -351,8 +352,11 @@ router.delete('/:orderId',
       
       const result = await orderService.deleteOrder(orderId);
 
-      // Emit real-time update via Socket.io
-      req.app.get('io').emit('orderDeleted', { orderId });
+      // Emit real-time update via Event Manager
+      const eventManager = req.app.get('eventManager');
+      if (eventManager) {
+        eventManager.notifyOrderDeleted(orderId);
+      }
 
       res.json({
         success: true,

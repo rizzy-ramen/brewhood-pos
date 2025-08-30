@@ -122,7 +122,7 @@ class EventManager {
 
   // Order-related events
   notifyOrderCreated(order) {
-    this.broadcast('orderCreated', order);
+    this.broadcast('orderPlaced', order); // Match frontend event name
     this.clearCache('orders'); // Clear orders cache
   }
 
@@ -133,7 +133,13 @@ class EventManager {
 
   notifyOrderStatusChanged(orderId, status, updatedBy) {
     const eventData = { orderId, status, updatedBy, timestamp: new Date() };
-    this.broadcast('orderStatusChanged', eventData);
+    this.broadcast('orderStatusUpdated', eventData); // Match frontend event name
+    this.clearCache('orders'); // Clear orders cache
+  }
+
+  notifyItemPreparationUpdated(orderId, itemId, result) {
+    const eventData = { orderId, itemId, ...result, timestamp: new Date() };
+    this.broadcast('itemPreparationUpdated', eventData);
     this.clearCache('orders'); // Clear orders cache
   }
 
