@@ -142,6 +142,28 @@ app.get('/events/stats', (req, res) => {
   }
 });
 
+// Test WebSocket endpoint
+app.get('/test-websocket', (req, res) => {
+  try {
+    // Send a test event to all connected clients
+    eventManager.broadcast('testEvent', { 
+      message: 'Test WebSocket event', 
+      timestamp: new Date().toISOString() 
+    });
+    
+    res.json({
+      success: true,
+      message: 'Test event sent to all WebSocket clients',
+      connectedClients: eventManager.getStats().totalClients
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: 'Failed to send test event',
+      message: error.message
+    });
+  }
+});
+
 
 
 // API routes

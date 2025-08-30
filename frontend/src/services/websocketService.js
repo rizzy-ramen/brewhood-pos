@@ -96,6 +96,12 @@ class WebSocketService {
     this.socket.on('orderDeleted', (orderId) => {
       this.emit('orderDeleted', orderId);
     });
+
+    // Test event listener
+    this.socket.on('testEvent', (data) => {
+      console.log('🧪 WebSocket test event received:', data);
+      this.emit('testEvent', data);
+    });
   }
 
   // Emit custom events to registered listeners
