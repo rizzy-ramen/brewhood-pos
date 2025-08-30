@@ -27,6 +27,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
   const [viewedSections, setViewedSections] = useState(new Set());
   const [updateTimeout, setUpdateTimeout] = useState(null);
   const [websocketStatus, setWebsocketStatus] = useState('connecting');
+  const [updatingOrders, setUpdatingOrders] = useState(new Set()); // Track orders being updated
 
 
 
@@ -400,12 +401,22 @@ const DeliveryDashboard = ({ user, onLogout }) => {
 
   const updateOrderStatus = async (orderId, status) => {
     try {
+      // Set loading state for this order
+      setUpdatingOrders(prev => new Set([...prev, orderId]));
+      
       await apiService.updateOrderStatus(orderId, status);
       
       // Removed toast notifications for cleaner UI
       // Real-time updates will handle the UI refresh via socket
     } catch (error) {
       toast.error('Failed to update order status');
+    } finally {
+      // Clear loading state for this order
+      setUpdatingOrders(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(orderId);
+        return newSet;
+      });
     }
   };
 
@@ -824,9 +835,19 @@ const DeliveryDashboard = ({ user, onLogout }) => {
                             e.stopPropagation();
                             updateOrderStatus(order.id, 'preparing');
                           }}
+                          disabled={updatingOrders.has(order.id)}
                         >
-                          <Clock size={18} />
-                          Start Preparing
+                          {updatingOrders.has(order.id) ? (
+                            <>
+                              <RefreshCw size={18} className="animate-spin" />
+                              Updating...
+                            </>
+                          ) : (
+                            <>
+                              <Clock size={18} />
+                              Start Preparing
+                            </>
+                          )}
                         </button>
                       )}
                       {order.status === 'preparing' && (
@@ -836,19 +857,28 @@ const DeliveryDashboard = ({ user, onLogout }) => {
                             e.stopPropagation();
                             updateOrderStatus(order.id, 'ready');
                           }}
-                          disabled={calculatePreparationProgress(order.items) !== 100}
+                          disabled={calculatePreparationProgress(order.items) !== 100 || updatingOrders.has(order.id)}
                           title={calculatePreparationProgress(order.items) === 100 ? 'All items are prepared' : 'Complete all item preparation first'}
                           style={{
                             opacity: calculatePreparationProgress(order.items) === 100 ? 1 : 0.6,
                             cursor: calculatePreparationProgress(order.items) === 100 ? 'pointer' : 'not-allowed'
                           }}
                         >
-                          <Package size={18} />
-                          Mark Ready
-                          {calculatePreparationProgress(order.items) !== 100 && (
-                            <span style={{ marginLeft: '8px', fontSize: '12px', opacity: 0.8 }}>
-                              ({calculatePreparationProgress(order.items)}%)
-                            </span>
+                          {updatingOrders.has(order.id) ? (
+                            <>
+                              <RefreshCw size={18} className="animate-spin" />
+                              Updating...
+                            </>
+                          ) : (
+                            <>
+                              <Package size={18} />
+                              Mark Ready
+                              {calculatePreparationProgress(order.items) !== 100 && (
+                                <span style={{ marginLeft: '8px', fontSize: '12px', opacity: 0.8 }}>
+                                  ({calculatePreparationProgress(order.items)}%)
+                                </span>
+                              )}
+                            </>
                           )}
                         </button>
                       )}
@@ -870,9 +900,19 @@ const DeliveryDashboard = ({ user, onLogout }) => {
                             e.stopPropagation();
                             markOrderDelivered(order.id);
                           }}
+                          disabled={updatingOrders.has(order.id)}
                         >
-                          <CheckCircle size={18} />
-                          Mark Delivered
+                          {updatingOrders.has(order.id) ? (
+                            <>
+                              <RefreshCw size={18} className="animate-spin" />
+                              Updating...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle size={18} />
+                              Mark Delivered
+                            </>
+                          )}
                         </button>
                       )}
                     </div>
