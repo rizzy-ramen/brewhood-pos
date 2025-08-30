@@ -229,14 +229,21 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       // Listen for real-time order updates
       websocketService.on('orderPlaced', (order) => {
         console.log('📦 DeliveryDashboard: Received orderPlaced event:', order);
-        console.log('🔄 Current filter:', filter);
-        console.log('🔄 Calling fetchOrders with filter:', filter);
-        fetchOrders(filter);
+        // Get the current filter value from ref to avoid stale closure
+        const currentFilter = filterRef.current;
+        console.log('🔄 Current filter when order placed:', currentFilter);
+        console.log('🔄 Calling fetchOrders with filter:', currentFilter);
+        fetchOrders(currentFilter);
         toast.success(`New order received: ${order.customer_name}`);
       });
       
       websocketService.on('orderStatusUpdated', (data) => {
-        fetchOrders(filter);
+        console.log('🔄 OrderStatusUpdated event received:', data);
+        // Get the current filter value from ref to avoid stale closure
+        const currentFilter = filterRef.current;
+        console.log('🔄 Current filter when updating status:', currentFilter);
+        console.log('🔄 Calling fetchOrders with filter:', currentFilter);
+        fetchOrders(currentFilter);
         toast.success(`Order ${data.orderId} status: ${data.status}`);
       });
       
@@ -251,7 +258,12 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       });
       
       websocketService.on('orderDeleted', (orderId) => {
-        fetchOrders(filter);
+        console.log('🗑️ OrderDeleted event received:', orderId);
+        // Get the current filter value from ref to avoid stale closure
+        const currentFilter = filterRef.current;
+        console.log('🗑️ Current filter when order deleted:', currentFilter);
+        console.log('🗑️ Calling fetchOrders with filter:', currentFilter);
+        fetchOrders(currentFilter);
         toast.success('Order deleted');
       });
       
