@@ -135,6 +135,8 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         }
         
         // Update orders without clearing them first
+        console.log('📋 Setting orders state:', sortedOrders.length, 'orders');
+        console.log('📋 Orders data:', sortedOrders);
         setOrders(sortedOrders);
       }
     } catch (error) {
@@ -144,7 +146,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     } finally {
       setLoading(false);
     }
-  }, []); // No dependencies to prevent recreation
+  }, [filter, calculateNotifications, markSectionAsViewed]); // Include necessary dependencies
 
   // Handle product updates from admin
   const handleProductUpdated = useCallback(() => {
@@ -191,6 +193,8 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       // Listen for real-time order updates
       websocketService.on('orderPlaced', (order) => {
         console.log('📦 DeliveryDashboard: Received orderPlaced event:', order);
+        console.log('🔄 Current filter:', filter);
+        console.log('🔄 Calling fetchOrders with filter:', filter);
         fetchOrders(filter);
         toast.success(`New order received: ${order.customer_name}`);
       });
