@@ -204,33 +204,12 @@ const DeliveryDashboard = ({ user, onLogout }) => {
 
   // Initialize data fetching with new backend API
   useEffect(() => {
-    let pollInterval;
+  
     
     console.log('🚀 Setting up delivery dashboard with new backend API');
     
-    // Check backend health first
-    const checkBackendHealth = async () => {
-      try {
-        const health = await apiService.checkHealth();
-        if (health.status === 'OK') {
-          setBackendAvailable(true);
-          console.log('✅ Backend is healthy and available');
-        } else {
-          setBackendAvailable(false);
-          console.warn('⚠️ Backend health check failed');
-        }
-      } catch (error) {
-        setBackendAvailable(false);
-        console.error('❌ Backend health check failed:', error);
-      }
-    };
-    
-    // Initial health check and fetch
-    checkBackendHealth().then(() => {
-      if (backendAvailable) {
-        fetchOrders(filter);
-      }
-    });
+    // Initial data fetch
+    fetchOrders(filter);
     
     // Set up WebSocket real-time updates instead of polling
     const setupWebSocket = () => {
