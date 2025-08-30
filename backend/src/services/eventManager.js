@@ -1,0 +1,197 @@
+// Real-Time Event Manager for WebSocket communications
+// This eliminates the need for frontend polling and reduces Firebase quota usage
+
+class EventManager {
+  constructor(io) {
+    this.io = io;
+    this.connectedClients = new Map(); // Track connected clients
+    this.roomSubscriptions = new Map(); // Track room subscriptions
+    this.cache = new Map(); // Smart caching for frequently accessed data
+    this.cacheExpiry = new Map(); // Cache expiration timestamps
+    
+    console.log('🚀 Event Manager initialized');
+  }
+
+  // Register a client connection
+  registerClient(socketId, userData) {
+    this.connectedClients.set(socketId, {
+      id: socketId,
+      user: userData,
+      rooms: new Set(),
+      connectedAt: new Date()
+    });
+    
+    console.log(`🔌 Client registered: ${socketId} (${userData?.role || 'unknown'})`);
+  }
+
+  // Unregister a client connection
+  unregisterClient(socketId) {
+    const client = this.connectedClients.get(socketId);
+    if (client) {
+      // Leave all rooms
+      client.rooms.forEach(room => {
+        this.leaveRoom(socketId, room);
+      });
+      
+      this.connectedClients.delete(socketId);
+      console.log(`🔌 Client unregistered: ${socketId}`);
+    }
+  }
+
+  // Join a room (for role-based updates)
+  joinRoom(socketId, room) {
+    const client = this.connectedClients.get(socketId);
+    if (client) {
+      client.rooms.add(room);
+      
+      if (!this.roomSubscriptions.has(room)) {
+        this.roomSubscriptions.set(room, new Set());
+      }
+      this.roomSubscriptions.get(room).add(socketId);
+      
+      console.log(`👥 Client ${socketId} joined room: ${room}`);
+    }
+  }
+
+  // Leave a room
+  leaveRoom(socketId, room) {
+    const client = this.connectedClients.get(socketId);
+    if (client) {
+      client.rooms.delete(room);
+      
+      const roomSubs = this.roomSubscriptions.get(room);
+      if (roomSubs) {
+        roomSubs.delete(socketId);
+        if (roomSubs.size === 0) {
+          this.roomSubscriptions.delete(room);
+        }
+      }
+      
+      console.log(`👥 Client ${socketId} left room: ${room}`);
+    }
+  }
+
+  // Smart caching system
+  async getCachedData(key, fetchFunction, ttl = 300000) { // 5 minutes default
+    const now = Date.now();
+    const cached = this.cache.get(key);
+    const expiry = this.cacheExpiry.get(key);
+
+    if (cached && expiry > now) {
+      console.log('💾 Serving from cache:', key);
+      return cached;
+    }
+
+    // Fetch fresh data only when needed
+    console.log('🔄 Fetching fresh data:', key);
+    const data = await fetchFunction();
+    
+    this.cache.set(key, data);
+    this.cacheExpiry.set(key, now + ttl);
+    
+    return data;
+  }
+
+  // Clear cache for specific key
+  clearCache(key) {
+    this.cache.delete(key);
+    this.cacheExpiry.delete(key);
+    console.log('🗑️ Cache cleared for:', key);
+  }
+
+  // Broadcast to all clients
+  broadcast(event, data) {
+    this.io.emit(event, data);
+    console.log(`📡 Broadcasted ${event} to all clients`);
+  }
+
+  // Broadcast to specific room
+  broadcastToRoom(room, event, data) {
+    const roomSubs = this.roomSubscriptions.get(room);
+    if (roomSubs && roomSubs.size > 0) {
+      this.io.to(room).emit(event, data);
+      console.log(`📡 Broadcasted ${event} to room ${room} (${roomSubs.size} clients)`);
+    }
+  }
+
+  // Broadcast to specific client
+  broadcastToClient(socketId, event, data) {
+    this.io.to(socketId).emit(event, data);
+    console.log(`📡 Broadcasted ${event} to client ${socketId}`);
+  }
+
+  // Order-related events
+  notifyOrderCreated(order) {
+    this.broadcast('orderCreated', order);
+    this.clearCache('orders'); // Clear orders cache
+  }
+
+  notifyOrderUpdated(order) {
+    this.broadcast('orderUpdated', order);
+    this.clearCache('orders'); // Clear orders cache
+  }
+
+  notifyOrderStatusChanged(orderId, status, updatedBy) {
+    const eventData = { orderId, status, updatedBy, timestamp: new Date() };
+    this.broadcast('orderStatusChanged', eventData);
+    this.clearCache('orders'); // Clear orders cache
+  }
+
+  notifyOrderDeleted(orderId) {
+    this.broadcast('orderDeleted', { orderId, timestamp: new Date() });
+    this.clearCache('orders'); // Clear orders cache
+  }
+
+  // Product-related events
+  notifyProductCreated(product) {
+    this.broadcast('productCreated', product);
+    this.clearCache('products'); // Clear products cache
+  }
+
+  notifyProductUpdated(product) {
+    this.broadcast('productUpdated', product);
+    this.clearCache('products'); // Clear products cache
+  }
+
+  notifyProductDeleted(productId) {
+    this.broadcast('productDeleted', { productId, timestamp: new Date() });
+    this.clearCache('products'); // Clear products cache
+  }
+
+  notifyProductAvailabilityChanged(productId, isAvailable) {
+    const eventData = { productId, isAvailable, timestamp: new Date() };
+    this.broadcast('productAvailabilityChanged', eventData);
+    this.clearCache('products'); // Clear products cache
+  }
+
+  // System events
+  notifySystemMessage(message, type = 'info') {
+    const eventData = { message, type, timestamp: new Date() };
+    this.broadcast('systemMessage', eventData);
+  }
+
+  // Get connection statistics
+  getStats() {
+    const totalClients = this.connectedClients.size;
+    const totalRooms = this.roomSubscriptions.size;
+    const roomStats = {};
+    
+    this.roomSubscriptions.forEach((clients, room) => {
+      roomStats[room] = clients.size;
+    });
+
+    return {
+      totalClients,
+      totalRooms,
+      roomStats,
+      timestamp: new Date()
+    };
+  }
+
+  // Health check
+  isHealthy() {
+    return this.io && this.connectedClients.size >= 0;
+  }
+}
+
+module.exports = EventManager;

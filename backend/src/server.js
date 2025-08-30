@@ -15,6 +15,9 @@ const { createRateLimiter } = require('./middleware/auth');
 const orderRoutes = require('./routes/orders');
 const productRoutes = require('./routes/products');
 
+// Import Event Manager
+const EventManager = require('./services/eventManager');
+
 // Initialize Express app
 const app = express();
 const server = http.createServer(app);
@@ -32,8 +35,12 @@ const io = new Server(server, {
   transports: ['websocket', 'polling']
 });
 
-// Make io available to routes
+// Initialize Event Manager for real-time communications
+const eventManager = new EventManager(io);
+
+// Make io and eventManager available to routes
 app.set('io', io);
+app.set('eventManager', eventManager);
 
 // Initialize Firebase Admin SDK
 initializeFirebase();
@@ -94,6 +101,9 @@ app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Trust proxy for Cloudflare Tunnel
+app.set('trust proxy', 1);
+
 // Global rate limiting
 const globalRateLimit = createRateLimiter(
   process.env.RATE_LIMIT_WINDOW_MS || 900000, // 15 minutes
@@ -113,6 +123,23 @@ app.get('/health', (req, res) => {
     uptime: process.uptime(),
     environment: process.env.NODE_ENV || 'development'
   });
+});
+
+// Event Manager stats endpoint
+app.get('/events/stats', (req, res) => {
+  try {
+    const stats = eventManager.getStats();
+    res.json({
+      success: true,
+      eventManager: stats,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: 'Failed to get event manager stats',
+      message: error.message
+    });
+  }
 });
 
 // API routes
@@ -139,7 +166,8 @@ app.use('*', (req, res) => {
       'PATCH /api/products/:id',
       'DELETE /api/products/:id',
       'PATCH /api/products/:id/availability',
-      'GET /api/orders/stats/overview'
+      'GET /api/orders/stats/overview',
+      'GET /events/stats'
     ]
   });
 });
@@ -158,40 +186,50 @@ app.use((error, req, res, next) => {
   });
 });
 
-// Socket.io connection handling
+// Socket.io connection handling with Event Manager
 io.on('connection', (socket) => {
   console.log('🔌 New client connected:', socket.id);
   
+  // Register client with Event Manager
+  eventManager.registerClient(socket.id, { role: 'unknown' });
+  
   // Join room based on user role
   socket.on('joinRoom', (room) => {
-    socket.join(room);
+    eventManager.joinRoom(socket.id, room);
     console.log(`👥 Client ${socket.id} joined room: ${room}`);
+  });
+  
+  // Handle user authentication
+  socket.on('authenticate', (userData) => {
+    eventManager.registerClient(socket.id, userData);
+    console.log(`🔐 Client ${socket.id} authenticated as ${userData.role}`);
   });
   
   // Handle order placement
   socket.on('orderPlaced', (order) => {
     console.log('📦 Order placed via socket:', order.id);
-    // Broadcast to all clients
-    socket.broadcast.emit('orderPlaced', order);
+    // Use Event Manager for consistent broadcasting
+    eventManager.notifyOrderCreated(order);
   });
   
   // Handle order status updates
   socket.on('orderStatusUpdated', (data) => {
     console.log('🔄 Order status updated via socket:', data.orderId, data.status);
-    // Broadcast to all clients
-    socket.broadcast.emit('orderStatusUpdated', data);
+    // Use Event Manager for consistent broadcasting
+    eventManager.notifyOrderStatusChanged(data.orderId, data.status, data.updatedBy);
   });
   
   // Handle item preparation updates
   socket.on('itemPreparationUpdated', (data) => {
     console.log('🍽️ Item preparation updated via socket:', data.orderId, data.itemId);
-    // Broadcast to all clients
-    socket.broadcast.emit('itemPreparationUpdated', data);
+    // Use Event Manager for consistent broadcasting
+    eventManager.notifyOrderUpdated(data);
   });
   
   // Handle disconnection
   socket.on('disconnect', (reason) => {
     console.log('🔌 Client disconnected:', socket.id, 'Reason:', reason);
+    eventManager.unregisterClient(socket.id);
   });
   
   // Handle errors
