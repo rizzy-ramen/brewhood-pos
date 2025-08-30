@@ -402,13 +402,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     try {
       await apiService.updateOrderStatus(orderId, status);
       
-      const statusMessages = {
-        'preparing': 'Order marked as preparing!',
-        'ready': 'Order marked as ready for delivery!',
-        'delivered': 'Order marked as delivered!'
-      };
-      
-      toast.success(statusMessages[status] || 'Order status updated!');
+      // Removed toast notifications for cleaner UI
       // Real-time updates will handle the UI refresh via socket
     } catch (error) {
       toast.error('Failed to update order status');
