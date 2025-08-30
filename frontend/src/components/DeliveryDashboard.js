@@ -11,6 +11,12 @@ const DeliveryDashboard = ({ user, onLogout }) => {
   const [loading, setLoading] = useState(true);
   const [minLoadingComplete, setMinLoadingComplete] = useState(false);
   const [filter, setFilter] = useState('pending');
+  const filterRef = useRef(filter);
+  
+  // Keep ref updated with current filter value
+  useEffect(() => {
+    filterRef.current = filter;
+  }, [filter]);
   const [notifications, setNotifications] = useState({
     pending: 0,
     preparing: 0,
@@ -236,9 +242,11 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       
       websocketService.on('itemPreparationUpdated', (data) => {
         console.log('🍽️ ItemPreparationUpdated event received:', data);
-        console.log('🍽️ Current filter when updating item:', filter);
-        console.log('🍽️ Calling fetchOrders with filter:', filter);
-        fetchOrders(filter);
+        // Get the current filter value from ref to avoid stale closure
+        const currentFilter = filterRef.current;
+        console.log('🍽️ Current filter when updating item:', currentFilter);
+        console.log('🍽️ Calling fetchOrders with filter:', currentFilter);
+        fetchOrders(currentFilter);
         toast.success(`Item preparation updated for order ${data.orderId}`);
       });
       
