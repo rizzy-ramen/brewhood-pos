@@ -235,7 +235,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         console.log('🔄 Calling fetchOrders with filter:', currentFilter);
         // Debounce the API call to prevent rate limiting
         debouncedUpdate(() => fetchOrders(currentFilter), 1000);
-        toast.success(`New order received: ${order.customer_name}`);
+        // Removed toast notification for cleaner UI
       });
       
       websocketService.on('orderStatusUpdated', (data) => {
@@ -246,7 +246,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         console.log('🔄 Calling fetchOrders with filter:', currentFilter);
         // Debounce the API call to prevent rate limiting
         debouncedUpdate(() => fetchOrders(currentFilter), 1000);
-        toast.success(`Order ${data.orderId} status: ${data.status}`);
+        // Removed toast notification for cleaner UI
       });
       
       websocketService.on('itemPreparationUpdated', (data) => {
@@ -257,7 +257,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         console.log('🍽️ Calling fetchOrders with filter:', currentFilter);
         // Debounce the API call to prevent rate limiting
         debouncedUpdate(() => fetchOrders(currentFilter), 1000);
-        toast.success(`Item preparation updated for order ${data.orderId}`);
+        // Removed toast notification for cleaner UI
       });
       
       websocketService.on('orderDeleted', (orderId) => {
@@ -268,7 +268,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         console.log('🗑️ Calling fetchOrders with filter:', currentFilter);
         // Debounce the API call to prevent rate limiting
         debouncedUpdate(() => fetchOrders(currentFilter), 1000);
-        toast.success('Order deleted');
+        // Removed toast notification for cleaner UI
       });
       
       // Update WebSocket status
