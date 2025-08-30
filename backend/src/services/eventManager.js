@@ -101,8 +101,9 @@ class EventManager {
 
   // Broadcast to all clients
   broadcast(event, data) {
+    console.log(`📡 EventManager: Broadcasting ${event} to ${this.connectedClients.size} clients`);
     this.io.emit(event, data);
-    console.log(`📡 Broadcasted ${event} to all clients`);
+    console.log(`📡 EventManager: Broadcasted ${event} to all clients`);
   }
 
   // Broadcast to specific room
@@ -122,6 +123,7 @@ class EventManager {
 
   // Order-related events
   notifyOrderCreated(order) {
+    console.log('📦 EventManager: Notifying order created:', order.id);
     this.broadcast('orderPlaced', order); // Match frontend event name
     this.clearCache('orders'); // Clear orders cache
   }

@@ -190,6 +190,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       
       // Listen for real-time order updates
       websocketService.on('orderPlaced', (order) => {
+        console.log('📦 DeliveryDashboard: Received orderPlaced event:', order);
         fetchOrders(filter);
         toast.success(`New order received: ${order.customer_name}`);
       });

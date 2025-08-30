@@ -40,17 +40,20 @@ class WebSocketService {
     if (!this.socket) return;
 
     this.socket.on('connect', () => {
+      console.log('🔌 WebSocket connected successfully with ID:', this.socket.id);
       this.isConnected = true;
       this.reconnectAttempts = 0;
       
       // Join the delivery room for real-time updates
       this.socket.emit('joinRoom', 'delivery');
+      console.log('👥 WebSocket joined delivery room');
       
       // Authenticate with demo token
       this.socket.emit('authenticate', { 
         role: 'delivery', 
         id: 'demo-user' 
       });
+      console.log('🔐 WebSocket authenticated as delivery user');
     });
 
     this.socket.on('disconnect', (reason) => {
@@ -78,6 +81,7 @@ class WebSocketService {
 
     // Handle real-time order updates
     this.socket.on('orderPlaced', (order) => {
+      console.log('📦 WebSocket received orderPlaced event:', order);
       this.emit('orderPlaced', order);
     });
 
