@@ -190,6 +190,15 @@ router.get('/status/:status',
 
       const result = await orderService.getOrdersByStatus(status, limitNum, pageNum);
 
+      // Check if the requested page is beyond available data
+      if (pageNum > result.totalPages && result.totalPages > 0) {
+        return res.status(400).json({
+          error: 'Page out of range',
+          message: `Page ${pageNum} is beyond the available pages. Total pages: ${result.totalPages}`,
+          totalPages: result.totalPages
+        });
+      }
+
       res.json({
         success: true,
         status,
@@ -197,7 +206,7 @@ router.get('/status/:status',
         total: result.total,
         page: pageNum,
         limit: limitNum,
-        totalPages: Math.ceil(result.total / limitNum),
+        totalPages: result.totalPages,
         orders: result.orders
       });
     } catch (error) {

@@ -625,9 +625,112 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     setCurrentPage(pageNumber);
     // Fetch orders for the new page
     if (filter === 'delivered') {
-      fetchOrders('delivered');
+      // Call fetchOrders with the new page number directly
+      fetchOrdersWithPage('delivered', pageNumber);
     }
-  }, [filter, fetchOrders]);
+  }, [filter]);
+
+  // Separate function to fetch orders with specific page
+  const fetchOrdersWithPage = useCallback(async (currentFilter, pageNumber) => {
+    try {
+      console.log('🔄 fetchOrdersWithPage called with filter:', currentFilter, 'page:', pageNumber);
+      
+      // Set section loading state
+      setIsSectionLoading(true);
+      
+      // Use pagination for delivered orders, regular fetch for others
+      let response;
+      if (currentFilter === 'delivered') {
+        response = await apiService.getOrders(currentFilter, ordersPerPage, pageNumber);
+      } else {
+        response = await apiService.getOrders(currentFilter);
+      }
+      
+      console.log('📡 API response received:', response);
+      
+      // Extract orders from the response structure
+      let orders;
+      if (response && response.orders) {
+        orders = response.orders;
+        console.log('📦 Extracted orders from response.orders:', orders?.length || 0, 'orders');
+      } else if (Array.isArray(response)) {
+        orders = response;
+        console.log('📦 Direct array response:', orders?.length || 0, 'orders');
+      } else {
+        orders = [];
+        console.log('⚠️ No orders found in response, using empty array');
+      }
+      
+      console.log('📡 Final orders data:', orders);
+      
+      // Only update if we actually got orders
+      if (orders && orders.length >= 0) {
+        // Sort orders by creation time (oldest first for FIFO)
+        const sortedOrders = orders.sort((a, b) => {
+          let timeA, timeB;
+          
+          try {
+            if (a.created_at?.toDate) {
+              timeA = a.created_at.toDate().getTime();
+            } else if (a.created_at?.seconds) {
+              timeA = a.created_at.seconds * 1000;
+            } else if (a.created_at) {
+              timeA = new Date(a.created_at).getTime();
+            } else {
+              timeA = 0;
+            }
+            
+            if (b.created_at?.toDate) {
+              timeB = b.created_at.toDate().getTime();
+            } else if (b.created_at?.seconds) {
+              timeB = b.created_at.seconds * 1000;
+            } else if (b.created_at) {
+              timeB = new Date(b.created_at).getTime();
+            } else {
+              timeB = 0;
+            }
+          } catch (error) {
+            console.warn('⚠️ Error parsing timestamps, using fallback sorting');
+            timeA = a.created_at || 0;
+            timeB = b.created_at || 0;
+          }
+          
+          return timeA - timeB;
+        });
+        
+        // Calculate notifications for fetched orders
+        calculateNotifications(sortedOrders);
+        
+        // Mark current section as viewed and clear its notifications
+        if (currentFilter !== 'all') {
+          markSectionAsViewed(currentFilter);
+        }
+        
+        // Update orders
+        setOrders(sortedOrders);
+        
+        // Update pagination info for delivered orders
+        if (currentFilter === 'delivered' && response.total !== undefined) {
+          setPaginationInfo({
+            total: response.total,
+            totalPages: response.totalPages || Math.ceil(response.total / ordersPerPage),
+            currentPage: response.page || pageNumber
+          });
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error fetching orders with page:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        stack: error.stack,
+        filter: currentFilter,
+        page: pageNumber
+      });
+    } finally {
+      setLoading(false);
+      setIsSectionLoading(false);
+    }
+  }, [ordersPerPage, calculateNotifications, markSectionAsViewed]);
 
   // Calculate pagination for delivered orders
   const getPaginatedOrders = useCallback(() => {

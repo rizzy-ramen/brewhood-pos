@@ -160,28 +160,22 @@ class OrderService {
         return this.getAllOrders(limit);
       }
 
-      // Calculate offset for pagination
-      const offset = (page - 1) * limit;
-
       // First, get total count for pagination info
       const countQuery = this.ordersRef.where('status', '==', status);
       const countSnapshot = await countQuery.get();
       const total = countSnapshot.size;
 
-      // Temporarily disabled orderBy to avoid index requirement while troubleshooting
-      // TODO: Re-enable once the composite index is confirmed working:
-      // const query = this.ordersRef
-      //   .where('status', '==', status)
-      //   .orderBy('created_at', 'asc') // Oldest first for FIFO
-      //   .limit(limit)
-      //   .offset(offset);
+      // For Firestore pagination, we need to use cursor-based approach
+      // Since we can't use offset, we'll fetch all orders and slice them
+      // This is not ideal for very large datasets, but works for moderate amounts
+      // TODO: Implement proper cursor-based pagination when orderBy is re-enabled
       
       const query = this.ordersRef
         .where('status', '==', status)
-        .limit(limit);
+        .limit(1000); // Fetch more than needed to handle pagination
 
       const snapshot = await query.get();
-      const orders = [];
+      const allOrders = [];
 
       // Process orders with items
       for (const doc of snapshot.docs) {
@@ -199,7 +193,7 @@ class OrderService {
             });
           });
 
-          orders.push({
+          allOrders.push({
             id: doc.id,
             ...orderData,
             items
@@ -210,7 +204,19 @@ class OrderService {
         }
       }
 
-      console.log(`✅ Retrieved ${orders.length} orders with status: ${status} (page ${page}, limit ${limit})`);
+      // Sort orders by creation time (oldest first for FIFO)
+      allOrders.sort((a, b) => {
+        const timeA = a.created_at?.toDate?.() || new Date(a.created_at || 0);
+        const timeB = b.created_at?.toDate?.() || new Date(b.created_at || 0);
+        return timeA - timeB;
+      });
+
+      // Apply pagination by slicing the sorted array
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      const orders = allOrders.slice(startIndex, endIndex);
+
+      console.log(`✅ Retrieved ${orders.length} orders with status: ${status} (page ${page}, limit ${limit}) from total ${total}`);
       return {
         orders,
         total,
