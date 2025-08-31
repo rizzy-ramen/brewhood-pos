@@ -168,27 +168,38 @@ class OrderService {
       // Build the base query
       let query = this.ordersRef
         .where('status', '==', status)
-        .orderBy('created_at', 'asc') // Enable sorting for cursor pagination
         .limit(limit);
 
-      // If we have a last document ID from previous page, use it as cursor
-      if (lastDocId && page > 1) {
-        try {
-          const lastDocRef = this.ordersRef.doc(lastDocId);
-          const lastDoc = await lastDocRef.get();
-          
-          if (lastDoc.exists) {
-            query = query.startAfter(lastDoc);
-            console.log(`🔄 Using cursor pagination: starting after document ${lastDocId}`);
-          } else {
-            console.log(`⚠️ Last document ${lastDocId} not found, falling back to first page`);
+      // Try to use cursor-based pagination if possible
+      try {
+        // Enable sorting for cursor pagination - DESCENDING for recent orders first
+        query = query.orderBy('created_at', 'desc');
+        
+        // If we have a last document ID from previous page, use it as cursor
+        if (lastDocId && page > 1) {
+          try {
+            const lastDocRef = this.ordersRef.doc(lastDocId);
+            const lastDoc = await lastDocRef.get();
+            
+            if (lastDoc.exists) {
+              query = query.startAfter(lastDoc);
+              console.log(`🔄 Using cursor pagination: starting after document ${lastDocId}`);
+            } else {
+              console.log(`⚠️ Last document ${lastDocId} not found, falling back to first page`);
+            }
+          } catch (cursorError) {
+            console.error('❌ Error with cursor pagination, falling back to first page:', cursorError);
           }
-        } catch (cursorError) {
-          console.error('❌ Error with cursor pagination, falling back to first page:', cursorError);
         }
+      } catch (orderByError) {
+        // If orderBy fails (index not ready), fall back to simple pagination
+        console.log('⚠️ orderBy failed, falling back to simple pagination:', orderByError.message);
+        query = this.ordersRef
+          .where('status', '==', status)
+          .limit(1000); // Fetch more than needed for fallback pagination
       }
 
-      // Execute the query - this will only fetch the requested page
+      // Execute the query
       const snapshot = await query.get();
       const orders = [];
 
@@ -218,6 +229,28 @@ class OrderService {
           // Continue with other orders
         }
       }
+
+      // If we're using fallback pagination, sort by recent orders first and apply pagination
+      if (orders.length > limit) {
+        // Sort by creation time (newest first for recent orders)
+        orders.sort((a, b) => {
+          const timeA = a.created_at?.toDate?.() || new Date(a.created_at || 0);
+          const timeB = b.created_at?.toDate?.() || new Date(b.created_at || 0);
+          return timeB - timeA; // Descending: newest first
+        });
+
+        // Apply pagination by slicing the sorted array
+        const startIndex = (page - 1) * limit;
+        const endIndex = startIndex + limit;
+        const paginatedOrders = orders.slice(startIndex, endIndex);
+        
+        console.log(`📄 Fallback pagination: showing orders ${startIndex + 1}-${endIndex} from ${orders.length} total`);
+        orders.splice(0, orders.length, ...paginatedOrders);
+      }
+
+
+
+
 
       // Get the last document ID for next page cursor
       const lastDocumentId = snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1].id : null;
