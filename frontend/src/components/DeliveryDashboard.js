@@ -914,6 +914,31 @@ const DeliveryDashboard = ({ user, onLogout }) => {
 
   return (
     <div className="container">
+      <style>
+        {`
+          @keyframes dot1 {
+            0%, 20% { opacity: 0.3; transform: scale(0.8); }
+            40% { opacity: 1; transform: scale(1.2); }
+            60%, 100% { opacity: 0.3; transform: scale(0.8); }
+          }
+          
+          @keyframes dot2 {
+            0%, 20% { opacity: 0.3; transform: scale(0.8); }
+            40% { opacity: 1; transform: scale(1.2); }
+            60%, 100% { opacity: 0.3; transform: scale(0.8); }
+          }
+          
+          @keyframes dot3 {
+            0%, 20% { opacity: 0.3; transform: scale(0.8); }
+            40% { opacity: 1; transform: scale(1.2); }
+            60%, 100% { opacity: 0.3; transform: scale(0.8); }
+          }
+          
+          .dot1 { animation-delay: 0s; }
+          .dot2 { animation-delay: 0.2s; }
+          .dot3 { animation-delay: 0.4s; }
+        `}
+      </style>
       <div className="header">
         <h1 className="header-title">Delivery Dashboard</h1>
         <div className="user-info">
@@ -1018,19 +1043,119 @@ const DeliveryDashboard = ({ user, onLogout }) => {
               ) : (
                 // Regular card view for other sections - Using the new OrderCard component
                 <div className="order-list">
-                  {orders.map(order => (
-                    <OrderCard 
-                      key={order.id}
-                      order={order}
-                      selectedOrder={selectedOrder}
-                      fetchOrderDetails={fetchOrderDetails}
-                      updateOrderStatus={updateOrderStatus}
-                      markOrderDelivered={markOrderDelivered}
-                      updateItemPreparedCount={updateItemPreparedCount}
-                      calculatePreparationProgress={calculatePreparationProgress}
-                      updatingOrders={updatingOrders}
-                    />
-                  ))}
+                  {isSectionLoading ? (
+                    // Loading state for non-delivered sections
+                    <div style={{ 
+                      padding: '40px', 
+                      textAlign: 'center', 
+                      color: '#666',
+                      position: 'relative'
+                    }}>
+                      {/* Blurred dummy order cards in background */}
+                      <div style={{ 
+                        filter: 'blur(2px)',
+                        opacity: 0.3,
+                        pointerEvents: 'none'
+                      }}>
+                        {[...Array(4)].map((_, index) => (
+                          <div key={index} style={{
+                            backgroundColor: 'white',
+                            border: '1px solid #e9ecef',
+                            borderRadius: '8px',
+                            padding: '16px',
+                            marginBottom: '16px',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                          }}>
+                            <div style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              marginBottom: '12px'
+                            }}>
+                              <div style={{ color: '#007bff', fontWeight: '500' }}>
+                                #{Math.random().toString(36).substr(2, 8)}
+                              </div>
+                              <span style={{
+                                padding: '4px 8px',
+                                borderRadius: '12px',
+                                fontSize: '12px',
+                                backgroundColor: ['#ffc107', '#28a745', '#007bff'][index % 3] + '20',
+                                color: ['#ffc107', '#28a745', '#007bff'][index % 3]
+                              }}>
+                                {['pending', 'preparing', 'ready'][index % 3]}
+                              </span>
+                            </div>
+                            <div style={{ color: '#333', marginBottom: '8px' }}>
+                              Customer {index + 1}
+                            </div>
+                            <div style={{ color: '#666', fontSize: '14px' }}>
+                              {Math.floor(Math.random() * 5) + 1} items • ₹{Math.floor(Math.random() * 500) + 100}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      {/* Loading overlay */}
+                      <div style={{ 
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        textAlign: 'center',
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                        padding: '20px 40px',
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
+                        zIndex: 10
+                      }}>
+                        <div style={{
+                          fontSize: '18px',
+                          fontWeight: '600',
+                          color: '#333',
+                          marginBottom: '8px'
+                        }}>
+                          Loading {filter} orders
+                        </div>
+                        <div style={{
+                          fontSize: '14px',
+                          color: '#666',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '4px'
+                        }}>
+                          <span className="dot1" style={{ animation: 'dot1 1.4s infinite' }}>•</span>
+                          <span className="dot2" style={{ animation: 'dot2 1.4s infinite' }}>•</span>
+                          <span className="dot3" style={{ animation: 'dot3 1.4s infinite' }}>•</span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : orders.length === 0 ? (
+                    // Empty state
+                    <div style={{ 
+                      padding: '40px', 
+                      textAlign: 'center', 
+                      color: '#666' 
+                    }}>
+                      <Package size={48} style={{ opacity: 0.3, marginBottom: '16px' }} />
+                      <p>No {filter} orders found</p>
+                    </div>
+                  ) : (
+                    // Actual orders
+                    orders.map(order => (
+                      <OrderCard 
+                        key={order.id}
+                        order={order}
+                        selectedOrder={selectedOrder}
+                        fetchOrderDetails={fetchOrderDetails}
+                        updateOrderStatus={updateOrderStatus}
+                        markOrderDelivered={markOrderDelivered}
+                        updateItemPreparedCount={updateItemPreparedCount}
+                        calculatePreparationProgress={calculatePreparationProgress}
+                        updatingOrders={updatingOrders}
+                      />
+                    ))
+                  )}
                 </div>
               )}
             </div>
