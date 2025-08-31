@@ -62,127 +62,62 @@ const OrdersTable = ({
     <div>
       <style>
         {`
-          @keyframes dot1 {
-            0%, 20% { opacity: 0.3; transform: scale(0.8); }
-            40% { opacity: 1; transform: scale(1.2); }
-            60%, 100% { opacity: 0.3; transform: scale(0.8); }
+          @keyframes bounce {
+            0%, 80%, 100% { 
+              transform: scale(0);
+              opacity: 0.5;
+            }
+            40% { 
+              transform: scale(1);
+              opacity: 1;
+            }
           }
-          
-          @keyframes dot2 {
-            0%, 20% { opacity: 0.3; transform: scale(0.8); }
-            40% { opacity: 1; transform: scale(1.2); }
-            60%, 100% { opacity: 0.3; transform: scale(0.8); }
-          }
-          
-          @keyframes dot3 {
-            0%, 20% { opacity: 0.3; transform: scale(0.8); }
-            40% { opacity: 1; transform: scale(1.2); }
-            60%, 100% { opacity: 0.3; transform: scale(0.8); }
-          }
-          
-          .dot1 { animation-delay: 0s; }
-          .dot2 { animation-delay: 0.2s; }
-          .dot3 { animation-delay: 0.4s; }
         `}
       </style>
-      {/* Loading State - Only affects table content */}
+      {/* Simple loading animation for table */}
       {isSectionLoading ? (
         <div style={{ 
-          padding: '40px', 
-          textAlign: 'center', 
-          color: '#666',
-          position: 'relative'
+          padding: '60px 20px',
+          textAlign: 'center',
+          color: '#666'
         }}>
-          {/* Blurred dummy table in background */}
-          <div style={{ 
-            filter: 'blur(2px)',
-            opacity: 0.3,
-            pointerEvents: 'none'
+          <div style={{
+            fontSize: '18px',
+            fontWeight: '500',
+            marginBottom: '16px',
+            color: '#333'
           }}>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ backgroundColor: '#f8f9fa' }}>
-                    <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', borderBottom: '1px solid #e9ecef' }}>Order ID</th>
-                    <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', borderBottom: '1px solid #e9ecef' }}>Customer</th>
-                    <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', borderBottom: '1px solid #e9ecef' }}>Type</th>
-                    <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', borderBottom: '1px solid #e9ecef' }}>Items</th>
-                    <th style={{ padding: '12px', textAlign: 'right', fontWeight: '600', borderBottom: '1px solid #e9ecef' }}>Total</th>
-                    <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', borderBottom: '1px solid #e9ecef' }}>Date & Time</th>
-                    <th style={{ padding: '12px', textAlign: 'center', fontWeight: '600', borderBottom: '1px solid #e9ecef' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...Array(6)].map((_, index) => (
-                    <tr key={index} style={{ borderBottom: '1px solid #e9ecef' }}>
-                      <td style={{ padding: '12px', color: '#007bff' }}>#{Math.random().toString(36).substr(2, 8)}</td>
-                      <td style={{ padding: '12px' }}>Customer {index + 1}</td>
-                      <td style={{ padding: '12px' }}>
-                        <span style={{
-                          padding: '4px 8px',
-                          borderRadius: '12px',
-                          fontSize: '12px',
-                          backgroundColor: index % 2 === 0 ? '#e3f2fd' : '#f3e5f5',
-                          color: index % 2 === 0 ? '#1565c0' : '#7b1fa2'
-                        }}>
-                          {index % 2 === 0 ? 'takeaway' : 'dine-in'}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px' }}>{Math.floor(Math.random() * 5) + 1} items</td>
-                      <td style={{ padding: '12px', textAlign: 'right', fontWeight: '600' }}>₹{Math.floor(Math.random() * 500) + 100}</td>
-                      <td style={{ padding: '12px', fontSize: '12px', color: '#666' }}>{new Date(Date.now() - Math.random() * 86400000).toLocaleString()}</td>
-                      <td style={{ padding: '12px', textAlign: 'center' }}>
-                        <button style={{
-                          padding: '6px 12px',
-                          border: '1px solid #ced4da',
-                          borderRadius: '4px',
-                          background: 'white',
-                          cursor: 'pointer',
-                          fontSize: '12px'
-                        }}>
-                          View
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            Loading delivered orders
           </div>
-          
-          {/* Loading overlay */}
-          <div style={{ 
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            textAlign: 'center',
-            backgroundColor: 'rgba(255, 255, 255, 0.95)',
-            padding: '20px 40px',
-            borderRadius: '12px',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
-            zIndex: 10
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px'
           }}>
             <div style={{
-              fontSize: '18px',
-              fontWeight: '600',
-              color: '#333',
-              marginBottom: '8px'
-            }}>
-              Loading delivered orders
-            </div>
+              width: '12px',
+              height: '12px',
+              borderRadius: '50%',
+              backgroundColor: '#007bff',
+              animation: 'bounce 1.4s infinite ease-in-out'
+            }}></div>
             <div style={{
-              fontSize: '14px',
-              color: '#666',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '4px'
-            }}>
-              <span className="dot1" style={{ animation: 'dot1 1.4s infinite' }}>•</span>
-              <span className="dot2" style={{ animation: 'dot2 1.4s infinite' }}>•</span>
-              <span className="dot3" style={{ animation: 'dot3 1.4s infinite' }}>•</span>
-            </div>
+              width: '12px',
+              height: '12px',
+              borderRadius: '50%',
+              backgroundColor: '#007bff',
+              animation: 'bounce 1.4s infinite ease-in-out',
+              animationDelay: '0.2s'
+            }}></div>
+            <div style={{
+              width: '12px',
+              height: '12px',
+              borderRadius: '50%',
+              backgroundColor: '#007bff',
+              animation: 'bounce 1.4s infinite ease-in-out',
+              animationDelay: '0.4s'
+            }}></div>
           </div>
         </div>
       ) : (orders.length === 0 && !searchTerm) ? (

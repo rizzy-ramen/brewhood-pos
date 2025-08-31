@@ -65,8 +65,6 @@ function App() {
             onStatusChange={(status, data) => {
               if (status === 'offline') {
                 toast.error('Backend connection lost');
-              } else if (status === 'online') {
-                toast.success('Backend connected');
               }
             }}
           />

@@ -125,7 +125,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       console.log('🔄 Current filter parameter:', currentFilter);
       console.log('🔄 Filter values match?', filter === currentFilter);
       
-      // Set section loading state
+      // Always show loading when fetching orders (this indicates a section change or refresh)
       setIsSectionLoading(true);
       
       // Use pagination for delivered orders, regular fetch for others
@@ -251,6 +251,8 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     }
   }, [filter, calculateNotifications, markSectionAsViewed]); // Include necessary dependencies
 
+
+
   // Handle product updates from admin
   const handleProductUpdated = useCallback(() => {
     setShowRefreshNotification(true);
@@ -307,7 +309,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         const currentFilter = filterRef.current;
         if (currentFilter === 'pending') {
           console.log('🔄 Currently viewing pending section, refreshing orders');
-          debouncedUpdate(() => fetchOrders(currentFilter), 1000);
+          debouncedUpdate(() => fetchOrdersDynamic(currentFilter), 1000);
         } else {
           console.log('🔄 Not viewing pending section, notification badge updated');
         }
@@ -348,7 +350,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         const currentFilter = filterRef.current;
         if (currentFilter === data.status) {
           console.log(`🔄 Currently viewing ${data.status} section, refreshing orders`);
-          debouncedUpdate(() => fetchOrders(currentFilter), 1000);
+          debouncedUpdate(() => fetchOrdersDynamic(currentFilter), 1000);
         } else {
           console.log(`🔄 Not viewing ${data.status} section, notification badge updated`);
         }
@@ -362,7 +364,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         const currentFilter = filterRef.current;
         if (currentFilter === 'preparing') {
           console.log('🍽️ Currently viewing preparing section, refreshing orders');
-          debouncedUpdate(() => fetchOrders(currentFilter), 1000);
+          debouncedUpdate(() => fetchOrdersDynamic(currentFilter), 1000);
         } else {
           console.log('🍽️ Not viewing preparing section, no refresh needed');
         }
@@ -375,7 +377,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         // Always refresh orders when an order is deleted (affects all sections)
         const currentFilter = filterRef.current;
         console.log('🗑️ Order deleted, refreshing current section:', currentFilter);
-        debouncedUpdate(() => fetchOrders(currentFilter), 1000);
+        debouncedUpdate(() => fetchOrdersDynamic(currentFilter), 1000);
         // Removed toast notification for cleaner UI
       });
       
@@ -487,7 +489,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
   useEffect(() => {
     // When filter changes, refetch data for the new filter
     fetchOrders(filter);
-  }, [filter]); // Only refetch when filter changes
+  }, [filter, fetchOrders]); // Include fetchOrders in dependencies
 
   const fetchOrderDetails = async (orderId) => {
     try {
@@ -608,7 +610,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         return;
       }
       
-      // Show loading state
+      // Always show loading when searching
       setIsSectionLoading(true);
       
       try {
@@ -675,7 +677,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         return;
       }
       
-      // Show loading state
+      // Always show loading when searching
       setIsSectionLoading(true);
       
       try {
@@ -737,7 +739,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     try {
       console.log('🔄 fetchOrdersWithPage called with filter:', currentFilter, 'page:', pageNumber);
       
-      // Set section loading state
+      // Always show loading when fetching orders (this indicates a section change or refresh)
       setIsSectionLoading(true);
       
       // Use pagination for delivered orders, regular fetch for others
@@ -856,6 +858,105 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     }
   }, [ordersPerPage, calculateNotifications, markSectionAsViewed]);
 
+  // Function for dynamic updates without loading state (used by WebSocket events)
+  const fetchOrdersDynamic = useCallback(async (currentFilter = filter) => {
+    try {
+      console.log('🔄 fetchOrdersDynamic called with filter:', currentFilter);
+      
+      // Use pagination for delivered orders, regular fetch for others
+      let response;
+      if (currentFilter === 'delivered') {
+        // For delivered orders, use fetchOrdersWithPage to ensure cursor storage
+        if (currentPage === 1) {
+          response = await apiService.getOrders(currentFilter, ordersPerPage, currentPage);
+          
+          // Store cursor for page 2 if we have a response
+          if (response && response.lastDocumentId) {
+            const newCursors = {
+              ...pageCursorsRef.current,
+              1: response.lastDocumentId
+            };
+            setPageCursors(newCursors);
+            pageCursorsRef.current = newCursors;
+          }
+        } else {
+          // For other pages, use fetchOrdersWithPage
+          await fetchOrdersWithPage(currentFilter, currentPage);
+          return;
+        }
+      } else {
+        response = await apiService.getOrders(currentFilter);
+      }
+      
+      // Extract orders from the response structure
+      let orders;
+      if (response && response.orders) {
+        orders = response.orders;
+      } else if (Array.isArray(response)) {
+        orders = response;
+      } else {
+        orders = [];
+      }
+      
+      // Only update if we actually got orders
+      if (orders && orders.length >= 0) {
+        // Sort orders by creation time (oldest first, newest last)
+        const sortedOrders = orders.sort((a, b) => {
+          let timeA, timeB;
+          
+          try {
+            if (a.created_at?.toDate) {
+              timeA = a.created_at.toDate().getTime();
+            } else if (a.created_at?.seconds) {
+              timeA = a.created_at.seconds * 1000;
+            } else if (a.created_at) {
+              timeA = new Date(a.created_at).getTime();
+            } else {
+              timeA = 0;
+            }
+            
+            if (b.created_at?.toDate) {
+              timeB = b.created_at.toDate().getTime();
+            } else if (b.created_at?.seconds) {
+              timeB = b.created_at.seconds * 1000;
+            } else if (b.created_at) {
+              timeB = new Date(b.created_at).getTime();
+            } else {
+              timeB = 0;
+            }
+          } catch (error) {
+            timeA = a.created_at || 0;
+            timeB = b.created_at || 0;
+          }
+          
+          return timeA - timeB;
+        });
+        
+        // Calculate notifications for fetched orders
+        calculateNotifications(sortedOrders);
+        
+        // Mark current section as viewed and clear its notifications
+        if (currentFilter !== 'all') {
+          markSectionAsViewed(currentFilter);
+        }
+        
+        // Update orders
+        setOrders(sortedOrders);
+        
+        // Update pagination info for delivered orders
+        if (currentFilter === 'delivered' && response.total !== undefined) {
+          setPaginationInfo({
+            total: response.total,
+            totalPages: response.totalPages || Math.ceil(response.total / ordersPerPage),
+            currentPage: response.page || currentPage
+          });
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error in fetchOrdersDynamic:', error);
+    }
+  }, [filter, calculateNotifications, markSectionAsViewed, currentPage, ordersPerPage, fetchOrdersWithPage]);
+
   // Handle page change for pagination
   const handlePageChange = useCallback((pageNumber) => {
     setCurrentPage(pageNumber);
@@ -916,27 +1017,16 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     <div className="container">
       <style>
         {`
-          @keyframes dot1 {
-            0%, 20% { opacity: 0.3; transform: scale(0.8); }
-            40% { opacity: 1; transform: scale(1.2); }
-            60%, 100% { opacity: 0.3; transform: scale(0.8); }
+          @keyframes bounce {
+            0%, 80%, 100% { 
+              transform: scale(0);
+              opacity: 0.5;
+            }
+            40% { 
+              transform: scale(1);
+              opacity: 1;
+            }
           }
-          
-          @keyframes dot2 {
-            0%, 20% { opacity: 0.3; transform: scale(0.8); }
-            40% { opacity: 1; transform: scale(1.2); }
-            60%, 100% { opacity: 0.3; transform: scale(0.8); }
-          }
-          
-          @keyframes dot3 {
-            0%, 20% { opacity: 0.3; transform: scale(0.8); }
-            40% { opacity: 1; transform: scale(1.2); }
-            60%, 100% { opacity: 0.3; transform: scale(0.8); }
-          }
-          
-          .dot1 { animation-delay: 0s; }
-          .dot2 { animation-delay: 0.2s; }
-          .dot3 { animation-delay: 0.4s; }
         `}
       </style>
       <div className="header">
@@ -1044,90 +1134,49 @@ const DeliveryDashboard = ({ user, onLogout }) => {
                 // Regular card view for other sections - Using the new OrderCard component
                 <div className="order-list">
                   {isSectionLoading ? (
-                    // Loading state for non-delivered sections
+                    // Simple loading animation for non-delivered sections
                     <div style={{ 
-                      padding: '40px', 
-                      textAlign: 'center', 
-                      color: '#666',
-                      position: 'relative'
+                      padding: '60px 20px',
+                      textAlign: 'center',
+                      color: '#666'
                     }}>
-                      {/* Blurred dummy order cards in background */}
-                      <div style={{ 
-                        filter: 'blur(2px)',
-                        opacity: 0.3,
-                        pointerEvents: 'none'
+                      <div style={{
+                        fontSize: '18px',
+                        fontWeight: '500',
+                        marginBottom: '16px',
+                        color: '#333'
                       }}>
-                        {[...Array(4)].map((_, index) => (
-                          <div key={index} style={{
-                            backgroundColor: 'white',
-                            border: '1px solid #e9ecef',
-                            borderRadius: '8px',
-                            padding: '16px',
-                            marginBottom: '16px',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                          }}>
-                            <div style={{
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                              marginBottom: '12px'
-                            }}>
-                              <div style={{ color: '#007bff', fontWeight: '500' }}>
-                                #{Math.random().toString(36).substr(2, 8)}
-                              </div>
-                              <span style={{
-                                padding: '4px 8px',
-                                borderRadius: '12px',
-                                fontSize: '12px',
-                                backgroundColor: ['#ffc107', '#28a745', '#007bff'][index % 3] + '20',
-                                color: ['#ffc107', '#28a745', '#007bff'][index % 3]
-                              }}>
-                                {['pending', 'preparing', 'ready'][index % 3]}
-                              </span>
-                            </div>
-                            <div style={{ color: '#333', marginBottom: '8px' }}>
-                              Customer {index + 1}
-                            </div>
-                            <div style={{ color: '#666', fontSize: '14px' }}>
-                              {Math.floor(Math.random() * 5) + 1} items • ₹{Math.floor(Math.random() * 500) + 100}
-                            </div>
-                          </div>
-                        ))}
+                        Loading {filter} orders
                       </div>
-                      
-                      {/* Loading overlay */}
-                      <div style={{ 
-                        position: 'absolute',
-                        top: '50%',
-                        left: '50%',
-                        transform: 'translate(-50%, -50%)',
-                        textAlign: 'center',
-                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                        padding: '20px 40px',
-                        borderRadius: '12px',
-                        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
-                        zIndex: 10
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px'
                       }}>
                         <div style={{
-                          fontSize: '18px',
-                          fontWeight: '600',
-                          color: '#333',
-                          marginBottom: '8px'
-                        }}>
-                          Loading {filter} orders
-                        </div>
+                          width: '12px',
+                          height: '12px',
+                          borderRadius: '50%',
+                          backgroundColor: '#007bff',
+                          animation: 'bounce 1.4s infinite ease-in-out'
+                        }}></div>
                         <div style={{
-                          fontSize: '14px',
-                          color: '#666',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '4px'
-                        }}>
-                          <span className="dot1" style={{ animation: 'dot1 1.4s infinite' }}>•</span>
-                          <span className="dot2" style={{ animation: 'dot2 1.4s infinite' }}>•</span>
-                          <span className="dot3" style={{ animation: 'dot3 1.4s infinite' }}>•</span>
-                        </div>
+                          width: '12px',
+                          height: '12px',
+                          borderRadius: '50%',
+                          backgroundColor: '#007bff',
+                          animation: 'bounce 1.4s infinite ease-in-out',
+                          animationDelay: '0.2s'
+                        }}></div>
+                        <div style={{
+                          width: '12px',
+                          height: '12px',
+                          borderRadius: '50%',
+                          backgroundColor: '#007bff',
+                          animation: 'bounce 1.4s infinite ease-in-out',
+                          animationDelay: '0.4s'
+                        }}></div>
                       </div>
                     </div>
                   ) : orders.length === 0 ? (
