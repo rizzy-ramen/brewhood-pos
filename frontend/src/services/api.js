@@ -159,6 +159,28 @@ export const apiService = {
     }
   },
 
+  // Get all products (including hidden) for admin
+  getAllProducts: async () => {
+    try {
+      const token = generateDemoToken();
+      const response = await fetch(`${API_BASE_URL}/products/all`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to fetch all products');
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('❌ API Error - getAllProducts:', error);
+      throw error;
+    }
+  },
+
   createProduct: async (productData) => {
     try {
       const token = generateDemoToken();

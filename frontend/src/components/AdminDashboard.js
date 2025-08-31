@@ -88,13 +88,13 @@ const AdminDashboard = ({ user, onLogout }) => {
 
   const fetchProducts = async () => {
     try {
-      // Fetch ALL products from backend API
-      const products = await apiService.getProducts();
-      console.log('Fetched all products from backend:', products);
+      // Fetch ALL products (including hidden) from backend API for admin
+      const products = await apiService.getAllProducts();
+      console.log('Fetched all products (including hidden) from backend:', products);
       setProducts(products);
     } catch (error) {
-      console.error('Failed to fetch products from backend:', error);
-      toast.error('Failed to fetch products from backend');
+      console.error('Failed to fetch all products from backend:', error);
+      toast.error('Failed to fetch all products from backend');
     } finally {
       setLoading(false);
     }

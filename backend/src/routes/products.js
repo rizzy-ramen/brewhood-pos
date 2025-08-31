@@ -35,13 +35,13 @@ const validateProductUpdate = [
   body('is_available').optional().isBoolean().withMessage('is_available must be boolean if provided')
 ];
 
-// GET /api/products - Get all products with smart caching
+// GET /api/products - Get only AVAILABLE products (for counter app)
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const eventManager = req.app.get('eventManager');
     
     // Use smart caching to minimize Firestore calls
-    const products = await eventManager.getCachedData('products', async () => {
+    const products = await eventManager.getCachedData('available_products', async () => {
       try {
         const db = getDb();
         const productsRef = db.collection('products');
@@ -49,13 +49,17 @@ router.get('/', authenticateToken, async (req, res) => {
         
         const products = [];
         snapshot.forEach(doc => {
-          products.push({
-            id: doc.id,
-            ...doc.data()
-          });
+          const productData = doc.data();
+          // Only include available products for counter app
+          if (productData.is_available !== false) {
+            products.push({
+              id: doc.id,
+              ...productData
+            });
+          }
         });
         
-        console.log(`📦 Fetched ${products.length} products from Firestore`);
+        console.log(`📦 Fetched ${products.length} AVAILABLE products from Firestore (filtered out hidden products)`);
         return products;
       } catch (firebaseError) {
         // If Firebase fails (e.g., quota exceeded), return mock data
@@ -125,10 +129,108 @@ router.get('/', authenticateToken, async (req, res) => {
     
     res.json(products);
   } catch (error) {
-    console.error('Error fetching products:', error);
+    console.error('Error fetching available products:', error);
     res.status(500).json({
       error: 'Internal server error',
-      message: 'Failed to fetch products'
+      message: 'Failed to fetch available products'
+    });
+  }
+});
+
+// GET /api/products/all - Get ALL products (including hidden) for admin
+router.get('/all', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const eventManager = req.app.get('eventManager');
+    
+    // Use smart caching to minimize Firestore calls
+    const products = await eventManager.getCachedData('all_products', async () => {
+      try {
+        const db = getDb();
+        const productsRef = db.collection('products');
+        const snapshot = await productsRef.get();
+        
+        const products = [];
+        snapshot.forEach(doc => {
+          products.push({
+            id: doc.id,
+            ...doc.data()
+          });
+        });
+        
+        console.log(`📦 Fetched ${products.length} ALL products from Firestore (including hidden)`);
+        return products;
+      } catch (firebaseError) {
+        // If Firebase fails (e.g., quota exceeded), return mock data
+        console.warn('⚠️ Firebase access failed, returning mock products:', firebaseError.message);
+        
+        const mockProducts = [
+          {
+            id: 'mock-1',
+            name: 'Iced Tea',
+            description: 'Refreshing iced tea with a hint of lemon',
+            price: 89,
+            category: 'Beverage',
+            image_url: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=400',
+            is_available: true,
+            created_at: new Date(),
+            updated_at: new Date()
+          },
+          {
+            id: 'mock-2',
+            name: 'Hot Chocolate',
+            description: 'Rich and creamy hot chocolate',
+            price: 100,
+            category: 'Beverage',
+            image_url: 'https://images.unsplash.com/photo-1542990253-0d0f5be5f0ed?w=400',
+            is_available: true,
+            created_at: new Date(),
+            updated_at: new Date()
+          },
+          {
+            id: 'mock-3',
+            name: 'Lemon Mint Cooler',
+            description: 'Fresh lemon mint cooler with ice',
+            price: 60,
+            category: 'Beverage',
+            image_url: 'https://images.unsplash.com/photo-1621263764928-df1444c5e859?w=400',
+            is_available: true,
+            created_at: new Date(),
+            updated_at: new Date()
+          },
+          {
+            id: 'mock-4',
+            name: 'Cappuccino',
+            description: 'Classic Italian cappuccino with foamed milk',
+            price: 120,
+            category: 'Coffee',
+            image_url: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400',
+            is_available: true,
+            created_at: new Date(),
+            updated_at: new Date()
+          },
+          {
+            id: 'mock-5',
+            name: 'Espresso',
+            description: 'Strong single shot of espresso',
+            price: 80,
+            category: 'Coffee',
+            image_url: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=400',
+            is_available: true,
+            created_at: new Date(),
+            updated_at: new Date()
+          }
+        ];
+        
+        return mockProducts;
+      }
+    }, 300000); // Cache for 5 minutes
+    
+    res.json(products);
+  } catch (error) {
+    console.error('Error fetching all products:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: 'Failed to fetch all products'
     });
   }
 });

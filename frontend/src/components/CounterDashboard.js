@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { ShoppingCart, Plus, Minus, X, User, LogOut } from 'lucide-react';
 import { apiService } from '../services/api';
+import websocketService from '../services/websocketService';
 import LoadingScreen from './LoadingScreen';
 
 // Import reusable components
@@ -31,28 +32,89 @@ const CounterDashboard = ({ user, onLogout }) => {
     return () => clearTimeout(timer);
   }, []);
 
+  // Function to fetch products from backend
+  const fetchProducts = async () => {
+    try {
+      const products = await apiService.getProducts();
+      console.log('Fetched products from backend:', products);
+      setProducts(products);
+    } catch (error) {
+      console.error('Failed to fetch products from backend:', error);
+      toast.error('Failed to fetch products from backend');
+      // Fallback to mock data if backend fails
+      setProducts([
+        { id: '1', name: 'Iced Tea', price: 89, description: 'Refreshing iced tea', image_url: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=400' },
+        { id: '2', name: 'Hot Chocolate', price: 100, description: 'Rich hot chocolate', image_url: 'https://images.unsplash.com/photo-1542990253-0d0f5be5f0ed?w=400' },
+        { id: '3', name: 'Lemon Mint Cooler', price: 60, description: 'Fresh lemon mint cooler', image_url: 'https://images.unsplash.com/photo-1621263764928-df1444c5e859?w=400' }
+        ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Initialize with products from backend API
   useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const products = await apiService.getProducts();
-        console.log('Fetched products from backend:', products);
-        setProducts(products);
-      } catch (error) {
-        console.error('Failed to fetch products from backend:', error);
-        toast.error('Failed to fetch products from backend');
-        // Fallback to mock data if backend fails
-        setProducts([
-          { id: '1', name: 'Iced Tea', price: 89, description: 'Refreshing iced tea', image_url: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=400' },
-          { id: '2', name: 'Hot Chocolate', price: 100, description: 'Rich hot chocolate', image_url: 'https://images.unsplash.com/photo-1542990253-0d0f5be5f0ed?w=400' },
-          { id: '3', name: 'Lemon Mint Cooler', price: 60, description: 'Fresh lemon mint cooler', image_url: 'https://images.unsplash.com/photo-1621263764928-df1444c5e859?w=400' }
-        ]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchProducts();
+  }, []);
+
+  // WebSocket integration for real-time product updates
+  useEffect(() => {
+    // Connect to WebSocket
+    websocketService.connect();
+
+    // Listen for product availability changes
+    websocketService.on('productAvailabilityChanged', (data) => {
+      console.log('🔄 Product availability changed:', data);
+      const { productId, isAvailable } = data;
+      
+      // Update products list based on availability change
+      setProducts(prevProducts => {
+        if (isAvailable) {
+          // Product was enabled - add it back if not already present
+          const productExists = prevProducts.find(p => p.id === productId);
+          if (!productExists) {
+            // Need to fetch the product details since we only have the ID
+            fetchProducts(); // Refresh the entire list
+          }
+        } else {
+          // Product was disabled - remove it from the list
+          return prevProducts.filter(p => p.id !== productId);
+        }
+        return prevProducts;
+      });
+    });
+
+    // Listen for product updates (general changes)
+    websocketService.on('productUpdated', (product) => {
+      console.log('🔄 Product updated:', product);
+      // Refresh products to get the latest state
+      fetchProducts();
+    });
+
+    // Listen for new products
+    websocketService.on('productCreated', (product) => {
+      console.log('🆕 New product created:', product);
+      // Only add if it's available
+      if (product.is_available !== false) {
+        setProducts(prevProducts => [...prevProducts, product]);
+      }
+    });
+
+    // Listen for product deletions
+    websocketService.on('productDeleted', (data) => {
+      console.log('🗑️ Product deleted:', data);
+      const { productId } = data;
+      // Remove the deleted product
+      setProducts(prevProducts => prevProducts.filter(p => p.id !== productId));
+    });
+
+    // Cleanup WebSocket listeners
+    return () => {
+      websocketService.off('productAvailabilityChanged');
+      websocketService.off('productUpdated');
+      websocketService.off('productCreated');
+      websocketService.off('productDeleted');
+    };
   }, []);
 
   // Function to get proper image URL or fallback
