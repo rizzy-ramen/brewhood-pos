@@ -5,6 +5,13 @@ import { apiService } from '../services/api';
 import websocketService from '../services/websocketService';
 import LoadingScreen from './LoadingScreen';
 
+// Import the new smaller components
+import SearchBar from './SearchBar';
+import OrdersTable from './OrdersTable';
+import FilterTabs from './FilterTabs';
+import OrderCard from './OrderCard';
+import OrderDetailsSidebar from './OrderDetailsSidebar';
+
 // Debounce utility function (Google-style search delay)
 const debounce = (func, delay) => {
   let timeoutId;
@@ -51,8 +58,6 @@ const DeliveryDashboard = ({ user, onLogout }) => {
   });
   const [pageCursors, setPageCursors] = useState({});
   const pageCursorsRef = useRef({}); // Store cursors for each page
-
-
 
   // Set minimum loading time for better UX
   useEffect(() => {
@@ -276,11 +281,11 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     setUpdateTimeout(timeout);
   }, [updateTimeout]);
 
-      // Initialize data fetching with new backend API
-    useEffect(() => {
-      // Initial data fetch
-      fetchOrders(filter);
-    
+  // Initialize data fetching with new backend API
+  useEffect(() => {
+    // Initial data fetch
+    fetchOrders(filter);
+  
     let statusInterval; // Declare in the right scope
     
     // Set up WebSocket real-time updates instead of polling
@@ -484,11 +489,6 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     fetchOrders(filter);
   }, [filter]); // Only refetch when filter changes
 
-  // Removed individual item listeners to reduce Firestore connections
-  // Items will be updated through the main orders listener
-
-
-
   const fetchOrderDetails = async (orderId) => {
     try {
       // Find the order from the current orders list
@@ -538,8 +538,6 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     }
     
     setFilter(newFilter);
-    
-
     
     // Clear notifications for the current section being viewed
     setNotifications(prev => ({
@@ -592,52 +590,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     return totalItems === 0 ? 0 : Math.round((preparedItems / totalItems) * 100);
   };
 
-  const getStatusColor = (status) => {
-    const colors = {
-      'pending': '#ffc107',
-      'preparing': '#28a745',
-      'ready': '#007bff',
-      'delivered': '#6c757d',
-      'cancelled': '#dc3545'
-    };
-    return colors[status] || '#6c757d';
-  };
-
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'ready':
-        return <Package size={18} />;
-      case 'delivered':
-        return <CheckCircle size={18} />;
-      default:
-        return <Clock size={18} />;
-    }
-  };
-
-  // Notification Badge Component
-  const NotificationBadge = ({ count }) => {
-    if (count === 0) return null;
-    
-    return (
-      <span style={{
-        backgroundColor: '#dc3545',
-        color: 'white',
-        borderRadius: '50%',
-        padding: '2px 6px',
-        fontSize: '12px',
-        fontWeight: 'bold',
-        marginLeft: '8px',
-        minWidth: '20px',
-        textAlign: 'center',
-        display: 'inline-block',
-        animation: 'pulse 2s infinite'
-      }}>
-        {count > 99 ? '99+' : count}
-      </span>
-    );
-  };
-
-    // Pagination and search functions for delivered orders
+  // Pagination and search functions for delivered orders
   const handleSearch = useCallback(async (searchValue) => {
     setSearchTerm(searchValue);
     setCurrentPage(1); // Reset to first page when searching
@@ -873,20 +826,20 @@ const DeliveryDashboard = ({ user, onLogout }) => {
             currentPage: response.page || pageNumber
           });
           
-                  // Store the cursor for this page to use for next page
-        if (response.lastDocumentId) {
-          // Update both state and ref for immediate access
-          const newCursors = {
-            ...pageCursorsRef.current,
-            [pageNumber]: response.lastDocumentId
-          };
-          
-          setPageCursors(newCursors);
-          pageCursorsRef.current = newCursors;
-          
-          console.log(`💾 Updated cursors object:`, newCursors);
-          console.log(`💾 Stored cursor for page ${pageNumber}:`, response.lastDocumentId);
-        }
+          // Store the cursor for this page to use for next page
+          if (response.lastDocumentId) {
+            // Update both state and ref for immediate access
+            const newCursors = {
+              ...pageCursorsRef.current,
+              [pageNumber]: response.lastDocumentId
+            };
+            
+            setPageCursors(newCursors);
+            pageCursorsRef.current = newCursors;
+            
+            console.log(`💾 Updated cursors object:`, newCursors);
+            console.log(`💾 Stored cursor for page ${pageNumber}:`, response.lastDocumentId);
+          }
         }
       }
     } catch (error) {
@@ -942,20 +895,6 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     console.log('🔍 getPaginatedOrders: Returning orders from backend:', orders.length, 'currentPage:', currentPage);
     return orders;
   }, [filter, orders, searchTerm, filteredOrders, currentPage]);
-
-  // Calculate total pages for delivered orders
-  const getTotalPages = useCallback(() => {
-    if (filter !== 'delivered') return 1;
-    
-    // If we have search results, use filtered count
-    if (searchTerm && filteredOrders.length > 0) {
-      return Math.ceil(filteredOrders.length / ordersPerPage);
-    }
-    
-    // Otherwise, use backend total count if available
-    // This will be updated when fetchOrders completes
-    return 1; // Will be updated by backend response
-  }, [filter, searchTerm, filteredOrders, ordersPerPage]);
 
   // Reset pagination when filter changes
   useEffect(() => {
@@ -1022,46 +961,13 @@ const DeliveryDashboard = ({ user, onLogout }) => {
 
       <div className="delivery-main-layout" style={{ display: 'grid', gridTemplateColumns: selectedOrder ? '1fr 400px' : '1fr', gap: '20px' }}>
         <div>
-          {/* Filter Tabs */}
-          <div className="card">
-            <div className="filter-tabs-container">
-              <div className="filter-tabs">
-                <button
-                  className={`filter-tab ${filter === 'pending' ? 'active' : ''}`}
-                  onClick={() => handleFilterChange('pending')}
-                  disabled={isSectionLoading}
-                >
-                  <span className="tab-label">Pending</span>
-                  <NotificationBadge count={notifications.pending} />
-                </button>
-                <button
-                  className={`filter-tab ${filter === 'preparing' ? 'active' : ''}`}
-                  onClick={() => handleFilterChange('preparing')}
-                  disabled={isSectionLoading}
-                >
-                  <span className="tab-label">Preparing</span>
-                  <NotificationBadge count={notifications.preparing} />
-                </button>
-                <button
-                  className={`filter-tab ${filter === 'ready' ? 'active' : ''}`}
-                  onClick={() => handleFilterChange('ready')}
-                  disabled={isSectionLoading}
-                >
-                  <span className="tab-label">Ready</span>
-                  <NotificationBadge count={notifications.ready} />
-                </button>
-                <button
-                  className={`filter-tab ${filter === 'delivered' ? 'active' : ''}`}
-                  onClick={() => handleFilterChange('delivered')}
-                  disabled={isSectionLoading}
-                >
-                  <span className="tab-label">Delivered</span>
-                  <NotificationBadge count={notifications.delivered} />
-                </button>
-
-              </div>
-            </div>
-          </div>
+          {/* Filter Tabs - Now using the new component */}
+          <FilterTabs 
+            filter={filter}
+            handleFilterChange={handleFilterChange}
+            notifications={notifications}
+            isSectionLoading={isSectionLoading}
+          />
 
           {/* Orders List */}
           <div className="card">
@@ -1080,790 +986,66 @@ const DeliveryDashboard = ({ user, onLogout }) => {
               </button>
             </div>
             
-            {filter === 'delivered' ? (
-              // Table view for delivered orders - Always show search bar
-              <div>
-                {/* Search Bar - Always Visible */}
-                <div style={{ 
-                  marginBottom: '20px',
-                  padding: '16px',
-                  backgroundColor: '#f8f9fa',
-                  borderRadius: '8px',
-                  border: '1px solid #e9ecef'
-                }}>
-                  <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '12px',
-                    maxWidth: '500px'
-                  }}>
-                    <Search size={20} style={{ color: '#6c757d' }} />
-                    <input
-                      type="text"
-                      placeholder="Search orders by customer name, order ID, customer ID, or product name..."
-                      value={searchTerm}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setSearchTerm(value); // Update input immediately
-                        debouncedSearch(value); // Trigger debounced search
-                      }}
-                      style={{
-                        flex: 1,
-                        padding: '12px 16px',
-                        border: '1px solid #ced4da',
-                        borderRadius: '8px',
-                        fontSize: '14px',
-                        backgroundColor: 'white',
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                        transition: 'all 0.2s ease'
-                      }}
-                      onFocus={(e) => {
-                        e.target.style.borderColor = '#007bff';
-                        e.target.style.boxShadow = '0 0 0 3px rgba(0,123,255,0.1)';
-                      }}
-                      onBlur={(e) => {
-                        e.target.style.borderColor = '#ced4da';
-                        e.target.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-                      }}
+            <div>
+              {filter === 'delivered' ? (
+                // Table view for delivered orders - Using the new OrdersTable component
+                <div>
+                  {/* Search Bar - Using the new SearchBar component */}
+                  <SearchBar 
+                    searchTerm={searchTerm}
+                    setSearchTerm={setSearchTerm}
+                    debouncedSearch={debouncedSearch}
+                    handleSearch={handleSearch}
+                    filteredOrders={filteredOrders}
+                    isSectionLoading={isSectionLoading}
+                  />
+
+                  {/* Orders Table - Using the new OrdersTable component */}
+                  <OrdersTable 
+                    orders={orders}
+                    searchTerm={searchTerm}
+                    filteredOrders={filteredOrders}
+                    isSectionLoading={isSectionLoading}
+                    getPaginatedOrders={getPaginatedOrders}
+                    currentPage={currentPage}
+                    paginationInfo={paginationInfo}
+                    ordersPerPage={ordersPerPage}
+                    handlePageChange={handlePageChange}
+                    fetchOrderDetails={fetchOrderDetails}
+                    selectedOrder={selectedOrder}
+                  />
+                </div>
+              ) : (
+                // Regular card view for other sections - Using the new OrderCard component
+                <div className="order-list">
+                  {orders.map(order => (
+                    <OrderCard 
+                      key={order.id}
+                      order={order}
+                      selectedOrder={selectedOrder}
+                      fetchOrderDetails={fetchOrderDetails}
+                      updateOrderStatus={updateOrderStatus}
+                      markOrderDelivered={markOrderDelivered}
+                      updateItemPreparedCount={updateItemPreparedCount}
+                      calculatePreparationProgress={calculatePreparationProgress}
+                      updatingOrders={updatingOrders}
                     />
-                    {searchTerm && (
-                      <button
-                        onClick={() => handleSearch('')}
-                        style={{
-                          padding: '8px 12px',
-                          border: '1px solid #ced4da',
-                          borderRadius: '6px',
-                          background: 'white',
-                          cursor: 'pointer',
-                          color: '#6c757d',
-                          transition: 'all 0.2s ease'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.target.style.backgroundColor = '#f8f9fa';
-                          e.target.style.borderColor = '#adb5bd';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.target.style.backgroundColor = 'white';
-                          e.target.style.borderColor = '#ced4da';
-                        }}
-                      >
-                        <X size={16} />
-                      </button>
-                    )}
-                    {/* Google-style "thinking" indicator */}
-                    {searchTerm && isSectionLoading && (
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        padding: '8px 12px',
-                        color: '#6c757d',
-                        fontSize: '12px'
-                      }}>
-                        <RefreshCw size={14} className="animate-spin" />
-                        <span>Searching...</span>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Search Status */}
-                  {searchTerm && (
-                    <div style={{ 
-                      marginTop: '8px', 
-                      fontSize: '12px', 
-                      color: '#6c757d',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px'
-                    }}>
-                      <span>
-                        {filteredOrders.length > 0 
-                          ? `Found ${filteredOrders.length} orders matching "${searchTerm}"`
-                          : `No orders found matching "${searchTerm}"`
-                        }
-                      </span>
-                      {filteredOrders.length > 0 && (
-                        <button
-                          onClick={() => handleSearch('')}
-                          style={{
-                            padding: '4px 8px',
-                            border: '1px solid #ced4da',
-                            borderRadius: '4px',
-                            background: 'white',
-                            cursor: 'pointer',
-                            color: '#6c757d',
-                            fontSize: '11px'
-                          }}
-                        >
-                          Clear search
-                        </button>
-                      )}
-                    </div>
-                  )}
+                  ))}
                 </div>
-
-                {/* Loading State - Show while searching */}
-                {isSectionLoading && (
-                  <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>
-                    <RefreshCw size={48} className="animate-spin" style={{ opacity: 0.7, marginBottom: '16px' }} />
-                    <p>Searching orders...</p>
-                  </div>
-                )}
-                
-                {/* Orders Table - Always show when not loading */}
-                {!isSectionLoading && (
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={{ 
-                      width: '100%', 
-                      borderCollapse: 'collapse',
-                      fontSize: '14px'
-                    }}>
-                    <thead>
-                      <tr style={{ 
-                        backgroundColor: '#f8f9fa', 
-                        borderBottom: '2px solid #dee2e6' 
-                      }}>
-                        <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Order ID</th>
-                        <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Customer</th>
-                        <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Type</th>
-                        <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Items</th>
-                        <th style={{ padding: '12px', textAlign: 'right', fontWeight: '600' }}>Total</th>
-                        <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Date</th>
-                        <th style={{ padding: '12px', textAlign: 'center', fontWeight: '600' }}>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(() => {
-                        const paginatedOrders = getPaginatedOrders();
-                        console.log('🔍 Table rendering: paginatedOrders length:', paginatedOrders.length, 'currentPage:', currentPage);
-                        return paginatedOrders.map(order => (
-                          <tr 
-                            key={order.id}
-                            style={{ 
-                              borderBottom: '1px solid #e9ecef',
-                              cursor: 'pointer',
-                              backgroundColor: selectedOrder?.id === order.id ? '#f8f9ff' : 'transparent'
-                            }}
-                            onClick={() => fetchOrderDetails(order.id)}
-                          >
-                            <td style={{ padding: '12px', fontWeight: '500', color: '#007bff' }}>
-                              #{order.id.slice(-8)}
-                            </td>
-                            <td style={{ padding: '12px' }}>{order.customer_name}</td>
-                            <td style={{ padding: '12px' }}>
-                              <span style={{
-                                padding: '4px 8px',
-                                borderRadius: '12px',
-                                fontSize: '12px',
-                                fontWeight: '500',
-                                backgroundColor: order.order_type === 'takeaway' ? '#e3f2fd' : '#f3e5f5',
-                                color: order.order_type === 'takeaway' ? '#1565c0' : '#7b1fa2'
-                              }}>
-                                {order.order_type}
-                              </span>
-                            </td>
-                            <td style={{ padding: '12px' }}>{order.items.length} items</td>
-                            <td style={{ padding: '12px', textAlign: 'right', fontWeight: '600' }}>
-                              ₹{order.total_amount}
-                            </td>
-                            <td style={{ padding: '12px', fontSize: '12px', color: '#666' }}>
-                              {new Date(order.created_at).toLocaleDateString()}
-                            </td>
-                            <td style={{ padding: '12px', textAlign: 'center' }}>
-                              <button
-                                className="btn btn-sm btn-outline"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  fetchOrderDetails(order.id);
-                                }}
-                                title="View Details"
-                              >
-                                View
-                              </button>
-                            </td>
-                          </tr>
-                        ));
-                      })()}
-                    </tbody>
-                  </table>
-                </div>
-                )}
-                
-
-                {/* Pagination */}
-                {paginationInfo.totalPages > 1 && (
-                  <div style={{ 
-                    display: 'flex', 
-                    justifyContent: 'center', 
-                    alignItems: 'center', 
-                    gap: '10px',
-                    marginTop: '20px',
-                    padding: '20px 0'
-                  }}>
-                    <button
-                      className="btn btn-sm btn-outline"
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage === 1}
-                    >
-                      Previous
-                    </button>
-                    
-                    <span style={{ fontSize: '14px', color: '#666' }}>
-                      Page {currentPage} of {paginationInfo.totalPages}
-                    </span>
-                    
-                    <button
-                      className="btn btn-sm btn-outline"
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage === paginationInfo.totalPages}
-                    >
-                      Next
-                    </button>
-                  </div>
-                )}
-
-                {/* Results Info */}
-                <div style={{ 
-                  textAlign: 'center', 
-                  padding: '16px', 
-                  color: '#666', 
-                  fontSize: '14px',
-                  borderTop: '1px solid #e9ecef',
-                  marginTop: '20px'
-                }}>
-                  Showing {((currentPage - 1) * ordersPerPage) + 1} to {Math.min(currentPage * ordersPerPage, orders.length)} of {searchTerm ? filteredOrders.length : paginationInfo.total} delivered orders
-                </div>
-              </div>
-            ) : (
-              // Regular card view for other sections
-              <div className="order-list">
-                {orders.map(order => (
-                  <div 
-                    key={order.id} 
-                    className="order-card"
-                    style={{ 
-                      cursor: 'pointer',
-                      border: selectedOrder?.id === order.id ? '2px solid #007bff' : '1px solid #e1e5e9'
-                    }}
-                    onClick={() => fetchOrderDetails(order.id)}
-                  >
-                    <div className="order-header">
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div className="order-id">Order #{order.id}</div>
-                        <span className={`order-status status-${order.status}`}>
-                          {order.status}
-                        </span>
-                      </div>
-                      <div className="order-amount">
-                        Total: ₹{order.total_amount}
-                      </div>
-                    </div>
-                    <div className="order-body">
-                      <p><strong>Customer:</strong> {order.customer_name}</p>
-                      <p><strong>Type:</strong> {order.order_type}</p>
-                      <p><strong>Items:</strong> {order.items.length}</p>
-                      {order.status === 'preparing' && (
-                        <div style={{ marginTop: '10px' }}>
-                          <div style={{ 
-                            height: '8px', 
-                            backgroundColor: '#e0e0e0', 
-                            borderRadius: '4px', 
-                            overflow: 'hidden',
-                            position: 'relative'
-                          }}>
-                            <div style={{
-                              width: `${calculatePreparationProgress(order.items)}%`,
-                              height: '100%',
-                              background: calculatePreparationProgress(order.items) === 100 
-                                ? 'linear-gradient(90deg, #28a745, #20c997)' 
-                                : (calculatePreparationProgress(order.items) > 0 
-                                  ? 'linear-gradient(90deg, #fd7e14, #ffc107)' 
-                                  : (calculatePreparationProgress(order.items) > 0 
-                                    ? 'linear-gradient(90deg, #fd7e14, #ffc107)' 
-                                    : 'linear-gradient(90deg, #ffc107, #ffd60a)')),
-                              borderRadius: '4px',
-                              transition: 'all 0.3s ease'
-                            }}>
-                            </div>
-                          </div>
-                          <div style={{ 
-                            fontSize: '12px', 
-                            color: '#666', 
-                            marginTop: '4px', 
-                            textAlign: 'right' 
-                          }}>
-                            {calculatePreparationProgress(order.items)}% Prepared
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Items to Prepare - Clean Implementation */}
-                      {order.status === 'preparing' && (
-                        <div style={{ marginTop: '16px' }}>
-                          <div style={{ 
-                            fontSize: '13px', 
-                            fontWeight: '600', 
-                            color: '#333',
-                            marginBottom: '12px'
-                          }}>
-                            🍽️ Items to Prepare
-                          </div>
-                          
-                          <div style={{ 
-                            display: 'flex', 
-                            flexDirection: 'column', 
-                            gap: '8px'
-                          }}>
-                            {order.items.map(item => {
-                              const preparedQty = item.prepared_quantity || 0;
-                              const isCompleted = preparedQty >= item.quantity;
-                              
-                              return (
-                                <div 
-                                  key={item.id}
-                                  style={{
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center',
-                                    padding: '12px',
-                                    backgroundColor: isCompleted ? '#f8fff8' : '#fff',
-                                    border: isCompleted ? '1px solid #28a745' : '1px solid #e9ecef',
-                                    border: isCompleted ? '1px solid #28a745' : '1px solid #e9ecef',
-                                    borderRadius: '6px',
-                                    width: '100%',
-                                    minHeight: '56px',
-                                    boxSizing: 'border-box'
-                                  }}
-                                >
-                                  {/* Item Name and Progress */}
-                                  <div style={{ flex: 1 }}>
-                                    <div style={{ 
-                                      fontSize: '14px', 
-                                      fontWeight: '500',
-                                      color: isCompleted ? '#28a745' : '#333',
-                                      textDecoration: isCompleted ? 'line-through' : 'none'
-                                    }}>
-                                      {isCompleted && '✓ '}{item.product_name}
-                                    </div>
-                                    <div style={{ 
-                                      fontSize: '12px', 
-                                      color: '#666',
-                                      marginTop: '2px'
-                                    }}>
-                                      {preparedQty} of {item.quantity} prepared
-                                    </div>
-                                  </div>
-                                  
-                                  {/* Counter Controls */}
-                                  <div style={{ 
-                                    display: 'flex', 
-                                    alignItems: 'center', 
-                                    gap: '8px',
-                                    minWidth: '100px',
-                                    justifyContent: 'flex-end'
-                                  }}>
-                                    <button
-                                      style={{ 
-                                        width: '32px',
-                                        height: '32px',
-                                        borderRadius: '50%',
-                                        border: '1px solid #dc3545',
-                                        backgroundColor: preparedQty > 0 ? '#dc3545' : '#f8f9fa',
-                                        color: preparedQty > 0 ? 'white' : '#6c757d',
-                                        fontSize: '16px',
-                                        fontWeight: 'bold',
-                                        cursor: preparedQty > 0 ? 'pointer' : 'not-allowed',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center'
-                                      }}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (preparedQty > 0) {
-                                          updateItemPreparedCount(order.id, item.id, preparedQty - 1);
-                                        }
-                                      }}
-                                      disabled={preparedQty <= 0}
-                                    >
-                                      −
-                                    </button>
-                                    
-                                    <div style={{ 
-                                      minWidth: '24px',
-                                      textAlign: 'center',
-                                      fontSize: '16px',
-                                      fontWeight: '700',
-                                      color: '#333'
-                                    }}>
-                                      {preparedQty}
-                                    </div>
-                                    
-                                    <button
-                                      style={{ 
-                                        width: '32px',
-                                        height: '32px',
-                                        borderRadius: '50%',
-                                        border: '1px solid #28a745',
-                                        backgroundColor: preparedQty < item.quantity ? '#28a745' : '#f8f9fa',
-                                        color: preparedQty < item.quantity ? 'white' : '#6c757d',
-                                        fontSize: '16px',
-                                        fontWeight: 'bold',
-                                        cursor: preparedQty < item.quantity ? 'pointer' : 'not-allowed',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center'
-                                      }}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (preparedQty < item.quantity) {
-                                          updateItemPreparedCount(order.id, item.id, preparedQty + 1);
-                                        }
-                                      }}
-                                      disabled={preparedQty >= item.quantity}
-                                    >
-                                      +
-                                    </button>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <div className="order-actions">
-                      {order.status === 'pending' && (
-                        <button
-                          className="btn btn-warning"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            updateOrderStatus(order.id, 'preparing');
-                          }}
-                          disabled={updatingOrders.has(order.id)}
-                        >
-                          {updatingOrders.has(order.id) ? (
-                            <>
-                              <RefreshCw size={18} className="animate-spin" />
-                              Updating...
-                            </>
-                          ) : (
-                            <>
-                              <Clock size={18} />
-                              Start Preparing
-                            </>
-                          )}
-                        </button>
-                      )}
-                      {order.status === 'preparing' && (
-                        <button
-                          className={`btn ${calculatePreparationProgress(order.items) === 100 ? 'btn-primary' : 'btn-secondary'}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            updateOrderStatus(order.id, 'ready');
-                          }}
-                          disabled={calculatePreparationProgress(order.items) !== 100 || updatingOrders.has(order.id)}
-                          title={calculatePreparationProgress(order.items) === 100 ? 'All items are prepared' : 'Complete all item preparation first'}
-                          style={{
-                            opacity: calculatePreparationProgress(order.items) === 100 ? 1 : 0.6,
-                            cursor: calculatePreparationProgress(order.items) === 100 ? 'pointer' : 'not-allowed'
-                          }}
-                        >
-                          {updatingOrders.has(order.id) ? (
-                            <>
-                              <RefreshCw size={18} className="animate-spin" />
-                              Updating...
-                            </>
-                          ) : (
-                            <>
-                              <Package size={18} />
-                              Mark Ready
-                              {calculatePreparationProgress(order.items) !== 100 && (
-                                <span style={{ marginLeft: '8px', fontSize: '12px', opacity: 0.8 }}>
-                                  ({calculatePreparationProgress(order.items)}%)
-                                </span>
-                              )}
-                            </>
-                          )}
-                        </button>
-                      )}
-                      {order.status === 'preparing' && calculatePreparationProgress(order.items) !== 100 && (
-                        <div style={{ 
-                          fontSize: '12px', 
-                          color: '#6c757d', 
-                          marginTop: '4px',
-                          textAlign: 'center',
-                          fontStyle: 'italic'
-                        }}>
-                          ⚠️ Complete all item preparation to enable "Mark Ready"
-                        </div>
-                      )}
-                      {order.status === 'ready' && (
-                        <button
-                          className="btn btn-success"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            markOrderDelivered(order.id);
-                          }}
-                          disabled={updatingOrders.has(order.id)}
-                        >
-                          {updatingOrders.has(order.id) ? (
-                            <>
-                              <RefreshCw size={18} className="animate-spin" />
-                              Updating...
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle size={18} />
-                              Mark Delivered
-                            </>
-                          )}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Order Details Sidebar */}
-        {selectedOrder && (
-          <div className="card" style={{ height: 'fit-content', position: 'sticky', top: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3>Order Details</h3>
-              <button
-                className="btn btn-secondary"
-                onClick={() => setSelectedOrder(null)}
-                style={{ padding: '8px' }}
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div style={{ marginBottom: '20px' }}>
-              <h4 style={{ marginBottom: '8px' }}>Order #{selectedOrder.id}</h4>
-              <div style={{ fontSize: '14px', color: '#666', lineHeight: '1.6' }}>
-                <p><strong>Customer:</strong> {selectedOrder.customer_name}</p>
-                <p><strong>Customer ID:</strong> {selectedOrder.customer_id}</p>
-                <p><strong>Type:</strong> {selectedOrder.order_type}</p>
-                <p><strong>Status:</strong> 
-                  <span className={`order-status status-${selectedOrder.status}`} style={{ marginLeft: '8px' }}>
-                    {selectedOrder.status}
-                  </span>
-                </p>
-                <p><strong>Created:</strong> {new Date(selectedOrder.created_at).toLocaleString()}</p>
-                {selectedOrder.delivered_at && (
-                  <p><strong>Delivered:</strong> {new Date(selectedOrder.delivered_at).toLocaleString()}</p>
-                )}
-                {selectedOrder.delivered_by_user && (
-                  <p><strong>Delivered by:</strong> {selectedOrder.delivered_by_user}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Items to Prepare in Sidebar - Clean Implementation */}
-            {selectedOrder.status === 'preparing' && (
-              <div style={{ marginBottom: '20px' }}>
-                <h4 style={{ marginBottom: '12px' }}>Items to Prepare</h4>
-                
-                {/* Simple Progress Bar */}
-                <div style={{
-                  width: '100%',
-                  height: '8px',
-                  backgroundColor: '#e9ecef',
-                  borderRadius: '4px',
-                  marginBottom: '16px',
-                  overflow: 'hidden'
-                }}>
-                  <div style={{
-                    width: `${calculatePreparationProgress(selectedOrder.items)}%`,
-                    height: '100%',
-                    backgroundColor: calculatePreparationProgress(selectedOrder.items) === 100 ? '#28a745' : '#007bff',
-                    borderRadius: '4px',
-                    transition: 'width 0.3s ease'
-                  }} />
-                </div>
-                
-                <div style={{ fontSize: '12px', color: '#666', textAlign: 'right', marginBottom: '16px' }}>
-                  {calculatePreparationProgress(selectedOrder.items)}% Complete
-                </div>
-
-                {/* Items List */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {selectedOrder.items.map(item => {
-                    const preparedQty = item.prepared_quantity || 0;
-                    const isCompleted = preparedQty >= item.quantity;
-                    
-                    return (
-                      <div 
-                        key={item.id}
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          padding: '12px',
-                          backgroundColor: isCompleted ? '#f8fff8' : '#fff',
-                          border: isCompleted ? '1px solid #28a745' : '1px solid #e9ecef',
-                          borderRadius: '6px',
-                          width: '100%',
-                          minHeight: '56px',
-                          boxSizing: 'border-box'
-                        }}
-                      >
-                        {/* Item Details */}
-                        <div style={{ flex: 1 }}>
-                          <div style={{ 
-                            fontSize: '14px', 
-                            fontWeight: '500',
-                            color: isCompleted ? '#28a745' : '#333',
-                            textDecoration: isCompleted ? 'line-through' : 'none'
-                          }}>
-                            {isCompleted && '✓ '}{item.product_name}
-                          </div>
-                          <div style={{ 
-                            fontSize: '12px', 
-                            color: '#666',
-                            marginTop: '2px'
-                          }}>
-                            {preparedQty} of {item.quantity} prepared
-                          </div>
-                        </div>
-                        
-                        {/* Counter Controls */}
-                        <div style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          gap: '8px',
-                          minWidth: '100px',
-                          justifyContent: 'flex-end'
-                        }}>
-                          <button
-                            style={{ 
-                              width: '32px',
-                              height: '32px',
-                              borderRadius: '50%',
-                              border: '1px solid #dc3545',
-                              backgroundColor: preparedQty > 0 ? '#dc3545' : '#f8f9fa',
-                              color: preparedQty > 0 ? 'white' : '#6c757d',
-                              fontSize: '16px',
-                              fontWeight: 'bold',
-                              cursor: preparedQty > 0 ? 'pointer' : 'not-allowed',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center'
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (preparedQty > 0) {
-                                updateItemPreparedCount(selectedOrder.id, item.id, preparedQty - 1);
-                              }
-                            }}
-                            disabled={preparedQty <= 0}
-                          >
-                            −
-                          </button>
-                          
-                          <div style={{ 
-                            minWidth: '24px',
-                            textAlign: 'center',
-                            fontSize: '16px',
-                            fontWeight: '700',
-                            color: '#333'
-                          }}>
-                            {preparedQty}
-                          </div>
-                          
-                          <button
-                            style={{ 
-                              width: '32px',
-                              height: '32px',
-                              borderRadius: '50%',
-                              border: '1px solid #28a745',
-                              backgroundColor: preparedQty < item.quantity ? '#28a745' : '#f8f9fa',
-                              color: preparedQty < item.quantity ? 'white' : '#6c757d',
-                              fontSize: '16px',
-                              fontWeight: 'bold',
-                              cursor: preparedQty < item.quantity ? 'pointer' : 'not-allowed',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center'
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (preparedQty < item.quantity) {
-                                updateItemPreparedCount(selectedOrder.id, item.id, preparedQty + 1);
-                              }
-                            }}
-                            disabled={preparedQty >= item.quantity}
-                          >
-                            +
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-            
-            <div style={{ 
-              borderTop: '2px solid #e1e5e9', 
-              paddingTop: '16px',
-              fontSize: '18px',
-              fontWeight: '700',
-              textAlign: 'center',
-              color: '#007bff'
-            }}>
-              Total: ₹{selectedOrder.total_amount}
-            </div>
-            
-            {selectedOrder.status === 'pending' && (
-              <button
-                className="btn btn-warning"
-                onClick={() => updateOrderStatus(selectedOrder.id, 'preparing')}
-                style={{ width: '100%', marginTop: '16px' }}
-              >
-                <Clock size={18} />
-                Start Preparing
-              </button>
-            )}
-            
-            {selectedOrder.status === 'preparing' && (
-              <button
-                className={`btn ${calculatePreparationProgress(selectedOrder.items) === 100 ? 'btn-primary' : 'btn-secondary'}`}
-                onClick={() => updateOrderStatus(selectedOrder.id, 'ready')}
-                style={{ 
-                  width: '100%', 
-                  marginTop: '16px',
-                  opacity: calculatePreparationProgress(selectedOrder.items) === 100 ? 1 : 0.6,
-                  cursor: calculatePreparationProgress(selectedOrder.items) === 100 ? 'pointer' : 'not-allowed'
-                }}
-                disabled={calculatePreparationProgress(selectedOrder.items) !== 100}
-                title={calculatePreparationProgress(selectedOrder.items) === 100 ? 'All items are prepared' : 'Complete all item preparation first'}
-              >
-                <Package size={18} />
-                Mark Ready for Delivery
-                {calculatePreparationProgress(selectedOrder.items) !== 100 && (
-                  <span style={{ marginLeft: '8px', fontSize: '12px', opacity: 0.8 }}>
-                    ({calculatePreparationProgress(selectedOrder.items)}%)
-                  </span>
-                )}
-              </button>
-            )}
-            
-            {selectedOrder.status === 'ready' && (
-              <button
-                className="btn btn-success"
-                onClick={() => markOrderDelivered(selectedOrder.id)}
-                style={{ width: '100%', marginTop: '16px' }}
-              >
-                <CheckCircle size={18} />
-                Mark as Delivered
-              </button>
-            )}
-          </div>
-        )}
+        {/* Order Details Sidebar - Using the new OrderDetailsSidebar component */}
+        <OrderDetailsSidebar 
+          selectedOrder={selectedOrder}
+          setSelectedOrder={setSelectedOrder}
+          updateOrderStatus={updateOrderStatus}
+          markOrderDelivered={markOrderDelivered}
+          updateItemPreparedCount={updateItemPreparedCount}
+          calculatePreparationProgress={calculatePreparationProgress}
+        />
       </div>
 
       {/* Refresh Notification Popup */}
