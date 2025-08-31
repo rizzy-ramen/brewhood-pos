@@ -474,15 +474,41 @@ class OrderService {
       
       // Filter orders by search term (case-insensitive)
       const searchLower = searchTerm.toLowerCase();
+      console.log(`🔍 Filtering ${allOrders.length} orders with search term: "${searchLower}"`);
+      
       const filteredOrders = allOrders.filter(order => {
-        return (
-          order.customer_name.toLowerCase().includes(searchLower) ||
-          order.id.toLowerCase().includes(searchLower) ||
-          order.customer_id.toLowerCase().includes(searchLower) ||
-          order.items.some(item => 
-            item.product_name.toLowerCase().includes(searchLower)
-          )
+        // Check if order has required fields
+        if (!order.customer_name || !order.id || !order.customer_id || !order.items) {
+          console.log(`⚠️ Order ${order.id} missing required fields, skipping`);
+          return false;
+        }
+        
+        // Check customer name
+        const customerNameMatch = order.customer_name.toLowerCase().includes(searchLower);
+        
+        // Check order ID
+        const orderIdMatch = order.id.toLowerCase().includes(searchLower);
+        
+        // Check customer ID
+        const customerIdMatch = order.customer_id.toLowerCase().includes(searchLower);
+        
+        // Check product names in items
+        const productMatch = order.items.some(item => 
+          item.product_name && item.product_name.toLowerCase().includes(searchLower)
         );
+        
+        const isMatch = customerNameMatch || orderIdMatch || customerIdMatch || productMatch;
+        
+        if (isMatch) {
+          console.log(`✅ Order ${order.id} matches search:`, {
+            customerName: order.customer_name,
+            orderId: order.id,
+            customerId: order.customer_id,
+            productNames: order.items.map(item => item.product_name)
+          });
+        }
+        
+        return isMatch;
       });
       
       // Sort by creation time (newest first)
@@ -493,6 +519,7 @@ class OrderService {
       });
       
       console.log(`🔍 Search completed: ${filteredOrders.length} orders found out of ${allOrders.length} total`);
+      console.log(`🔍 Search term: "${searchTerm}"`);
       
       return {
         orders: filteredOrders,

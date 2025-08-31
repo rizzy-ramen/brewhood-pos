@@ -654,6 +654,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         if (response && response.success && response.orders) {
           const searchResults = response.orders;
           console.log(`🔍 Search results: ${searchResults.length} orders found`);
+          console.log(`🔍 Search results data:`, searchResults);
           
           // Update filtered orders with search results
           setFilteredOrders(searchResults);
@@ -833,7 +834,22 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     // No need to slice since we're getting exactly what we need
     if (searchTerm && filteredOrders.length > 0) {
       console.log('🔍 getPaginatedOrders: Returning filtered orders:', filteredOrders.length);
-      return filteredOrders;
+      console.log('🔍 Filtered orders data:', filteredOrders);
+      
+      // Validate search results before returning
+      const validResults = filteredOrders.filter(order => 
+        order && 
+        order.id && 
+        order.customer_name && 
+        order.items && 
+        Array.isArray(order.items)
+      );
+      
+      if (validResults.length !== filteredOrders.length) {
+        console.warn(`⚠️ Filtered ${filteredOrders.length - validResults.length} invalid orders from search results`);
+      }
+      
+      return validResults;
     }
     
     console.log('🔍 getPaginatedOrders: Returning orders from backend:', orders.length, 'currentPage:', currentPage);
