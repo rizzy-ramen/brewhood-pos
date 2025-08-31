@@ -17,6 +17,64 @@ class OrderService {
     }
   }
 
+  // Generate a memorable order ID that's easy for customers to call out
+  generateMemorableOrderId() {
+    // Get current date components
+    const now = new Date();
+    const day = now.getDate().toString().padStart(2, '0');
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const hour = now.getHours().toString().padStart(2, '0');
+    const minute = now.getMinutes().toString().padStart(2, '0');
+    
+    // Generate a random 3-letter code (easy to remember)
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    let randomCode = '';
+    for (let i = 0; i < 3; i++) {
+      randomCode += letters.charAt(Math.floor(Math.random() * letters.length));
+    }
+    
+    // Format: DDMM-HHMM-XXX (e.g., 2512-1430-ABC)
+    const orderId = `${day}${month}-${hour}${minute}-${randomCode}`;
+    
+    return orderId;
+  }
+
+  // Check if an order ID already exists (to avoid duplicates)
+  async isOrderIdUnique(orderId) {
+    try {
+      this.ensureInitialized();
+      const snapshot = await this.ordersRef.where('custom_order_id', '==', orderId).limit(1).get();
+      return snapshot.empty;
+    } catch (error) {
+      console.error('❌ Error checking order ID uniqueness:', error);
+      // If we can't check, assume it's unique to avoid blocking order creation
+      return true;
+    }
+  }
+
+  // Generate a unique memorable order ID
+  async generateUniqueOrderId() {
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    while (attempts < maxAttempts) {
+      const orderId = this.generateMemorableOrderId();
+      const isUnique = await this.isOrderIdUnique(orderId);
+      
+      if (isUnique) {
+        return orderId;
+      }
+      
+      attempts++;
+      // Wait a bit before trying again to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    // Fallback: use timestamp-based ID if we can't generate a unique memorable one
+    console.warn('⚠️ Could not generate unique memorable order ID, using fallback');
+    return `ORDER${Date.now()}`;
+  }
+
   // Helper function to convert various date formats to ISO string
   convertDateToISO(dateValue) {
     try {
@@ -76,6 +134,10 @@ class OrderService {
         throw new Error('Invalid order data: customer name and items are required');
       }
 
+      // Generate a memorable order ID
+      const customOrderId = await this.generateUniqueOrderId();
+      console.log('🎯 Generated memorable order ID:', customOrderId);
+
       // Calculate total amount
       const totalAmount = orderData.items.reduce((sum, item) => {
         return sum + (item.unit_price * item.quantity);
@@ -83,6 +145,7 @@ class OrderService {
 
       // Create order document
       const orderDoc = {
+        custom_order_id: customOrderId, // Add the memorable order ID
         customer_name: orderData.customer_name,
         customer_id: orderData.customer_id || `CUST${Date.now()}`,
         order_type: orderData.order_type || 'takeaway',
@@ -95,7 +158,7 @@ class OrderService {
 
       // Add order to Firestore
       const orderRef = await this.ordersRef.add(orderDoc);
-      const orderId = orderRef.id;
+      const firestoreId = orderRef.id; // Keep Firestore's internal ID for database operations
 
       // Add order items
       const itemsRef = this.ordersRef.doc(orderId).collection('items');
@@ -125,7 +188,8 @@ class OrderService {
       };
 
       return {
-        id: orderId,
+        id: firestoreId, // Firestore's internal ID for database operations
+        custom_order_id: customOrderId, // Memorable order ID for customers
         ...processedOrderDoc,
         items: orderData.items
       };
@@ -556,6 +620,9 @@ class OrderService {
         // Check order ID
         const orderIdMatch = order.id.toLowerCase().includes(searchLower);
         
+        // Check custom order ID (memorable ID)
+        const customOrderIdMatch = order.custom_order_id && order.custom_order_id.toLowerCase().includes(searchLower);
+        
         // Check customer ID
         const customerIdMatch = order.customer_id.toLowerCase().includes(searchLower);
         
@@ -564,12 +631,13 @@ class OrderService {
           item.product_name && item.product_name.toLowerCase().includes(searchLower)
         );
         
-        const isMatch = customerNameMatch || orderIdMatch || customerIdMatch || productMatch;
+        const isMatch = customerNameMatch || orderIdMatch || customOrderIdMatch || customerIdMatch || productMatch;
         
         if (isMatch) {
           console.log(`✅ Order ${order.id} matches search:`, {
             customerName: order.customer_name,
             orderId: order.id,
+            customOrderId: order.custom_order_id,
             customerId: order.customer_id,
             productNames: order.items.map(item => item.product_name)
           });

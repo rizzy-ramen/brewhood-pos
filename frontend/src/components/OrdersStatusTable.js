@@ -109,6 +109,7 @@ const OrdersStatusTable = ({
       filtered = filtered.filter(order => 
         order.customer_name && order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         order.id && order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.custom_order_id && order.custom_order_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
         order.customer_id && order.customer_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
         order.status && order.status.toLowerCase().includes(searchTerm.toLowerCase())
       );
@@ -652,7 +653,29 @@ const OrdersStatusTable = ({
                       }}
                     >
                       <td style={{ padding: '12px', fontWeight: '500', color: '#007bff' }}>
-                        #{order.id.slice(-8)}
+                        {order.custom_order_id ? (
+                          <div>
+                            <div style={{ 
+                              fontSize: '16px', 
+                              fontWeight: 'bold',
+                              color: '#007bff',
+                              textShadow: '0 1px 2px rgba(0,123,255,0.2)',
+                              letterSpacing: '0.5px'
+                            }}>
+                              #{order.custom_order_id}
+                            </div>
+                            <div style={{ 
+                              fontSize: '11px', 
+                              color: '#666', 
+                              fontStyle: 'italic',
+                              marginTop: '2px'
+                            }}>
+                              ID: {order.id.slice(-8)}
+                            </div>
+                          </div>
+                        ) : (
+                          `#${order.id.slice(-8)}`
+                        )}
                       </td>
                       <td style={{ padding: '12px' }}>{order.customer_name}</td>
                       <td style={{ padding: '12px' }}>

@@ -178,40 +178,48 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       
       // Only update if we actually got orders (prevent clearing on error)
       if (orders && orders.length >= 0) {
-        // Sort orders by creation time (oldest first, newest last)
-        const sortedOrders = orders.sort((a, b) => {
-          let timeA, timeB;
-          
-          try {
-            // Handle Firestore Timestamp objects
-            if (a.created_at?.toDate) {
-              timeA = a.created_at.toDate().getTime();
-            } else if (a.created_at?.seconds) {
-              timeA = a.created_at.seconds * 1000;
-            } else if (a.created_at) {
-              timeA = new Date(a.created_at).getTime();
-            } else {
-              timeA = 0; // Fallback for orders without timestamp
+        // For delivered orders, backend handles ordering via cursor-based pagination
+        // For other sections, sort by creation time (oldest first for FIFO)
+        let sortedOrders;
+        if (currentFilter === 'delivered') {
+          // Backend already returns orders in correct order for pagination
+          sortedOrders = orders;
+        } else {
+          // Sort other sections by creation time (oldest first for FIFO)
+          sortedOrders = orders.sort((a, b) => {
+            let timeA, timeB;
+            
+            try {
+              // Handle Firestore Timestamp objects
+              if (a.created_at?.toDate) {
+                timeA = a.created_at.toDate().getTime();
+              } else if (a.created_at?.seconds) {
+                timeA = a.created_at.seconds * 1000;
+              } else if (a.created_at) {
+                timeA = new Date(a.created_at).getTime();
+              } else {
+                timeA = 0; // Fallback for orders without timestamp
+              }
+              
+              if (b.created_at?.toDate) {
+                timeB = b.created_at.toDate().getTime();
+              } else if (b.created_at?.seconds) {
+                timeB = b.created_at.seconds * 1000;
+              } else if (b.created_at) {
+                timeB = new Date(b.created_at).getTime();
+              } else {
+                timeB = 0; // Fallback for orders without timestamp
+              }
+            } catch (error) {
+              console.warn('⚠️ Error parsing timestamps, using fallback sorting');
+              timeA = a.created_at || 0;
+              timeB = b.created_at || 0;
             }
             
-            if (b.created_at?.toDate) {
-              timeB = b.created_at.toDate().getTime();
-            } else if (b.created_at?.seconds) {
-              timeB = b.created_at.seconds * 1000;
-            } else if (b.created_at) {
-              timeB = new Date(b.created_at).getTime();
-            } else {
-              timeB = 0; // Fallback for orders without timestamp
-            }
-          } catch (error) {
-            console.warn('⚠️ Error parsing timestamps, using fallback sorting');
-            timeA = a.created_at || 0;
-            timeB = b.created_at || 0;
-          }
-          
-          // Ascending order: oldest first (FIFO - First In, First Out)
-          return timeA - timeB;
-        });
+            // Ascending order: oldest first (FIFO - First In, First Out)
+            return timeA - timeB;
+          });
+        }
         
         // Calculate notifications for fetched orders (smart calculation)
         calculateNotifications(sortedOrders);
@@ -651,6 +659,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         const filtered = orders.filter(order => 
           order.customer_name && order.customer_name.toLowerCase().includes(searchValue.toLowerCase()) ||
           order.id && order.id.toLowerCase().includes(searchValue.toLowerCase()) ||
+          order.custom_order_id && order.custom_order_id.toLowerCase().includes(searchValue.toLowerCase()) ||
           order.customer_id && order.customer_id.toLowerCase().includes(searchValue.toLowerCase())
         );
         setFilteredOrders(filtered);
@@ -717,6 +726,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         const filtered = orders.filter(order => 
           order.customer_name && order.customer_name.toLowerCase().includes(searchValue.toLowerCase()) ||
           order.id && order.id.toLowerCase().includes(searchValue.toLowerCase()) ||
+          order.custom_order_id && order.custom_order_id.toLowerCase().includes(searchValue.toLowerCase()) ||
           order.customer_id && order.customer_id.toLowerCase().includes(searchValue.toLowerCase())
         );
         setFilteredOrders(filtered);
@@ -776,38 +786,46 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       
       // Only update if we actually got orders
       if (orders && orders.length >= 0) {
-        // Sort orders by creation time (oldest first for FIFO)
-        const sortedOrders = orders.sort((a, b) => {
-          let timeA, timeB;
-          
-          try {
-            if (a.created_at?.toDate) {
-              timeA = a.created_at.toDate().getTime();
-            } else if (a.created_at?.seconds) {
-              timeA = a.created_at.seconds * 1000;
-            } else if (a.created_at) {
-              timeA = new Date(a.created_at).getTime();
-            } else {
-              timeA = 0;
+        // For delivered orders, backend handles ordering via cursor-based pagination
+        // For other sections, sort by creation time (oldest first for FIFO)
+        let sortedOrders;
+        if (currentFilter === 'delivered') {
+          // Backend already returns orders in correct order for pagination
+          sortedOrders = orders;
+        } else {
+          // Sort other sections by creation time (oldest first for FIFO)
+          sortedOrders = orders.sort((a, b) => {
+            let timeA, timeB;
+            
+            try {
+              if (a.created_at?.toDate) {
+                timeA = a.created_at.toDate().getTime();
+              } else if (a.created_at?.seconds) {
+                timeA = a.created_at.seconds * 1000;
+              } else if (a.created_at) {
+                timeA = new Date(a.created_at).getTime();
+              } else {
+                timeA = 0;
+              }
+              
+              if (b.created_at?.toDate) {
+                timeB = b.created_at.toDate().getTime();
+              } else if (b.created_at?.seconds) {
+                timeB = b.created_at.seconds * 1000;
+              } else if (b.created_at) {
+                timeB = new Date(b.created_at).getTime();
+              } else {
+                timeB = 0;
+              }
+            } catch (error) {
+              console.warn('⚠️ Error parsing timestamps, using fallback sorting');
+              timeA = a.created_at || 0;
+              timeB = b.created_at || 0;
             }
             
-            if (b.created_at?.toDate) {
-              timeB = b.created_at.toDate().getTime();
-            } else if (b.created_at?.seconds) {
-              timeB = b.created_at.seconds * 1000;
-            } else if (b.created_at) {
-              timeB = new Date(b.created_at).getTime();
-            } else {
-              timeB = 0;
-            }
-          } catch (error) {
-            console.warn('⚠️ Error parsing timestamps, using fallback sorting');
-            timeA = a.created_at || 0;
-            timeB = b.created_at || 0;
-          }
-          
-          return timeA - timeB;
-        });
+            return timeA - timeB;
+          });
+        }
         
         // Calculate notifications for fetched orders
         calculateNotifications(sortedOrders);
@@ -900,37 +918,45 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       
       // Only update if we actually got orders
       if (orders && orders.length >= 0) {
-        // Sort orders by creation time (oldest first, newest last)
-        const sortedOrders = orders.sort((a, b) => {
-          let timeA, timeB;
-          
-          try {
-            if (a.created_at?.toDate) {
-              timeA = a.created_at.toDate().getTime();
-            } else if (a.created_at?.seconds) {
-              timeA = a.created_at.seconds * 1000;
-            } else if (a.created_at) {
-              timeA = new Date(a.created_at).getTime();
-            } else {
-              timeA = 0;
+        // For delivered orders, backend handles ordering via cursor-based pagination
+        // For other sections, sort by creation time (oldest first for FIFO)
+        let sortedOrders;
+        if (currentFilter === 'delivered') {
+          // Backend already returns orders in correct order for pagination
+          sortedOrders = orders;
+        } else {
+          // Sort other sections by creation time (oldest first for FIFO)
+          sortedOrders = orders.sort((a, b) => {
+            let timeA, timeB;
+            
+            try {
+              if (a.created_at?.toDate) {
+                timeA = a.created_at.toDate().getTime();
+              } else if (a.created_at?.seconds) {
+                timeA = a.created_at.seconds * 1000;
+              } else if (a.created_at) {
+                timeA = new Date(a.created_at).getTime();
+              } else {
+                timeA = 0;
+              }
+              
+              if (b.created_at?.toDate) {
+                timeB = b.created_at.toDate().getTime();
+              } else if (b.created_at?.seconds) {
+                timeB = b.created_at.seconds * 1000;
+              } else if (b.created_at) {
+                timeB = new Date(b.created_at).getTime();
+              } else {
+                timeB = 0;
+              }
+            } catch (error) {
+              timeA = a.created_at || 0;
+              timeB = b.created_at || 0;
             }
             
-            if (b.created_at?.toDate) {
-              timeB = b.created_at.toDate().getTime();
-            } else if (b.created_at?.seconds) {
-              timeB = b.created_at.seconds * 1000;
-            } else if (b.created_at) {
-              timeB = new Date(b.created_at).getTime();
-            } else {
-              timeB = 0;
-            }
-          } catch (error) {
-            timeA = a.created_at || 0;
-            timeB = b.created_at || 0;
-          }
-          
-          return timeA - timeB;
-        });
+            return timeA - timeB;
+          });
+        }
         
         // Calculate notifications for fetched orders
         calculateNotifications(sortedOrders);
