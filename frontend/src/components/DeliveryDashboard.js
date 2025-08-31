@@ -40,7 +40,8 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     totalPages: 1,
     currentPage: 1
   });
-  const [pageCursors, setPageCursors] = useState({}); // Store cursors for each page
+  const [pageCursors, setPageCursors] = useState({});
+  const pageCursorsRef = useRef({}); // Store cursors for each page
 
 
 
@@ -634,9 +635,11 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       let response;
       if (currentFilter === 'delivered') {
         // For cursor-based pagination, we need the last document ID from the previous page
-        const lastDocId = pageNumber > 1 ? pageCursors[pageNumber - 1] : null;
+        // Use the ref to get the current cursors state immediately
+        const currentCursors = pageCursorsRef.current;
+        const lastDocId = pageNumber > 1 ? currentCursors[pageNumber - 1] : null;
         console.log(`🔄 Fetching page ${pageNumber} with cursor:`, lastDocId);
-        console.log(`🔍 Available cursors:`, pageCursors);
+        console.log(`🔍 Available cursors:`, currentCursors);
         console.log(`🔍 Looking for cursor at key:`, pageNumber - 1);
         response = await apiService.getOrders(currentFilter, ordersPerPage, pageNumber, lastDocId);
       } else {
@@ -716,14 +719,16 @@ const DeliveryDashboard = ({ user, onLogout }) => {
           
                   // Store the cursor for this page to use for next page
         if (response.lastDocumentId) {
-          setPageCursors(prev => {
-            const newCursors = {
-              ...prev,
-              [pageNumber]: response.lastDocumentId
-            };
-            console.log(`💾 Updated cursors object:`, newCursors);
-            return newCursors;
-          });
+          // Update both state and ref for immediate access
+          const newCursors = {
+            ...pageCursorsRef.current,
+            [pageNumber]: response.lastDocumentId
+          };
+          
+          setPageCursors(newCursors);
+          pageCursorsRef.current = newCursors;
+          
+          console.log(`💾 Updated cursors object:`, newCursors);
           console.log(`💾 Stored cursor for page ${pageNumber}:`, response.lastDocumentId);
         }
         }
@@ -787,6 +792,11 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     setSearchTerm('');
     setFilteredOrders([]);
   }, [filter]);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    pageCursorsRef.current = pageCursors;
+  }, [pageCursors]);
 
   if (loading || !minLoadingComplete) {
     return <LoadingScreen />;
