@@ -207,6 +207,31 @@ export const apiService = {
     }
   },
 
+  // Toggle product availability specifically
+  toggleProductAvailability: async (productId, isAvailable) => {
+    try {
+      const token = generateDemoToken();
+      const response = await fetch(`${API_BASE_URL}/products/${productId}/availability`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ is_available: isAvailable })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update product availability');
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('❌ API Error - toggleProductAvailability:', error);
+      throw error;
+    }
+  },
+
   deleteProduct: async (productId) => {
     try {
       const token = generateDemoToken();

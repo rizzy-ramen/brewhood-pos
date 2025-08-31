@@ -230,7 +230,8 @@ const AdminDashboard = ({ user, onLogout }) => {
       const newStatus = !(currentProduct.is_available === 1 || currentProduct.is_available === true);
       console.log('🔄 New status will be:', newStatus);
       
-      await apiService.updateProduct(product.id, { is_available: newStatus });
+      // Use the dedicated availability toggle endpoint
+      await apiService.toggleProductAvailability(product.id, newStatus);
       toast.success(`Product ${currentProduct.is_available ? 'disabled' : 'enabled'} successfully`);
       
       // Refresh products immediately since we're not using real-time listeners
@@ -253,7 +254,8 @@ const AdminDashboard = ({ user, onLogout }) => {
       
       console.log('🔄 Enabling product:', currentProduct.name);
       
-      await apiService.updateProduct(product.id, { is_available: true });
+      // Use the dedicated availability toggle endpoint
+      await apiService.toggleProductAvailability(product.id, true);
       toast.success('Product enabled successfully');
       
       // Refresh products immediately since we're not using real-time listeners

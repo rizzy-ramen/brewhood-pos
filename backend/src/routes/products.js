@@ -15,14 +15,24 @@ const getDb = () => {
   }
 };
 
-// Validation middleware
-const validateProduct = [
+// Validation middleware for creating products (requires all fields)
+const validateProductCreate = [
   body('name').trim().isLength({ min: 1 }).withMessage('Product name is required'),
   body('price').isFloat({ min: 0 }).withMessage('Price must be a positive number'),
   body('category').optional().trim().isLength({ min: 1 }),
   body('description').optional().trim(),
   body('image_url').optional().trim().isURL().withMessage('Image URL must be valid'),
   body('is_available').optional().isBoolean().withMessage('is_available must be boolean')
+];
+
+// Validation middleware for updating products (all fields optional)
+const validateProductUpdate = [
+  body('name').optional().trim().isLength({ min: 1 }).withMessage('Product name must not be empty if provided'),
+  body('price').optional().isFloat({ min: 0 }).withMessage('Price must be a positive number if provided'),
+  body('category').optional().trim().isLength({ min: 1 }),
+  body('description').optional().trim(),
+  body('image_url').optional().trim().isURL().withMessage('Image URL must be valid if provided'),
+  body('is_available').optional().isBoolean().withMessage('is_available must be boolean if provided')
 ];
 
 // GET /api/products - Get all products with smart caching
@@ -154,7 +164,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 });
 
 // POST /api/products - Create new product
-router.post('/', authenticateToken, requireRole(['admin']), validateProduct, async (req, res) => {
+router.post('/', authenticateToken, requireRole(['admin']), validateProductCreate, async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -197,17 +207,20 @@ router.post('/', authenticateToken, requireRole(['admin']), validateProduct, asy
 });
 
 // PATCH /api/products/:id - Update product
-router.patch('/:id', authenticateToken, requireRole(['admin']), validateProduct, async (req, res) => {
+router.patch('/:id', authenticateToken, requireRole(['admin']), validateProductUpdate, async (req, res) => {
   try {
     const { id } = req.params;
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.error('❌ Product update validation failed:', errors.array());
       return res.status(400).json({
         error: 'Validation failed',
         message: 'Invalid product data',
         details: errors.array()
       });
     }
+    
+    console.log(`🔄 Updating product ${id} with data:`, req.body);
     
     const db = getDb();
     const updateData = {
@@ -219,12 +232,14 @@ router.patch('/:id', authenticateToken, requireRole(['admin']), validateProduct,
     const productDoc = await productRef.get();
     
     if (!productDoc.exists) {
+      console.error(`❌ Product ${id} not found`);
       return res.status(404).json({
         error: 'Product not found',
         message: 'The requested product does not exist'
       });
     }
     
+    console.log(`✅ Product ${id} found, updating with:`, updateData);
     await productRef.update(updateData);
     
     const updatedProduct = {
@@ -233,18 +248,28 @@ router.patch('/:id', authenticateToken, requireRole(['admin']), validateProduct,
       ...updateData
     };
     
+    console.log(`✅ Product ${id} updated successfully:`, updatedProduct);
+    
     // Notify all clients via Event Manager (real-time update)
     const eventManager = req.app.get('eventManager');
     if (eventManager) {
       eventManager.notifyProductUpdated(updatedProduct);
+      console.log(`📡 Product update notification sent via Event Manager`);
     }
     
     res.json(updatedProduct);
   } catch (error) {
-    console.error('Error updating product:', error);
+    console.error('❌ Error updating product:', error);
+    console.error('❌ Error details:', {
+      message: error.message,
+      stack: error.stack,
+      productId: req.params.id,
+      updateData: req.body
+    });
     res.status(500).json({
       error: 'Internal server error',
-      message: 'Failed to update product'
+      message: 'Failed to update product',
+      details: error.message
     });
   }
 });
@@ -291,10 +316,15 @@ router.patch('/:id/availability', authenticateToken, requireRole(['admin']), asy
     const { id } = req.params;
     const { is_available } = req.body;
     
+    console.log(`🔄 Toggling availability for product ${id} to:`, is_available);
+    console.log(`🔄 Request body:`, req.body);
+    
     if (typeof is_available !== 'boolean') {
+      console.error(`❌ Invalid is_available type: ${typeof is_available}, value: ${is_available}`);
       return res.status(400).json({
         error: 'Invalid data',
-        message: 'is_available must be a boolean value'
+        message: 'is_available must be a boolean value',
+        received: { type: typeof is_available, value: is_available }
       });
     }
     
@@ -303,37 +333,52 @@ router.patch('/:id/availability', authenticateToken, requireRole(['admin']), asy
     const productDoc = await productRef.get();
     
     if (!productDoc.exists) {
+      console.error(`❌ Product ${id} not found`);
       return res.status(404).json({
         error: 'Product not found',
         message: 'The requested product does not exist'
       });
     }
     
+    const currentProduct = productDoc.data();
+    console.log(`✅ Product ${id} found:`, currentProduct.name, 'Current availability:', currentProduct.is_available);
+    
     const updateData = {
       is_available,
       updated_at: new Date()
     };
     
+    console.log(`🔄 Updating product ${id} with:`, updateData);
     await productRef.update(updateData);
     
     const updatedProduct = {
       id,
-      ...productDoc.data(),
+      ...currentProduct,
       ...updateData
     };
+    
+    console.log(`✅ Product ${id} availability updated successfully:`, updatedProduct);
     
     // Notify all clients via Event Manager (real-time update)
     const eventManager = req.app.get('eventManager');
     if (eventManager) {
       eventManager.notifyProductAvailabilityChanged(id, is_available);
+      console.log(`📡 Product availability change notification sent via Event Manager`);
     }
     
     res.json(updatedProduct);
   } catch (error) {
-    console.error('Error updating product availability:', error);
+    console.error('❌ Error updating product availability:', error);
+    console.error('❌ Error details:', {
+      message: error.message,
+      stack: error.stack,
+      productId: req.params.id,
+      requestBody: req.body
+    });
     res.status(500).json({
       error: 'Internal server error',
-      message: 'Failed to update product availability'
+      message: 'Failed to update product availability',
+      details: error.message
     });
   }
 });
