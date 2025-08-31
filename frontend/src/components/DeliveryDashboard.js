@@ -1080,18 +1080,8 @@ const DeliveryDashboard = ({ user, onLogout }) => {
               </button>
             </div>
             
-            {isSectionLoading ? (
-              <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>
-                <RefreshCw size={48} className="animate-spin" style={{ opacity: 0.7, marginBottom: '16px' }} />
-                <p>Loading orders...</p>
-              </div>
-            ) : (orders.length === 0 && !searchTerm) ? (
-              <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>
-                <Package size={48} style={{ opacity: 0.3, marginBottom: '16px' }} />
-                <p>No orders found</p>
-              </div>
-            ) : filter === 'delivered' ? (
-              // Table view for delivered orders
+            {filter === 'delivered' ? (
+              // Table view for delivered orders - Always show search bar
               <div>
                 {/* Search Bar - Always Visible */}
                 <div style={{ 
@@ -1212,8 +1202,20 @@ const DeliveryDashboard = ({ user, onLogout }) => {
                   )}
                 </div>
 
-                {/* Orders Table */}
-                <div style={{ overflowX: 'auto' }}>
+                {/* Loading State - Show while searching */}
+                {isSectionLoading ? (
+                  <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>
+                    <RefreshCw size={48} className="animate-spin" style={{ opacity: 0.7, marginBottom: '16px' }} />
+                    <p>Searching orders...</p>
+                  </div>
+                ) : (orders.length === 0 && !searchTerm) ? (
+                  <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>
+                    <Package size={48} style={{ opacity: 0.3, marginBottom: '16px' }} />
+                    <p>No orders found</p>
+                  </div>
+                ) : (
+                  /* Orders Table */
+                  <div style={{ overflowX: 'auto' }}>
                   <table style={{ 
                     width: '100%', 
                     borderCollapse: 'collapse',
