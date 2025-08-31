@@ -168,7 +168,7 @@ router.get('/status/:status',
   async (req, res) => {
     try {
       const { status } = req.params;
-      const { limit = 100, page = 1 } = req.query;
+      const { limit = 100, page = 1, lastDocId } = req.query;
       
       const limitNum = parseInt(limit);
       const pageNum = parseInt(page);
@@ -188,7 +188,7 @@ router.get('/status/:status',
         });
       }
 
-      const result = await orderService.getOrdersByStatus(status, limitNum, pageNum);
+      const result = await orderService.getOrdersByStatus(status, limitNum, pageNum, lastDocId);
 
       // Check if the requested page is beyond available data
       if (pageNum > result.totalPages && result.totalPages > 0) {
@@ -207,6 +207,8 @@ router.get('/status/:status',
         page: pageNum,
         limit: limitNum,
         totalPages: result.totalPages,
+        lastDocumentId: result.lastDocumentId,
+        hasNextPage: result.hasNextPage,
         orders: result.orders
       });
     } catch (error) {

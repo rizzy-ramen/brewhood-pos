@@ -151,8 +151,8 @@ class OrderService {
     }
   }
 
-  // Get orders by status with chronological sorting and pagination
-  async getOrdersByStatus(status, limit = 100, page = 1) {
+  // Get orders by status with true cursor-based pagination for performance
+  async getOrdersByStatus(status, limit = 100, page = 1, lastDocId = null) {
     try {
       this.ensureInitialized();
       
@@ -160,24 +160,39 @@ class OrderService {
         return this.getAllOrders(limit);
       }
 
-      // First, get total count for pagination info
+      // First, get total count for pagination info (this is fast - just metadata)
       const countQuery = this.ordersRef.where('status', '==', status);
       const countSnapshot = await countQuery.get();
       const total = countSnapshot.size;
 
-      // For Firestore pagination, we need to use cursor-based approach
-      // Since we can't use offset, we'll fetch all orders and slice them
-      // This is not ideal for very large datasets, but works for moderate amounts
-      // TODO: Implement proper cursor-based pagination when orderBy is re-enabled
-      
-      const query = this.ordersRef
+      // Build the base query
+      let query = this.ordersRef
         .where('status', '==', status)
-        .limit(1000); // Fetch more than needed to handle pagination
+        .orderBy('created_at', 'asc') // Enable sorting for cursor pagination
+        .limit(limit);
 
+      // If we have a last document ID from previous page, use it as cursor
+      if (lastDocId && page > 1) {
+        try {
+          const lastDocRef = this.ordersRef.doc(lastDocId);
+          const lastDoc = await lastDocRef.get();
+          
+          if (lastDoc.exists) {
+            query = query.startAfter(lastDoc);
+            console.log(`🔄 Using cursor pagination: starting after document ${lastDocId}`);
+          } else {
+            console.log(`⚠️ Last document ${lastDocId} not found, falling back to first page`);
+          }
+        } catch (cursorError) {
+          console.error('❌ Error with cursor pagination, falling back to first page:', cursorError);
+        }
+      }
+
+      // Execute the query - this will only fetch the requested page
       const snapshot = await query.get();
-      const allOrders = [];
+      const orders = [];
 
-      // Process orders with items
+      // Process orders with items (only the ones we fetched)
       for (const doc of snapshot.docs) {
         try {
           const orderData = doc.data();
@@ -193,7 +208,7 @@ class OrderService {
             });
           });
 
-          allOrders.push({
+          orders.push({
             id: doc.id,
             ...orderData,
             items
@@ -204,25 +219,20 @@ class OrderService {
         }
       }
 
-      // Sort orders by creation time (oldest first for FIFO)
-      allOrders.sort((a, b) => {
-        const timeA = a.created_at?.toDate?.() || new Date(a.created_at || 0);
-        const timeB = b.created_at?.toDate?.() || new Date(b.created_at || 0);
-        return timeA - timeB;
-      });
-
-      // Apply pagination by slicing the sorted array
-      const startIndex = (page - 1) * limit;
-      const endIndex = startIndex + limit;
-      const orders = allOrders.slice(startIndex, endIndex);
+      // Get the last document ID for next page cursor
+      const lastDocumentId = snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1].id : null;
 
       console.log(`✅ Retrieved ${orders.length} orders with status: ${status} (page ${page}, limit ${limit}) from total ${total}`);
+      console.log(`📄 Last document ID for next page: ${lastDocumentId}`);
+      
       return {
         orders,
         total,
         page,
         limit,
-        totalPages: Math.ceil(total / limit)
+        totalPages: Math.ceil(total / limit),
+        lastDocumentId, // Pass this to frontend for next page
+        hasNextPage: snapshot.docs.length === limit // Check if there are more pages
       };
     } catch (error) {
       console.error('❌ Error fetching orders by status:', error);

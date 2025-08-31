@@ -40,6 +40,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     totalPages: 1,
     currentPage: 1
   });
+  const [pageCursors, setPageCursors] = useState({}); // Store cursors for each page
 
 
 
@@ -641,7 +642,10 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       // Use pagination for delivered orders, regular fetch for others
       let response;
       if (currentFilter === 'delivered') {
-        response = await apiService.getOrders(currentFilter, ordersPerPage, pageNumber);
+        // For cursor-based pagination, we need the last document ID from the previous page
+        const lastDocId = pageNumber > 1 ? pageCursors[pageNumber - 1] : null;
+        console.log(`🔄 Fetching page ${pageNumber} with cursor:`, lastDocId);
+        response = await apiService.getOrders(currentFilter, ordersPerPage, pageNumber, lastDocId);
       } else {
         response = await apiService.getOrders(currentFilter);
       }
@@ -716,6 +720,15 @@ const DeliveryDashboard = ({ user, onLogout }) => {
             totalPages: response.totalPages || Math.ceil(response.total / ordersPerPage),
             currentPage: response.page || pageNumber
           });
+          
+          // Store the cursor for this page to use for next page
+          if (response.lastDocumentId) {
+            setPageCursors(prev => ({
+              ...prev,
+              [pageNumber]: response.lastDocumentId
+            }));
+            console.log(`💾 Stored cursor for page ${pageNumber}:`, response.lastDocumentId);
+          }
         }
       }
     } catch (error) {
