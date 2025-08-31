@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { RefreshCw, Package, Search, X, Clock, CheckCircle } from 'lucide-react';
 import { apiService } from '../services/api';
+import { websocketService } from '../services/websocketService';
 
 // Debounce utility function
 const debounce = (func, delay) => {
@@ -19,6 +20,7 @@ const OrdersStatusTable = ({
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [ordersPerPage] = useState(20);
@@ -27,6 +29,8 @@ const OrdersStatusTable = ({
     totalPages: 1,
     currentPage: 1
   });
+  const [lastUpdate, setLastUpdate] = useState(null);
+  const [wsStatus, setWsStatus] = useState('disconnected');
 
   // Fetch all orders
   const fetchAllOrders = async () => {
@@ -77,12 +81,6 @@ const OrdersStatusTable = ({
       });
 
       setOrders(sortedOrders);
-      setFilteredOrders(sortedOrders);
-      setPaginationInfo({
-        total: sortedOrders.length,
-        totalPages: Math.ceil(sortedOrders.length / ordersPerPage),
-        currentPage: 1
-      });
     } catch (error) {
       console.error('❌ Error fetching all orders:', error);
     } finally {
@@ -90,34 +88,45 @@ const OrdersStatusTable = ({
     }
   };
 
-  // Search functionality
-  const handleSearch = (searchValue) => {
-    setSearchTerm(searchValue);
-    setCurrentPage(1);
+  // Apply filters (search + status)
+  const applyFilters = () => {
+    let filtered = orders;
     
-    if (searchValue.trim() === '') {
-      setFilteredOrders(orders);
-      setPaginationInfo({
-        total: orders.length,
-        totalPages: Math.ceil(orders.length / ordersPerPage),
-        currentPage: 1
-      });
-      return;
+    // Apply status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(order => order.status === statusFilter);
     }
-
-    const filtered = orders.filter(order => 
-      order.customer_name && order.customer_name.toLowerCase().includes(searchValue.toLowerCase()) ||
-      order.id && order.id.toLowerCase().includes(searchValue.toLowerCase()) ||
-      order.customer_id && order.customer_id.toLowerCase().includes(searchValue.toLowerCase()) ||
-      order.status && order.status.toLowerCase().includes(searchValue.toLowerCase())
-    );
-
+    
+    // Apply search filter
+    if (searchTerm.trim() !== '') {
+      filtered = filtered.filter(order => 
+        order.customer_name && order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.id && order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.customer_id && order.customer_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.status && order.status.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
     setFilteredOrders(filtered);
     setPaginationInfo({
       total: filtered.length,
       totalPages: Math.ceil(filtered.length / ordersPerPage),
       currentPage: 1
     });
+  };
+
+  // Search functionality
+  const handleSearch = (searchValue) => {
+    setSearchTerm(searchValue);
+    setCurrentPage(1);
+    applyFilters();
+  };
+
+  // Status filter functionality
+  const handleStatusFilter = (status) => {
+    setStatusFilter(status);
+    setCurrentPage(1);
+    applyFilters();
   };
 
   // Debounced search
@@ -211,6 +220,70 @@ const OrdersStatusTable = ({
     fetchAllOrders();
   }, []);
 
+  // Apply filters when orders or filters change
+  useEffect(() => {
+    if (orders.length > 0) {
+      applyFilters();
+    }
+  }, [orders, statusFilter, searchTerm]);
+
+  // WebSocket real-time updates
+  useEffect(() => {
+    // Ensure WebSocket connection is established as counter user
+    websocketService.connect('counter');
+    
+    // Check connection status periodically
+    const checkConnectionStatus = () => {
+      const status = websocketService.getConnectionStatus();
+      setWsStatus(status.isConnected ? 'connected' : 'disconnected');
+      console.log('🔌 WebSocket status:', status);
+    };
+    
+    // Check immediately and then every 5 seconds
+    checkConnectionStatus();
+    const intervalId = setInterval(checkConnectionStatus, 5000);
+    
+    const handleOrderStatusUpdated = (updatedOrder) => {
+      console.log('🔄 OrdersStatusTable: Order status updated:', updatedOrder);
+      setOrders(prevOrders => {
+        const updatedOrders = prevOrders.map(order => 
+          order.id === updatedOrder.id ? { ...order, ...updatedOrder } : order
+        );
+        return updatedOrders;
+      });
+      setLastUpdate(new Date());
+    };
+
+    const handleOrderCreated = (newOrder) => {
+      console.log('🆕 OrdersStatusTable: New order created:', newOrder);
+      setOrders(prevOrders => {
+        // Add new order at the beginning (newest first)
+        const updatedOrders = [newOrder, ...prevOrders];
+        return updatedOrders;
+      });
+      setLastUpdate(new Date());
+    };
+
+    const handleOrderDeleted = (orderId) => {
+      console.log('🗑️ OrdersStatusTable: Order deleted:', orderId);
+      setOrders(prevOrders => prevOrders.filter(order => order.id !== orderId));
+      setLastUpdate(new Date());
+    };
+
+    // Subscribe to WebSocket events
+    websocketService.on('orderStatusUpdated', handleOrderStatusUpdated);
+    websocketService.on('orderCreated', handleOrderCreated);
+    websocketService.on('orderDeleted', handleOrderDeleted);
+
+    // Cleanup subscriptions
+    return () => {
+      clearInterval(intervalId);
+      websocketService.off('orderStatusUpdated', handleOrderStatusUpdated);
+      websocketService.off('orderCreated', handleOrderCreated);
+      websocketService.off('orderDeleted', handleOrderDeleted);
+    };
+  }, []);
+
   return (
     <div 
       className={`orders-status-table ${className}`}
@@ -226,6 +299,15 @@ const OrdersStatusTable = ({
         ...style
       }}
     >
+      <style>
+        {`
+          @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+          }
+        `}
+      </style>
       {/* Header */}
       <div style={{
         padding: '20px',
@@ -241,7 +323,36 @@ const OrdersStatusTable = ({
           alignItems: 'center',
           marginBottom: '20px'
         }}>
-          <h2 style={{ margin: 0, color: '#333' }}>All Orders Status</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <h2 style={{ margin: 0, color: '#333' }}>All Orders Status</h2>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '12px',
+              color: wsStatus === 'connected' ? '#28a745' : '#dc3545',
+              fontWeight: '500'
+            }}>
+              <div style={{
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                backgroundColor: wsStatus === 'connected' ? '#28a745' : '#dc3545',
+                animation: wsStatus === 'connected' ? 'pulse 2s infinite' : 'none'
+              }}></div>
+              {wsStatus === 'connected' ? 'Live Updates' : 'WebSocket Disconnected'}
+              {lastUpdate && wsStatus === 'connected' && (
+                <span style={{ 
+                  fontSize: '11px', 
+                  color: '#666', 
+                  marginLeft: '8px',
+                  fontWeight: 'normal'
+                }}>
+                  • Last update: {lastUpdate.toLocaleTimeString()}
+                </span>
+              )}
+            </div>
+          </div>
           <button
             onClick={onClose}
             style={{
@@ -265,6 +376,49 @@ const OrdersStatusTable = ({
           >
             <X size={24} />
           </button>
+        </div>
+
+        {/* Status Filter */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          marginBottom: '16px',
+          flexWrap: 'wrap'
+        }}>
+          <span style={{ fontSize: '14px', color: '#666', fontWeight: '500' }}>Filter by Status:</span>
+          {['all', 'pending', 'preparing', 'ready', 'delivered', 'cancelled'].map(status => (
+            <button
+              key={status}
+              onClick={() => handleStatusFilter(status)}
+              style={{
+                padding: '8px 16px',
+                border: '1px solid #ced4da',
+                borderRadius: '20px',
+                background: statusFilter === status ? getStatusColor(status) : 'white',
+                color: statusFilter === status ? 'white' : '#495057',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: '500',
+                transition: 'all 0.2s ease',
+                textTransform: 'capitalize'
+              }}
+              onMouseEnter={(e) => {
+                if (statusFilter !== status) {
+                  e.target.style.backgroundColor = '#f8f9fa';
+                  e.target.style.borderColor = '#adb5bd';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (statusFilter !== status) {
+                  e.target.style.backgroundColor = 'white';
+                  e.target.style.borderColor = '#ced4da';
+                }
+              }}
+            >
+              {status === 'all' ? 'All Orders' : status}
+            </button>
+          ))}
         </div>
 
         {/* Search Bar */}
@@ -329,13 +483,96 @@ const OrdersStatusTable = ({
           )}
         </div>
 
-        {/* Results Info */}
+        {/* Results Info and Refresh */}
         <div style={{
-          marginTop: '12px',
-          fontSize: '14px',
-          color: '#666'
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginTop: '12px'
         }}>
-          Showing {filteredOrders.length} of {orders.length} total orders
+          <div style={{
+            fontSize: '14px',
+            color: '#666'
+          }}>
+            {statusFilter !== 'all' && (
+              <span style={{ marginRight: '16px' }}>
+                Status: <strong style={{ color: getStatusColor(statusFilter) }}>{statusFilter}</strong>
+              </span>
+            )}
+            Showing {filteredOrders.length} of {orders.length} total orders
+            {searchTerm && (
+              <span style={{ marginLeft: '16px' }}>
+                • Search: <strong>"{searchTerm}"</strong>
+              </span>
+            )}
+          </div>
+          
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              onClick={fetchAllOrders}
+              disabled={loading}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 16px',
+                border: '1px solid #ced4da',
+                borderRadius: '6px',
+                background: 'white',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                color: '#6c757d',
+                fontSize: '14px',
+                transition: 'all 0.2s ease',
+                opacity: loading ? 0.6 : 1
+              }}
+              onMouseEnter={(e) => {
+                if (!loading) {
+                  e.target.style.backgroundColor = '#f8f9fa';
+                  e.target.style.borderColor = '#adb5bd';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!loading) {
+                  e.target.style.backgroundColor = 'white';
+                  e.target.style.borderColor = '#ced4da';
+                }
+              }}
+            >
+              <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+              Refresh
+            </button>
+            
+            <button
+              onClick={() => {
+                const status = websocketService.getConnectionStatus();
+                console.log('🔌 WebSocket Status:', status);
+                alert(`WebSocket Status: ${status.isConnected ? 'Connected' : 'Disconnected'}\nSocket ID: ${status.socketId || 'None'}\nReconnect Attempts: ${status.reconnectAttempts}`);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 16px',
+                border: '1px solid #ced4da',
+                borderRadius: '6px',
+                background: 'white',
+                cursor: 'pointer',
+                color: '#6c757d',
+                fontSize: '14px',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = '#f8f9fa';
+                e.target.style.borderColor = '#adb5bd';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'white';
+                e.target.style.borderColor = '#ced4da';
+              }}
+            >
+              🔌 WS Status
+            </button>
+          </div>
         </div>
       </div>
 
