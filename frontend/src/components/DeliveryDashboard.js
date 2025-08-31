@@ -271,28 +271,24 @@ const DeliveryDashboard = ({ user, onLogout }) => {
           return newNotifications;
         });
         
+        // Remove the order from the current section if we're viewing it
+        // This prevents duplicate display until refresh
+        setOrders(prevOrders => prevOrders.filter(order => order.id !== data.orderId));
+        
+        // Clear loading state for this order
+        setUpdatingOrders(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(data.orderId);
+          return newSet;
+        });
+        
         // Only fetch orders if we're currently viewing the affected section
         const currentFilter = filterRef.current;
         if (currentFilter === data.status) {
           console.log(`🔄 Currently viewing ${data.status} section, refreshing orders`);
-          debouncedUpdate(() => {
-            fetchOrders(currentFilter).then(() => {
-              // Clear loading state for this order after list is refreshed
-              setUpdatingOrders(prev => {
-                const newSet = new Set(prev);
-                newSet.delete(data.orderId);
-                return newSet;
-              });
-            });
-          }, 1000);
+          debouncedUpdate(() => fetchOrders(currentFilter), 1000);
         } else {
           console.log(`🔄 Not viewing ${data.status} section, notification badge updated`);
-          // Clear loading state immediately since we're not refreshing
-          setUpdatingOrders(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(data.orderId);
-            return newSet;
-          });
         }
         // Removed toast notification for cleaner UI
       });
@@ -454,6 +450,9 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       setUpdatingOrders(prev => new Set([...prev, orderId]));
       
       await apiService.updateOrderStatus(orderId, status);
+      
+      // Immediately remove the order from the current section since its status changed
+      setOrders(prevOrders => prevOrders.filter(order => order.id !== orderId));
       
       // Removed toast notifications for cleaner UI
       // Real-time updates will handle the UI refresh via socket
