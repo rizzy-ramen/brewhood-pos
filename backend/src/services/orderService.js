@@ -431,6 +431,80 @@ class OrderService {
     }
   }
 
+  // Search orders by status and search term across all pages
+  async searchOrders(status, searchTerm) {
+    try {
+      this.ensureInitialized();
+      
+      console.log(`🔍 Searching orders with status: ${status}, term: "${searchTerm}"`);
+      
+      // Build the base query for the specific status
+      let query = this.ordersRef.where('status', '==', status);
+      
+      // Execute the query to get all orders with this status
+      const snapshot = await query.get();
+      const allOrders = [];
+      
+      // Process all orders with items
+      for (const doc of snapshot.docs) {
+        try {
+          const orderData = doc.data();
+          
+          // Get order items
+          const itemsSnapshot = await doc.ref.collection('items').get();
+          const items = [];
+          
+          itemsSnapshot.forEach(itemDoc => {
+            items.push({
+              id: itemDoc.id,
+              ...itemDoc.data()
+            });
+          });
+
+          allOrders.push({
+            id: doc.id,
+            ...orderData,
+            items
+          });
+        } catch (orderError) {
+          console.error('❌ Error processing order:', doc.id, orderError);
+          // Continue with other orders
+        }
+      }
+      
+      // Filter orders by search term (case-insensitive)
+      const searchLower = searchTerm.toLowerCase();
+      const filteredOrders = allOrders.filter(order => {
+        return (
+          order.customer_name.toLowerCase().includes(searchLower) ||
+          order.id.toLowerCase().includes(searchLower) ||
+          order.customer_id.toLowerCase().includes(searchLower) ||
+          order.items.some(item => 
+            item.product_name.toLowerCase().includes(searchLower)
+          )
+        );
+      });
+      
+      // Sort by creation time (newest first)
+      filteredOrders.sort((a, b) => {
+        const timeA = a.created_at?.toDate?.() || new Date(a.created_at || 0);
+        const timeB = b.created_at?.toDate?.() || new Date(b.created_at || 0);
+        return timeB - timeA; // Descending: newest first
+      });
+      
+      console.log(`🔍 Search completed: ${filteredOrders.length} orders found out of ${allOrders.length} total`);
+      
+      return {
+        orders: filteredOrders,
+        total: filteredOrders.length,
+        searchTerm
+      };
+    } catch (error) {
+      console.error('❌ Error searching orders:', error);
+      throw error;
+    }
+  }
+
   // Helper method to enable sorting once index is confirmed working
   enableSorting() {
     console.log('🔄 Re-enabling order sorting...');

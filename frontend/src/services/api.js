@@ -68,6 +68,30 @@ export const apiService = {
     }
   },
 
+  // Search orders across all pages in the database
+  searchOrders: async (status, searchTerm) => {
+    try {
+      const token = generateDemoToken();
+      const url = `${API_BASE_URL}/orders/search?status=${status}&q=${encodeURIComponent(searchTerm)}`;
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to search orders');
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('❌ API Error - searchOrders:', error);
+      throw error;
+    }
+  },
+
   updateOrderStatus: async (orderId, status) => {
     try {
       const token = generateDemoToken();

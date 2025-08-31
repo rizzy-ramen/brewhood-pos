@@ -155,6 +155,54 @@ router.get('/',
   }
 );
 
+// Search orders by status and search term
+router.get('/search',
+  orderRateLimit,
+  authenticateToken,
+  requireRole(['delivery', 'admin']),
+  [
+    query('status')
+      .isIn(['pending', 'preparing', 'ready', 'delivered', 'cancelled'])
+      .withMessage('Valid status is required'),
+    query('q')
+      .trim()
+      .isLength({ min: 1, max: 100 })
+      .withMessage('Search term is required and must be less than 100 characters')
+  ],
+  async (req, res) => {
+    try {
+      // Check validation results
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          error: 'Validation failed',
+          details: errors.array()
+        });
+      }
+
+      const { status, q: searchTerm } = req.query;
+      
+      console.log(`🔍 Searching orders with status: ${status}, term: "${searchTerm}"`);
+      
+      const searchResults = await orderService.searchOrders(status, searchTerm);
+      
+      res.json({
+        success: true,
+        message: 'Search completed successfully',
+        orders: searchResults.orders,
+        total: searchResults.total,
+        searchTerm
+      });
+    } catch (error) {
+      console.error('❌ Error searching orders:', error);
+      res.status(500).json({
+        error: 'Failed to search orders',
+        message: error.message
+      });
+    }
+  }
+);
+
 // Get orders by status
 router.get('/status/:status',
   orderRateLimit,

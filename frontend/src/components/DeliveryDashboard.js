@@ -629,19 +629,67 @@ const DeliveryDashboard = ({ user, onLogout }) => {
   };
 
   // Pagination and search functions for delivered orders
-  const handleSearch = useCallback((searchValue) => {
+  const handleSearch = useCallback(async (searchValue) => {
     setSearchTerm(searchValue);
     setCurrentPage(1); // Reset to first page when searching
     
-    if (filter === 'delivered' && orders.length > 0) {
-      const filtered = orders.filter(order => 
-        order.customer_name.toLowerCase().includes(searchValue.toLowerCase()) ||
-        order.id.toLowerCase().includes(searchValue.toLowerCase()) ||
-        order.customer_id.toLowerCase().includes(searchValue.toLowerCase())
-      );
-      setFilteredOrders(filtered);
+    if (filter === 'delivered') {
+      if (searchValue.trim() === '') {
+        // If search is empty, clear filtered results and show normal pagination
+        setFilteredOrders([]);
+        // Fetch first page of normal orders
+        await fetchOrdersWithPage('delivered', 1);
+        return;
+      }
+      
+      // Show loading state
+      setIsSectionLoading(true);
+      
+      try {
+        console.log(`🔍 Searching for: "${searchValue}" in delivered orders`);
+        
+        // Call backend search API
+        const response = await apiService.searchOrders('delivered', searchValue);
+        
+        if (response && response.success && response.orders) {
+          const searchResults = response.orders;
+          console.log(`🔍 Search results: ${searchResults.length} orders found`);
+          
+          // Update filtered orders with search results
+          setFilteredOrders(searchResults);
+          
+          // Update pagination info for search results
+          setPaginationInfo({
+            total: searchResults.length,
+            totalPages: Math.ceil(searchResults.length / ordersPerPage),
+            currentPage: 1
+          });
+          
+          // Clear the main orders state since we're showing search results
+          setOrders([]);
+        } else {
+          console.log('🔍 No search results found');
+          setFilteredOrders([]);
+          setPaginationInfo({
+            total: 0,
+            totalPages: 0,
+            currentPage: 1
+          });
+        }
+      } catch (error) {
+        console.error('❌ Search error:', error);
+        // Fallback to client-side filtering if search fails
+        const filtered = orders.filter(order => 
+          order.customer_name.toLowerCase().includes(searchValue.toLowerCase()) ||
+          order.id.toLowerCase().includes(searchValue.toLowerCase()) ||
+          order.customer_id.toLowerCase().includes(searchValue.toLowerCase())
+        );
+        setFilteredOrders(filtered);
+      } finally {
+        setIsSectionLoading(false);
+      }
     }
-  }, [filter, orders]);
+  }, [filter, orders, fetchOrdersWithPage]);
 
   // Separate function to fetch orders with specific page
   const fetchOrdersWithPage = useCallback(async (currentFilter, pageNumber) => {
