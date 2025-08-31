@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { Package, CheckCircle, User, LogOut, Clock, RefreshCw, X } from 'lucide-react';
+import { Package, CheckCircle, User, LogOut, Clock, RefreshCw, X, Search } from 'lucide-react';
 import { apiService } from '../services/api';
 import websocketService from '../services/websocketService';
 import LoadingScreen from './LoadingScreen';
@@ -1012,42 +1012,105 @@ const DeliveryDashboard = ({ user, onLogout }) => {
             ) : filter === 'delivered' ? (
               // Table view for delivered orders
               <div>
-                {/* Search Bar */}
-                <div style={{ marginBottom: '20px' }}>
+                {/* Search Bar - Always Visible */}
+                <div style={{ 
+                  marginBottom: '20px',
+                  padding: '16px',
+                  backgroundColor: '#f8f9fa',
+                  borderRadius: '8px',
+                  border: '1px solid #e9ecef'
+                }}>
                   <div style={{ 
                     display: 'flex', 
                     alignItems: 'center', 
-                    gap: '10px',
-                    maxWidth: '400px'
+                    gap: '12px',
+                    maxWidth: '500px'
                   }}>
+                    <Search size={20} style={{ color: '#6c757d' }} />
                     <input
                       type="text"
-                      placeholder="Search by customer name, order ID, or customer ID..."
+                      placeholder="Search orders by customer name, order ID, customer ID, or product name..."
                       value={searchTerm}
                       onChange={(e) => handleSearch(e.target.value)}
                       style={{
                         flex: 1,
-                        padding: '10px 12px',
-                        border: '1px solid #ddd',
-                        borderRadius: '6px',
-                        fontSize: '14px'
+                        padding: '12px 16px',
+                        border: '1px solid #ced4da',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        backgroundColor: 'white',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                        transition: 'all 0.2s ease'
+                      }}
+                      onFocus={(e) => {
+                        e.target.style.borderColor = '#007bff';
+                        e.target.style.boxShadow = '0 0 0 3px rgba(0,123,255,0.1)';
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = '#ced4da';
+                        e.target.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
                       }}
                     />
                     {searchTerm && (
                       <button
                         onClick={() => handleSearch('')}
                         style={{
-                          padding: '8px',
-                          border: 'none',
-                          background: 'none',
+                          padding: '8px 12px',
+                          border: '1px solid #ced4da',
+                          borderRadius: '6px',
+                          background: 'white',
                           cursor: 'pointer',
-                          color: '#666'
+                          color: '#6c757d',
+                          transition: 'all 0.2s ease'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.target.style.backgroundColor = '#f8f9fa';
+                          e.target.style.borderColor = '#adb5bd';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.backgroundColor = 'white';
+                          e.target.style.borderColor = '#ced4da';
                         }}
                       >
                         <X size={16} />
                       </button>
                     )}
                   </div>
+                  
+                  {/* Search Status */}
+                  {searchTerm && (
+                    <div style={{ 
+                      marginTop: '8px', 
+                      fontSize: '12px', 
+                      color: '#6c757d',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}>
+                      <span>
+                        {filteredOrders.length > 0 
+                          ? `Found ${filteredOrders.length} orders matching "${searchTerm}"`
+                          : `No orders found matching "${searchTerm}"`
+                        }
+                      </span>
+                      {filteredOrders.length > 0 && (
+                        <button
+                          onClick={() => handleSearch('')}
+                          style={{
+                            padding: '4px 8px',
+                            border: '1px solid #ced4da',
+                            borderRadius: '4px',
+                            background: 'white',
+                            cursor: 'pointer',
+                            color: '#6c757d',
+                            fontSize: '11px'
+                          }}
+                        >
+                          Clear search
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Orders Table */}
