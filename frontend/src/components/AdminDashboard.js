@@ -103,15 +103,8 @@ const AdminDashboard = ({ user, onLogout }) => {
   useEffect(() => {
     fetchProducts();
     
-    // Set up polling for backend API updates (every 10 seconds)
-    const pollInterval = setInterval(() => {
-      console.log('🔄 Admin Dashboard - Polling backend for product updates');
-      fetchProducts();
-    }, 10000); // Poll every 10 seconds
-
-    return () => {
-      clearInterval(pollInterval);
-    };
+    // No more polling - use WebSocket for real-time updates instead
+    console.log('🔄 Admin Dashboard - Initial fetch complete, WebSocket will handle real-time updates');
   }, []);
 
   // Set minimum loading time for better UX

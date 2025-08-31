@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { ShoppingCart, Plus, Minus, X, User, LogOut } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, X, User, LogOut, Bell, Package, Edit, Trash2 } from 'lucide-react';
 import { apiService } from '../services/api';
 import websocketService from '../services/websocketService';
 import LoadingScreen from './LoadingScreen';
@@ -22,6 +22,11 @@ const CounterDashboard = ({ user, onLogout }) => {
   
   // State for managing views
   const [currentView, setCurrentView] = useState('take-orders'); // 'take-orders' or 'all-orders'
+
+  // Notification system state
+  const [notifications, setNotifications] = useState([]);
+  const [showNotificationCenter, setShowNotificationCenter] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   // Set minimum loading time for better UX
   useEffect(() => {
@@ -57,43 +62,148 @@ const CounterDashboard = ({ user, onLogout }) => {
     fetchProducts();
   }, []);
 
+  // Notification system functions
+  const addNotification = (type, title, message, productName = null) => {
+    const newNotification = {
+      id: Date.now(),
+      type, // 'success', 'warning', 'info', 'error'
+      title,
+      message,
+      productName,
+      timestamp: new Date(),
+      read: false
+    };
+    
+    setNotifications(prev => [newNotification, ...prev]);
+    setUnreadCount(prev => prev + 1);
+    
+    // Auto-remove notification after 8 seconds
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== newNotification.id));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    }, 8000);
+  };
+
+  const markNotificationAsRead = (notificationId) => {
+    setNotifications(prev => 
+      prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
+    );
+    setUnreadCount(prev => Math.max(0, prev - 1));
+  };
+
+  const markAllNotificationsAsRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    setUnreadCount(0);
+  };
+
+  const clearNotification = (notificationId) => {
+    setNotifications(prev => {
+      const notification = prev.find(n => n.id === notificationId);
+      if (notification && !notification.read) {
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      }
+      return prev.filter(n => n.id !== notificationId);
+    });
+  };
+
   // WebSocket integration for real-time product updates
   useEffect(() => {
+    console.log('🔌 Setting up WebSocket connection for CounterDashboard...');
+    
     // Connect to WebSocket
     websocketService.connect();
+    
+    // Check connection status
+    const connectionStatus = websocketService.getConnectionStatus();
+    console.log('🔌 WebSocket connection status:', connectionStatus);
+    
+    // Add connection status listener
+    const handleStatusChange = (status) => {
+      console.log('🔌 WebSocket status changed:', status);
+    };
+    
+    websocketService.on('statusChange', handleStatusChange);
+    
+    // Wait a bit for connection to establish, then check status again
+    const checkConnection = setTimeout(() => {
+      const status = websocketService.getConnectionStatus();
+      console.log('🔌 WebSocket connection status after delay:', status);
+      
+      if (!status.isConnected) {
+        console.warn('⚠️ WebSocket not connected after delay, trying to reconnect...');
+        websocketService.connect();
+      }
+    }, 2000);
 
     // Listen for product availability changes
     websocketService.on('productAvailabilityChanged', (data) => {
-      console.log('🔄 Product availability changed:', data);
+      console.log('🔄 CounterDashboard: Product availability changed event received:', data);
       const { productId, isAvailable } = data;
+      
+      // Add notification first
+      if (isAvailable) {
+        console.log('✅ Adding success notification for product enabled');
+        addNotification(
+          'success',
+          'Product Enabled',
+          `A product is now available for orders`,
+          null
+        );
+      } else {
+        console.log('⚠️ Adding warning notification for product disabled');
+        addNotification(
+          'warning',
+          'Product Disabled',
+          `A product has been hidden and is no longer available`,
+          null
+        );
+      }
       
       // Update products list based on availability change
       setProducts(prevProducts => {
         if (isAvailable) {
-          // Product was enabled - add it back if not already present
-          const productExists = prevProducts.find(p => p.id === productId);
-          if (!productExists) {
-            // Need to fetch the product details since we only have the ID
-            fetchProducts(); // Refresh the entire list
-          }
+          // Product was enabled - need to refresh to get the product details
+          console.log('🔄 Product enabled, refreshing products list');
+          fetchProducts();
+          return prevProducts;
         } else {
           // Product was disabled - remove it from the list
+          console.log('🔄 Product disabled, removing from products list');
           return prevProducts.filter(p => p.id !== productId);
         }
-        return prevProducts;
       });
     });
 
     // Listen for product updates (general changes)
     websocketService.on('productUpdated', (product) => {
-      console.log('🔄 Product updated:', product);
+      console.log('🔄 CounterDashboard: Product updated event received:', product);
+      
+      // Add notification
+      console.log('ℹ️ Adding info notification for product updated');
+      addNotification(
+        'info',
+        'Product Updated',
+        `${product.name} has been modified by admin`,
+        product.name
+      );
+      
       // Refresh products to get the latest state
+      console.log('🔄 Refreshing products list after update');
       fetchProducts();
     });
 
     // Listen for new products
     websocketService.on('productCreated', (product) => {
       console.log('🆕 New product created:', product);
+      
+      // Add notification
+      addNotification(
+        'success',
+        'New Product Added',
+        `${product.name} is now available for orders`,
+        product.name
+      );
+      
       // Only add if it's available
       if (product.is_available !== false) {
         setProducts(prevProducts => [...prevProducts, product]);
@@ -104,18 +214,30 @@ const CounterDashboard = ({ user, onLogout }) => {
     websocketService.on('productDeleted', (data) => {
       console.log('🗑️ Product deleted:', data);
       const { productId } = data;
+      
+      // Add notification
+      addNotification(
+        'error',
+        'Product Removed',
+        `A product has been permanently removed`,
+        null
+      );
+      
       // Remove the deleted product
       setProducts(prevProducts => prevProducts.filter(p => p.id !== productId));
     });
 
     // Cleanup WebSocket listeners
     return () => {
+      console.log('🔌 Cleaning up WebSocket listeners for CounterDashboard...');
       websocketService.off('productAvailabilityChanged');
       websocketService.off('productUpdated');
       websocketService.off('productCreated');
       websocketService.off('productDeleted');
+      websocketService.off('statusChange', handleStatusChange);
+      clearTimeout(checkConnection);
     };
-  }, []);
+  }, []); // Removed products dependency
 
   // Function to get proper image URL or fallback
   const getImageUrl = (product) => {
@@ -253,7 +375,14 @@ const CounterDashboard = ({ user, onLogout }) => {
 
   return (
     <div className="container">
-      <div className="header">
+      <div className="header" style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'space-between',
+        padding: '16px 24px',
+        backgroundColor: '#f8f9fa',
+        borderBottom: '1px solid #e9ecef'
+      }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <HamburgerMenu 
             onLogout={onLogout}
@@ -261,7 +390,79 @@ const CounterDashboard = ({ user, onLogout }) => {
             onViewAllOrders={handleViewAllOrders}
             user={user}
           />
-          <h1 className="header-title">Counter Dashboard</h1>
+          <h1 className="header-title" style={{ margin: 0, fontSize: '24px', fontWeight: '600', color: '#212529' }}>
+            Counter Dashboard
+          </h1>
+        </div>
+        
+        {/* Notification Bell */}
+        <div className="notification-section" style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          {/* Test notification button */}
+          <button
+            onClick={() => addNotification('success', 'Test Notification', 'This is a test notification to verify the system is working!', 'Test Product')}
+            style={{
+              background: '#007bff',
+              border: 'none',
+              color: 'white',
+              padding: '6px 12px',
+              borderRadius: '6px',
+              fontSize: '12px',
+              cursor: 'pointer',
+              transition: 'background-color 0.2s ease'
+            }}
+            onMouseEnter={(e) => e.target.style.backgroundColor = '#0056b3'}
+            onMouseLeave={(e) => e.target.style.backgroundColor = '#007bff'}
+          >
+            Test Notif
+          </button>
+          
+          <button 
+            className="notification-bell"
+            onClick={() => setShowNotificationCenter(!showNotificationCenter)}
+            title="Notifications"
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              position: 'relative',
+              padding: '8px',
+              borderRadius: '50%',
+              transition: 'background-color 0.2s ease',
+              color: '#6c757d'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.backgroundColor = '#e9ecef';
+              e.target.style.color = '#495057';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.backgroundColor = 'transparent';
+              e.target.style.color = '#6c757d';
+            }}
+          >
+            <Bell size={20} />
+            {unreadCount > 0 && (
+              <span 
+                className="notification-badge"
+                style={{
+                  position: 'absolute',
+                  top: '0',
+                  right: '0',
+                  backgroundColor: '#dc3545',
+                  color: 'white',
+                  borderRadius: '50%',
+                  width: '18px',
+                  height: '18px',
+                  fontSize: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 'bold'
+                }}
+              >
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </button>
         </div>
       </div>
 
@@ -424,6 +625,219 @@ const CounterDashboard = ({ user, onLogout }) => {
       ) : (
         // All Orders View
         <OrdersStatusTable onClose={handleCloseOrdersTable} />
+      )}
+
+      {/* Notification Center Popup */}
+      {showNotificationCenter && (
+        <div 
+          className="notification-overlay"
+          onClick={() => setShowNotificationCenter(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'center',
+            paddingTop: '80px'
+          }}
+        >
+          <div 
+            className="notification-center"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
+              width: '90%',
+              maxWidth: '500px',
+              maxHeight: '70vh',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+          >
+            {/* Header */}
+            <div style={{
+              padding: '20px',
+              borderBottom: '1px solid #e9ecef',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>
+                Notifications ({notifications.length})
+              </h3>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {unreadCount > 0 && (
+                  <button
+                    onClick={markAllNotificationsAsRead}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#007bff',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      transition: 'background-color 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => e.target.style.backgroundColor = '#f8f9fa'}
+                    onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                  >
+                    Mark all read
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowNotificationCenter(false)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: '4px',
+                    borderRadius: '4px',
+                    transition: 'background-color 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = '#f8f9fa'}
+                  onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+            {/* Notifications List */}
+            <div style={{
+              flex: 1,
+              overflowY: 'auto',
+              padding: '0'
+            }}>
+              {notifications.length === 0 ? (
+                <div style={{
+                  padding: '40px 20px',
+                  textAlign: 'center',
+                  color: '#666'
+                }}>
+                  <Bell size={48} style={{ opacity: 0.3, marginBottom: '16px' }} />
+                  <p>No notifications yet</p>
+                </div>
+              ) : (
+                notifications.map(notification => (
+                  <div
+                    key={notification.id}
+                    className={`notification-item ${notification.read ? 'read' : 'unread'}`}
+                    style={{
+                      padding: '16px 20px',
+                      borderBottom: '1px solid #f1f3f4',
+                      backgroundColor: notification.read ? 'transparent' : '#f8f9ff',
+                      cursor: 'pointer',
+                      transition: 'background-color 0.2s ease'
+                    }}
+                    onClick={() => markNotificationAsRead(notification.id)}
+                    onMouseEnter={(e) => e.target.style.backgroundColor = notification.read ? '#f8f9fa' : '#e7f3ff'}
+                    onMouseLeave={(e) => e.target.style.backgroundColor = notification.read ? 'transparent' : '#f8f9ff'}
+                  >
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '12px'
+                    }}>
+                      {/* Icon */}
+                      <div style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                        backgroundColor: notification.type === 'success' ? '#d4edda' : 
+                                       notification.type === 'warning' ? '#fff3cd' :
+                                       notification.type === 'error' ? '#f8d7da' : '#d1ecf1',
+                        color: notification.type === 'success' ? '#155724' :
+                               notification.type === 'warning' ? '#856404' :
+                               notification.type === 'error' ? '#721c24' : '#0c5460'
+                      }}>
+                        {notification.type === 'success' && <Package size={16} />}
+                        {notification.type === 'warning' && <Package size={16} />}
+                        {notification.type === 'error' && <Trash2 size={16} />}
+                        {notification.type === 'info' && <Edit size={16} />}
+                      </div>
+
+                      {/* Content */}
+                      <div style={{ flex: 1 }}>
+                        <div style={{
+                          fontWeight: '600',
+                          fontSize: '14px',
+                          marginBottom: '4px',
+                          color: notification.read ? '#495057' : '#212529'
+                        }}>
+                          {notification.title}
+                        </div>
+                        <div style={{
+                          fontSize: '13px',
+                          color: '#6c757d',
+                          marginBottom: '6px',
+                          lineHeight: '1.4'
+                        }}>
+                          {notification.message}
+                        </div>
+                        <div style={{
+                          fontSize: '11px',
+                          color: '#adb5bd',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between'
+                        }}>
+                          <span>
+                            {notification.timestamp.toLocaleTimeString([], { 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })}
+                          </span>
+                          {!notification.read && (
+                            <span style={{
+                              width: '8px',
+                              height: '8px',
+                              borderRadius: '50%',
+                              backgroundColor: '#007bff'
+                            }}></span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Clear button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          clearNotification(notification.id);
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: '4px',
+                          borderRadius: '4px',
+                          color: '#adb5bd',
+                          transition: 'color 0.2s ease'
+                        }}
+                        onMouseEnter={(e) => e.target.style.color = '#dc3545'}
+                        onMouseLeave={(e) => e.target.style.color = '#adb5bd'}
+                        title="Clear notification"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

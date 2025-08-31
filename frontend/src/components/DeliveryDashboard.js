@@ -395,8 +395,8 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         setWebsocketStatus(status.isConnected ? 'connected' : 'disconnected');
       };
       
-      // Check status every 2 seconds
-      statusInterval = setInterval(updateWebSocketStatus, 2000);
+      // Check status every 10 seconds (reduced frequency)
+      statusInterval = setInterval(updateWebSocketStatus, 10000);
       
       // Initial status check
       updateWebSocketStatus();
@@ -416,11 +416,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         // Update last update timestamp
         localStorage.setItem('lastOrderUpdate', Date.now().toString());
         
-        // Trigger additional immediate poll for maximum responsiveness
-        setTimeout(() => {
-          console.log('🚨 Additional immediate poll triggered');
-          fetchOrders(filter);
-        }, 500); // Poll again after 500ms for reliability
+        // No additional polling needed - WebSocket will handle real-time updates
       }
     };
     
@@ -434,11 +430,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         // Update last update timestamp
         localStorage.setItem('lastOrderUpdate', Date.now().toString());
         
-        // Trigger additional immediate poll for maximum responsiveness
-        setTimeout(() => {
-          console.log('🚨 Additional immediate poll triggered');
-          fetchOrders(filter);
-        }, 500); // Poll again after 500ms for reliability
+        // No additional polling needed - WebSocket will handle real-time updates
       }
     };
     
@@ -455,11 +447,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
             // Update last update timestamp
             localStorage.setItem('lastOrderUpdate', Date.now().toString());
             
-            // Trigger additional immediate poll for maximum responsiveness
-            setTimeout(() => {
-              console.log('🚨 Additional immediate poll triggered');
-              fetchOrders(filter);
-            }, 500); // Poll again after 500ms for reliability
+            // No additional polling needed - WebSocket will handle real-time updates
           }
         };
       } catch (error) {

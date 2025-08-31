@@ -31,11 +31,11 @@ const BackendStatusIndicator = ({
     }
   };
 
-  // Auto-check backend health every 30 seconds
+  // Auto-check backend health every 2 minutes (reduced frequency)
   useEffect(() => {
     checkBackendHealth();
     
-    const interval = setInterval(checkBackendHealth, 30000);
+    const interval = setInterval(checkBackendHealth, 120000); // 2 minutes instead of 30 seconds
     return () => clearInterval(interval);
   }, []);
 

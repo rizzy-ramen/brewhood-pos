@@ -164,6 +164,25 @@ app.get('/test-websocket', (req, res) => {
   }
 });
 
+// Test product notification endpoint
+app.get('/test-product-notification', (req, res) => {
+  try {
+    // Send a test product availability change event
+    eventManager.notifyProductAvailabilityChanged('test-product-id', false);
+    
+    res.json({
+      success: true,
+      message: 'Test product availability change event sent to all WebSocket clients',
+      connectedClients: eventManager.getStats().totalClients
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: 'Failed to send test product event',
+      message: error.message
+    });
+  }
+});
+
 
 
 // API routes

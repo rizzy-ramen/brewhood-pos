@@ -166,6 +166,7 @@ class EventManager {
 
   // Product-related events
   notifyProductCreated(product) {
+    console.log('📦 EventManager: Broadcasting productCreated event:', product.id);
     this.broadcast('productCreated', product);
     this.clearCache('products'); // Clear products cache
     this.clearCache('available_products'); // Clear available products cache
@@ -173,6 +174,7 @@ class EventManager {
   }
 
   notifyProductUpdated(product) {
+    console.log('🔄 EventManager: Broadcasting productUpdated event:', product.id);
     this.broadcast('productUpdated', product);
     this.clearCache('products'); // Clear products cache
     this.clearCache('available_products'); // Clear available products cache
@@ -180,6 +182,7 @@ class EventManager {
   }
 
   notifyProductDeleted(productId) {
+    console.log('🗑️ EventManager: Broadcasting productDeleted event:', productId);
     this.broadcast('productDeleted', { productId, timestamp: new Date() });
     this.clearCache('products'); // Clear products cache
     this.clearCache('available_products'); // Clear available products cache
@@ -188,6 +191,7 @@ class EventManager {
 
   notifyProductAvailabilityChanged(productId, isAvailable) {
     const eventData = { productId, isAvailable, timestamp: new Date() };
+    console.log('👁️ EventManager: Broadcasting productAvailabilityChanged event:', eventData);
     this.broadcast('productAvailabilityChanged', eventData);
     this.clearCache('products'); // Clear products cache
     this.clearCache('available_products'); // Clear available products cache

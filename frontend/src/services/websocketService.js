@@ -48,6 +48,10 @@ class WebSocketService {
       this.socket.emit('joinRoom', 'delivery');
       console.log('👥 WebSocket joined delivery room');
       
+      // Also join a global room for product updates (accessible to all apps)
+      this.socket.emit('joinRoom', 'global');
+      console.log('🌍 WebSocket joined global room');
+      
       // Authenticate with demo token
       this.socket.emit('authenticate', { 
         role: 'delivery', 
@@ -95,6 +99,27 @@ class WebSocketService {
 
     this.socket.on('orderDeleted', (orderId) => {
       this.emit('orderDeleted', orderId);
+    });
+
+    // Handle real-time product updates
+    this.socket.on('productCreated', (product) => {
+      console.log('🆕 WebSocket received productCreated event:', product);
+      this.emit('productCreated', product);
+    });
+
+    this.socket.on('productUpdated', (product) => {
+      console.log('🔄 WebSocket received productUpdated event:', product);
+      this.emit('productUpdated', product);
+    });
+
+    this.socket.on('productDeleted', (data) => {
+      console.log('🗑️ WebSocket received productDeleted event:', data);
+      this.emit('productDeleted', data);
+    });
+
+    this.socket.on('productAvailabilityChanged', (data) => {
+      console.log('👁️ WebSocket received productAvailabilityChanged event:', data);
+      this.emit('productAvailabilityChanged', data);
     });
 
     // Test event listener
