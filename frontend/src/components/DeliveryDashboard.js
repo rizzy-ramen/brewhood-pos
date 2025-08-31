@@ -634,13 +634,19 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     setCurrentPage(1); // Reset to first page when searching
     
     if (filter === 'delivered') {
-      if (searchValue.trim() === '') {
-        // If search is empty, clear filtered results and show normal pagination
-        setFilteredOrders([]);
-        // Fetch first page of normal orders
-        await fetchOrdersWithPage('delivered', 1);
-        return;
-      }
+              if (searchValue.trim() === '') {
+          // If search is empty, clear filtered results and show normal pagination
+          setFilteredOrders([]);
+          // Trigger a normal fetch to show the first page
+          // We'll use a timeout to ensure this happens after the current function completes
+          setTimeout(() => {
+            if (filter === 'delivered') {
+              // Fetch first page of normal orders
+              fetchOrdersWithPage('delivered', 1);
+            }
+          }, 0);
+          return;
+        }
       
       // Show loading state
       setIsSectionLoading(true);
@@ -681,16 +687,16 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         console.error('❌ Search error:', error);
         // Fallback to client-side filtering if search fails
         const filtered = orders.filter(order => 
-          order.customer_name.toLowerCase().includes(searchValue.toLowerCase()) ||
-          order.id.toLowerCase().includes(searchValue.toLowerCase()) ||
-          order.customer_id.toLowerCase().includes(searchValue.toLowerCase())
+          order.customer_name && order.customer_name.toLowerCase().includes(searchValue.toLowerCase()) ||
+          order.id && order.id.toLowerCase().includes(searchValue.toLowerCase()) ||
+          order.customer_id && order.customer_id.toLowerCase().includes(searchValue.toLowerCase())
         );
         setFilteredOrders(filtered);
       } finally {
         setIsSectionLoading(false);
       }
     }
-  }, [filter, orders, fetchOrdersWithPage]);
+  }, [filter, orders]);
 
   // Separate function to fetch orders with specific page
   const fetchOrdersWithPage = useCallback(async (currentFilter, pageNumber) => {
