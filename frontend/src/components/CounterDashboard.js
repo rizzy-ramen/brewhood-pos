@@ -4,6 +4,10 @@ import { ShoppingCart, Plus, Minus, X, User, LogOut } from 'lucide-react';
 import { apiService } from '../services/api';
 import LoadingScreen from './LoadingScreen';
 
+// Import reusable components
+import HamburgerMenu from './HamburgerMenu';
+import OrdersStatusTable from './OrdersStatusTable';
+
 const CounterDashboard = ({ user, onLogout }) => {
   const [products, setProducts] = useState([]);
   const [cart, setCart] = useState([]);
@@ -14,6 +18,9 @@ const CounterDashboard = ({ user, onLogout }) => {
   const [recentOrders, setRecentOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [minLoadingComplete, setMinLoadingComplete] = useState(false);
+  
+  // State for managing views
+  const [currentView, setCurrentView] = useState('take-orders'); // 'take-orders' or 'all-orders'
 
   // Set minimum loading time for better UX
   useEffect(() => {
@@ -70,7 +77,6 @@ const CounterDashboard = ({ user, onLogout }) => {
         quantity: 1
       }]);
     }
-    toast.success(`${product.name} added to cart`);
   };
 
   const updateQuantity = (productId, change) => {
@@ -89,6 +95,19 @@ const CounterDashboard = ({ user, onLogout }) => {
 
   const getCartTotal = () => {
     return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+  };
+
+  // Handler functions for hamburger menu
+  const handleTakeOrders = () => {
+    setCurrentView('take-orders');
+  };
+
+  const handleViewAllOrders = () => {
+    setCurrentView('all-orders');
+  };
+
+  const handleCloseOrdersTable = () => {
+    setCurrentView('take-orders');
   };
 
   const handlePlaceOrder = async () => {
@@ -173,24 +192,22 @@ const CounterDashboard = ({ user, onLogout }) => {
   return (
     <div className="container">
       <div className="header">
-        <h1 className="header-title">Counter Dashboard</h1>
-        <div className="user-info">
-          <div className="role-badge">Counter</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <User size={18} />
-            <span>{user.username}</span>
-          </div>
-          <button className="btn btn-secondary" onClick={onLogout}>
-            <LogOut size={18} />
-            Logout
-          </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <HamburgerMenu 
+            onLogout={onLogout}
+            onTakeOrders={handleTakeOrders}
+            onViewAllOrders={handleViewAllOrders}
+            user={user}
+          />
+          <h1 className="header-title">Counter Dashboard</h1>
         </div>
       </div>
 
-      <div className="counter-main-layout">
-        <div>
-          {/* Customer Info */}
-          <div className="card">
+      {currentView === 'take-orders' ? (
+        <div className="counter-main-layout">
+          <div>
+            {/* Customer Info */}
+            <div className="card">
             <h3 style={{ marginBottom: '16px' }}>Customer Information</h3>
             <div className="customer-info-layout">
               <div className="form-group" style={{ marginBottom: '0' }}>
@@ -277,34 +294,7 @@ const CounterDashboard = ({ user, onLogout }) => {
             </div>
           </div>
 
-          {/* Recent Orders */}
-          <div className="card">
-            <h3 style={{ marginBottom: '16px' }}>Recent Orders</h3>
-            <div className="order-list">
-              {recentOrders.map(order => (
-                <div key={order.id} className="order-card">
-                  <div className="order-header">
-                    <div>
-                      <div className="order-id">Order #{order.id}</div>
-                      <div style={{ color: '#666', fontSize: '14px' }}>
-                        {order.customer_name} • ₹{order.total_amount}
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <span className={`order-status status-${order.status}`}>
-                        {order.status}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {recentOrders.length === 0 && (
-                <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
-                  No recent orders
-                </div>
-              )}
-            </div>
-          </div>
+
         </div>
 
         {/* Cart */}
@@ -369,6 +359,10 @@ const CounterDashboard = ({ user, onLogout }) => {
           )}
         </div>
       </div>
+      ) : (
+        // All Orders View
+        <OrdersStatusTable onClose={handleCloseOrdersTable} />
+      )}
     </div>
   );
 };

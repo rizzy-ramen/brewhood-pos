@@ -14,6 +14,50 @@ const OrdersTable = ({
   fetchOrderDetails, 
   selectedOrder 
 }) => {
+  // Utility function to parse dates from various formats
+  const parseOrderDate = (createdAt) => {
+    try {
+      if (!createdAt) return 'No date';
+      
+      let date;
+      
+      // Handle Firestore Timestamp
+      if (createdAt?.toDate) {
+        date = createdAt.toDate();
+      }
+      // Handle Firestore Timestamp with seconds
+      else if (createdAt?.seconds) {
+        date = new Date(createdAt.seconds * 1000);
+      }
+      // Handle ISO string or other date formats
+      else if (typeof createdAt === 'string') {
+        date = new Date(createdAt);
+      }
+      // Handle Date object
+      else if (createdAt instanceof Date) {
+        date = createdAt;
+      }
+      // Handle timestamp number
+      else if (typeof createdAt === 'number') {
+        date = new Date(createdAt);
+      }
+      else {
+        console.warn('Unknown date format:', createdAt, 'type:', typeof createdAt);
+        return 'Unknown format';
+      }
+      
+      // Validate the date
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid date value:', createdAt);
+        return 'Invalid date';
+      }
+      
+      return date.toLocaleString();
+    } catch (error) {
+      console.error('Error parsing date:', createdAt, error);
+      return 'Parse error';
+    }
+  };
   return (
     <div>
       {/* Loading State - Only affects table content */}
@@ -45,7 +89,7 @@ const OrdersTable = ({
                 <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Type</th>
                 <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Items</th>
                 <th style={{ padding: '12px', textAlign: 'right', fontWeight: '600' }}>Total</th>
-                <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Date</th>
+                                        <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Date & Time</th>
                 <th style={{ padding: '12px', textAlign: 'center', fontWeight: '600' }}>Actions</th>
               </tr>
             </thead>
@@ -83,9 +127,9 @@ const OrdersTable = ({
                     <td style={{ padding: '12px', textAlign: 'right', fontWeight: '600' }}>
                       ₹{order.total_amount}
                     </td>
-                    <td style={{ padding: '12px', fontSize: '12px', color: '#666' }}>
-                      {new Date(order.created_at).toLocaleDateString()}
-                    </td>
+                                                                        <td style={{ padding: '12px', fontSize: '12px', color: '#666' }}>
+                          {parseOrderDate(order.created_at)}
+                        </td>
                     <td style={{ padding: '12px', textAlign: 'center' }}>
                       <button
                         className="btn btn-sm btn-outline"

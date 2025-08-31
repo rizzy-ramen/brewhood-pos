@@ -17,6 +17,46 @@ class OrderService {
     }
   }
 
+  // Helper function to convert various date formats to ISO string
+  convertDateToISO(dateValue) {
+    try {
+      if (!dateValue) return dateValue;
+      
+      // Handle Firestore Timestamp with toDate method
+      if (dateValue?.toDate && typeof dateValue.toDate === 'function') {
+        return dateValue.toDate().toISOString();
+      }
+      // Handle Firestore Timestamp with seconds/nanoseconds
+      else if (dateValue?.seconds && dateValue?.nanoseconds) {
+        return new Date(dateValue.seconds * 1000).toISOString();
+      }
+      // Handle Date object
+      else if (dateValue instanceof Date) {
+        return dateValue.toISOString();
+      }
+      // Handle ISO string (already in correct format)
+      else if (typeof dateValue === 'string' && dateValue.includes('T')) {
+        return dateValue;
+      }
+      // Handle other string formats
+      else if (typeof dateValue === 'string') {
+        return new Date(dateValue).toISOString();
+      }
+      // Handle timestamp number
+      else if (typeof dateValue === 'number') {
+        return new Date(dateValue).toISOString();
+      }
+      // Unknown format
+      else {
+        console.warn('⚠️ Unknown date format:', dateValue, 'type:', typeof dateValue);
+        return dateValue;
+      }
+    } catch (error) {
+      console.error('❌ Error converting date to ISO:', error, 'value:', dateValue);
+      return dateValue;
+    }
+  }
+
   ensureInitialized() {
     if (!this.db || !this.ordersRef) {
       this.initialize();
@@ -77,10 +117,16 @@ class OrderService {
 
       console.log('✅ Order created successfully:', orderId);
       
-      // Return complete order data
+      // Return complete order data with properly serialized dates
+      const processedOrderDoc = {
+        ...orderDoc,
+        created_at: this.convertDateToISO(orderDoc.created_at),
+        updated_at: this.convertDateToISO(orderDoc.updated_at)
+      };
+
       return {
         id: orderId,
-        ...orderDoc,
+        ...processedOrderDoc,
         items: orderData.items
       };
     } catch (error) {
@@ -132,9 +178,16 @@ class OrderService {
             });
           });
 
+          // Ensure dates are properly serialized
+          const processedOrderData = {
+            ...orderData,
+            created_at: this.convertDateToISO(orderData.created_at),
+            updated_at: this.convertDateToISO(orderData.updated_at)
+          };
+
           orders.push({
             id: doc.id,
-            ...orderData,
+            ...processedOrderData,
             items
           });
         } catch (orderError) {
@@ -219,9 +272,16 @@ class OrderService {
             });
           });
 
+          // Ensure dates are properly serialized
+          const processedOrderData = {
+            ...orderData,
+            created_at: this.convertDateToISO(orderData.created_at),
+            updated_at: this.convertDateToISO(orderData.updated_at)
+          };
+
           orders.push({
             id: doc.id,
-            ...orderData,
+            ...processedOrderData,
             items
           });
         } catch (orderError) {
@@ -461,9 +521,16 @@ class OrderService {
             });
           });
 
+          // Ensure dates are properly serialized
+          const processedOrderData = {
+            ...orderData,
+            created_at: this.convertDateToISO(orderData.created_at),
+            updated_at: this.convertDateToISO(orderData.updated_at)
+          };
+
           allOrders.push({
             id: doc.id,
-            ...orderData,
+            ...processedOrderData,
             items
           });
         } catch (orderError) {

@@ -1,53 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { Wifi, WifiOff, RefreshCw, AlertCircle, CheckCircle, Clock } from 'lucide-react';
-import { apiService, API_BASE_URL } from '../services/api';
+import { apiService } from '../services/api';
 
 const BackendStatusIndicator = ({ 
-  showDetails = true, 
   position = 'top-right',
-  size = 'medium',
   onStatusChange = null 
 }) => {
   const [status, setStatus] = useState('checking'); // checking, online, offline, error
-  const [lastCheck, setLastCheck] = useState(null);
-  const [responseTime, setResponseTime] = useState(null);
-  const [baseUrl, setBaseUrl] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
-  const [isExpanded, setIsExpanded] = useState(false);
 
-  // Get base URL from API service
-  useEffect(() => {
-    setBaseUrl(API_BASE_URL);
-  }, []);
+
+
 
   // Check backend health
   const checkBackendHealth = async () => {
-    const startTime = Date.now();
     setStatus('checking');
     
     try {
       const health = await apiService.checkHealth();
-      const endTime = Date.now();
-      const responseTimeMs = endTime - startTime;
       
       if (health.status === 'OK') {
         setStatus('online');
-        setResponseTime(responseTimeMs);
-        setErrorMessage('');
         onStatusChange?.('online', health);
       } else {
         setStatus('error');
-        setErrorMessage('Backend returned unexpected status');
         onStatusChange?.('error', health);
       }
-      
-      setLastCheck(new Date());
     } catch (error) {
       setStatus('offline');
-      setErrorMessage(error.message || 'Connection failed');
-      setResponseTime(null);
       onStatusChange?.('offline', error);
-      setLastCheck(new Date());
     }
   };
 
@@ -90,34 +70,7 @@ const BackendStatusIndicator = ({
     }
   };
 
-  const getStatusText = () => {
-    switch (status) {
-      case 'online':
-        return 'Backend Online';
-      case 'offline':
-        return 'Backend Offline';
-      case 'error':
-        return 'Backend Error';
-      case 'checking':
-        return 'Checking...';
-      default:
-        return 'Unknown Status';
-    }
-  };
 
-  // Size classes
-  const getSizeClasses = () => {
-    switch (size) {
-      case 'small':
-        return 'text-xs px-2 py-1';
-      case 'medium':
-        return 'text-sm px-3 py-2';
-      case 'large':
-        return 'text-base px-4 py-3';
-      default:
-        return 'text-sm px-3 py-2';
-    }
-  };
 
   // Position classes
   const getPositionClasses = () => {
@@ -141,103 +94,18 @@ const BackendStatusIndicator = ({
 
   return (
     <div className={`fixed ${getPositionClasses()} z-50`}>
-      {/* Main Status Indicator */}
+      {/* Simple Status Button */}
       <div 
-        className={`${getStatusColor()} border rounded-lg shadow-lg cursor-pointer transition-all duration-200 hover:shadow-xl ${getSizeClasses()}`}
-        onClick={() => setIsExpanded(!isExpanded)}
+        className={`${getStatusColor()} border rounded-lg shadow-lg transition-all duration-200 hover:shadow-xl text-xs px-2 py-1`}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           {getStatusIcon()}
-          <span className="font-medium">{getStatusText()}</span>
-          {responseTime && status === 'online' && (
-            <span className="text-xs opacity-75">({responseTime}ms)</span>
-          )}
-          <span className="text-xs opacity-60">🌐</span>
+          <span className="font-medium text-xs">
+            {status === 'online' ? 'Online' : 
+             status === 'offline' ? 'Offline' : 
+             status === 'error' ? 'Error' : 'Checking...'}
+          </span>
         </div>
-      </div>
-
-      {/* Expanded Details */}
-      {isExpanded && showDetails && (
-        <div className={`mt-2 ${getStatusColor()} border rounded-lg shadow-lg p-3 max-w-sm ${getSizeClasses()}`}>
-          <div className="space-y-2">
-            {/* Status Details */}
-            <div className="flex items-center justify-between">
-              <span className="font-medium">Status:</span>
-              <span className="capitalize">{status}</span>
-            </div>
-
-            {/* Backend Endpoint */}
-            <div className="flex items-center justify-between">
-              <span className="font-medium">Backend:</span>
-              <span className="text-xs break-all max-w-48">{baseUrl}</span>
-            </div>
-
-            {/* Health Endpoint */}
-            <div className="flex items-center justify-between">
-              <span className="font-medium">Health Check:</span>
-              <span className="text-xs break-all max-w-48">
-                {baseUrl.replace('/api', '')}/health
-              </span>
-            </div>
-
-            {/* Connection Type */}
-            <div className="flex items-center justify-between">
-              <span className="font-medium">Connection:</span>
-              <span className="text-xs">Cloudflare Tunnel</span>
-            </div>
-
-            {/* Response Time */}
-            {responseTime && (
-              <div className="flex items-center justify-between">
-                <span className="font-medium">Response:</span>
-                <span>{responseTime}ms</span>
-              </div>
-            )}
-
-            {/* Last Check */}
-            {lastCheck && (
-              <div className="flex items-center justify-between">
-                <span className="font-medium">Last Check:</span>
-                <span className="text-xs">
-                  {lastCheck.toLocaleTimeString()}
-                </span>
-              </div>
-            )}
-
-            {/* Error Message */}
-            {errorMessage && (
-              <div className="flex items-center justify-between">
-                <span className="font-medium">Error:</span>
-                <span className="text-xs text-red-600 max-w-32 break-words">
-                  {errorMessage}
-                </span>
-              </div>
-            )}
-
-            {/* Manual Refresh Button */}
-            <div className="pt-2 border-t border-current border-opacity-20">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  checkBackendHealth();
-                }}
-                className="w-full flex items-center justify-center gap-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded px-2 py-1 text-xs transition-colors"
-              >
-                <RefreshCw size={12} />
-                Refresh Status
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Connection Indicator */}
-      <div className="mt-1 flex items-center justify-center">
-        <div className={`w-2 h-2 rounded-full ${
-          status === 'online' ? 'bg-green-500' : 
-          status === 'offline' ? 'bg-red-500' : 
-          status === 'error' ? 'bg-yellow-500' : 'bg-blue-500'
-        } animate-pulse`}></div>
       </div>
     </div>
   );

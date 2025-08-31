@@ -1804,3 +1804,58 @@ body {
     height: 32px;
   }
 }
+
+/* Hamburger Menu Styles */
+.hamburger-menu {
+  position: relative;
+}
+
+.hamburger-button {
+  transition: all 0.2s ease;
+}
+
+.hamburger-button:hover {
+  background-color: #f8f9fa !important;
+}
+
+.menu-panel {
+  transition: left 0.3s ease;
+}
+
+.menu-panel.open {
+  left: 0;
+}
+
+/* Orders Status Table Styles */
+.orders-status-table {
+  background-color: white;
+}
+
+.orders-status-table .btn {
+  padding: 8px 16px;
+  border: 1px solid #ced4da;
+  background-color: white;
+  color: #495057;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.orders-status-table .btn:hover:not(:disabled) {
+  background-color: #f8f9fa;
+  border-color: #adb5bd;
+}
+
+.orders-status-table .btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.orders-status-table .btn-outline {
+  background-color: transparent;
+}
+
+.orders-status-table .btn-outline:hover:not(:disabled) {
+  background-color: #f8f9fa;
+}
