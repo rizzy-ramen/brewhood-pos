@@ -29,6 +29,12 @@ const DeliveryDashboard = ({ user, onLogout }) => {
   const [websocketStatus, setWebsocketStatus] = useState('connecting');
   const [updatingOrders, setUpdatingOrders] = useState(new Set()); // Track orders being updated
   const [isSectionLoading, setIsSectionLoading] = useState(false); // Track if current section is loading
+  
+  // Pagination and search state for delivered orders
+  const [currentPage, setCurrentPage] = useState(1);
+  const [ordersPerPage] = useState(10);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredOrders, setFilteredOrders] = useState([]);
 
 
 
@@ -580,6 +586,49 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     );
   };
 
+  // Pagination and search functions for delivered orders
+  const handleSearch = useCallback((searchValue) => {
+    setSearchTerm(searchValue);
+    setCurrentPage(1); // Reset to first page when searching
+    
+    if (filter === 'delivered' && orders.length > 0) {
+      const filtered = orders.filter(order => 
+        order.customer_name.toLowerCase().includes(searchValue.toLowerCase()) ||
+        order.id.toLowerCase().includes(searchValue.toLowerCase()) ||
+        order.customer_id.toLowerCase().includes(searchValue.toLowerCase())
+      );
+      setFilteredOrders(filtered);
+    }
+  }, [filter, orders]);
+
+  const handlePageChange = useCallback((pageNumber) => {
+    setCurrentPage(pageNumber);
+  }, []);
+
+  // Calculate pagination for delivered orders
+  const getPaginatedOrders = useCallback(() => {
+    if (filter !== 'delivered') return orders;
+    
+    const ordersToFilter = searchTerm ? filteredOrders : orders;
+    const indexOfLastOrder = currentPage * ordersPerPage;
+    const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
+    return ordersToFilter.slice(indexOfFirstOrder, indexOfLastOrder);
+  }, [filter, orders, searchTerm, filteredOrders, currentPage, ordersPerPage]);
+
+  // Calculate total pages for delivered orders
+  const getTotalPages = useCallback(() => {
+    if (filter !== 'delivered') return 1;
+    const ordersToFilter = searchTerm ? filteredOrders : orders;
+    return Math.ceil(ordersToFilter.length / ordersPerPage);
+  }, [filter, orders, searchTerm, filteredOrders, ordersPerPage]);
+
+  // Reset pagination when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+    setSearchTerm('');
+    setFilteredOrders([]);
+  }, [filter]);
+
   if (loading || !minLoadingComplete) {
     return <LoadingScreen />;
   }
@@ -678,7 +727,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
           <div className="card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h3 style={{ margin: 0 }}>
-                Orders ({orders.length})
+                Orders ({filter === 'delivered' ? (searchTerm ? filteredOrders.length : orders.length) : orders.length})
               </h3>
               <button 
                 className="btn btn-sm btn-outline"
@@ -701,7 +750,166 @@ const DeliveryDashboard = ({ user, onLogout }) => {
                 <Package size={48} style={{ opacity: 0.3, marginBottom: '16px' }} />
                 <p>No orders found</p>
               </div>
+            ) : filter === 'delivered' ? (
+              // Table view for delivered orders
+              <div>
+                {/* Search Bar */}
+                <div style={{ marginBottom: '20px' }}>
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '10px',
+                    maxWidth: '400px'
+                  }}>
+                    <input
+                      type="text"
+                      placeholder="Search by customer name, order ID, or customer ID..."
+                      value={searchTerm}
+                      onChange={(e) => handleSearch(e.target.value)}
+                      style={{
+                        flex: 1,
+                        padding: '10px 12px',
+                        border: '1px solid #ddd',
+                        borderRadius: '6px',
+                        fontSize: '14px'
+                      }}
+                    />
+                    {searchTerm && (
+                      <button
+                        onClick={() => handleSearch('')}
+                        style={{
+                          padding: '8px',
+                          border: 'none',
+                          background: 'none',
+                          cursor: 'pointer',
+                          color: '#666'
+                        }}
+                      >
+                        <X size={16} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Orders Table */}
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ 
+                    width: '100%', 
+                    borderCollapse: 'collapse',
+                    fontSize: '14px'
+                  }}>
+                    <thead>
+                      <tr style={{ 
+                        backgroundColor: '#f8f9fa', 
+                        borderBottom: '2px solid #dee2e6' 
+                      }}>
+                        <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Order ID</th>
+                        <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Customer</th>
+                        <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Type</th>
+                        <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Items</th>
+                        <th style={{ padding: '12px', textAlign: 'right', fontWeight: '600' }}>Total</th>
+                        <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Date</th>
+                        <th style={{ padding: '12px', textAlign: 'center', fontWeight: '600' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {getPaginatedOrders().map(order => (
+                        <tr 
+                          key={order.id}
+                          style={{ 
+                            borderBottom: '1px solid #e9ecef',
+                            cursor: 'pointer',
+                            backgroundColor: selectedOrder?.id === order.id ? '#f8f9ff' : 'transparent'
+                          }}
+                          onClick={() => fetchOrderDetails(order.id)}
+                        >
+                          <td style={{ padding: '12px', fontWeight: '500', color: '#007bff' }}>
+                            #{order.id.slice(-8)}
+                          </td>
+                          <td style={{ padding: '12px' }}>{order.customer_name}</td>
+                          <td style={{ padding: '12px' }}>
+                            <span style={{
+                              padding: '4px 8px',
+                              borderRadius: '12px',
+                              fontSize: '12px',
+                              fontWeight: '500',
+                              backgroundColor: order.order_type === 'takeaway' ? '#e3f2fd' : '#f3e5f5',
+                              color: order.order_type === 'takeaway' ? '#1565c0' : '#7b1fa2'
+                            }}>
+                              {order.order_type}
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px' }}>{order.items.length} items</td>
+                          <td style={{ padding: '12px', textAlign: 'right', fontWeight: '600' }}>
+                            ₹{order.total_amount}
+                          </td>
+                          <td style={{ padding: '12px', fontSize: '12px', color: '#666' }}>
+                            {new Date(order.created_at).toLocaleDateString()}
+                          </td>
+                          <td style={{ padding: '12px', textAlign: 'center' }}>
+                            <button
+                              className="btn btn-sm btn-outline"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                fetchOrderDetails(order.id);
+                              }}
+                              title="View Details"
+                            >
+                              View
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination */}
+                {getTotalPages() > 1 && (
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'center', 
+                    alignItems: 'center', 
+                    gap: '10px',
+                    marginTop: '20px',
+                    padding: '20px 0'
+                  }}>
+                    <button
+                      className="btn btn-sm btn-outline"
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                    >
+                      Previous
+                    </button>
+                    
+                    <span style={{ fontSize: '14px', color: '#666' }}>
+                      Page {currentPage} of {getTotalPages()}
+                    </span>
+                    
+                    <button
+                      className="btn btn-sm btn-outline"
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === getTotalPages()}
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
+
+                {/* Results Info */}
+                <div style={{ 
+                  textAlign: 'center', 
+                  padding: '16px', 
+                  color: '#666', 
+                  fontSize: '14px',
+                  borderTop: '1px solid #e9ecef',
+                  marginTop: '20px'
+                }}>
+                  Showing {((currentPage - 1) * ordersPerPage) + 1} to {Math.min(currentPage * ordersPerPage, (searchTerm ? filteredOrders.length : orders.length))} of {searchTerm ? filteredOrders.length : orders.length} delivered orders
+                </div>
+              </div>
             ) : (
+              // Regular card view for other sections
               <div className="order-list">
                 {orders.map(order => (
                   <div 
@@ -744,7 +952,9 @@ const DeliveryDashboard = ({ user, onLogout }) => {
                                 ? 'linear-gradient(90deg, #28a745, #20c997)' 
                                 : (calculatePreparationProgress(order.items) > 0 
                                   ? 'linear-gradient(90deg, #fd7e14, #ffc107)' 
-                                  : 'linear-gradient(90deg, #ffc107, #ffd60a)'),
+                                  : (calculatePreparationProgress(order.items) > 0 
+                                    ? 'linear-gradient(90deg, #fd7e14, #ffc107)' 
+                                    : 'linear-gradient(90deg, #ffc107, #ffd60a)')),
                               borderRadius: '4px',
                               transition: 'all 0.3s ease'
                             }}>
@@ -791,6 +1001,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
                                     alignItems: 'center',
                                     padding: '12px',
                                     backgroundColor: isCompleted ? '#f8fff8' : '#fff',
+                                    border: isCompleted ? '1px solid #28a745' : '1px solid #e9ecef',
                                     border: isCompleted ? '1px solid #28a745' : '1px solid #e9ecef',
                                     borderRadius: '6px',
                                     width: '100%',
