@@ -33,12 +33,16 @@ export const apiService = {
     }
   },
 
-  getOrders: async (status = null, limit = 100) => {
+  getOrders: async (status = null, limit = 100, page = 1) => {
     try {
       const token = generateDemoToken();
-      const url = status && status !== 'all' 
-        ? `${API_BASE_URL}/orders/status/${status}?limit=${limit}`
-        : `${API_BASE_URL}/orders?limit=${limit}`;
+      let url;
+      
+      if (status && status !== 'all') {
+        url = `${API_BASE_URL}/orders/status/${status}?limit=${limit}&page=${page}`;
+      } else {
+        url = `${API_BASE_URL}/orders?limit=${limit}&page=${page}`;
+      }
         
       const response = await fetch(url, {
         headers: {

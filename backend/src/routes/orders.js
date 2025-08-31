@@ -168,15 +168,37 @@ router.get('/status/:status',
   async (req, res) => {
     try {
       const { status } = req.params;
-      const { limit } = req.query;
+      const { limit = 100, page = 1 } = req.query;
       
-      const orders = await orderService.getOrdersByStatus(status, parseInt(limit) || 100);
+      const limitNum = parseInt(limit);
+      const pageNum = parseInt(page);
+      
+      // Validate pagination parameters
+      if (limitNum < 1 || limitNum > 1000) {
+        return res.status(400).json({
+          error: 'Invalid limit',
+          message: 'Limit must be between 1 and 1000'
+        });
+      }
+      
+      if (pageNum < 1) {
+        return res.status(400).json({
+          error: 'Invalid page',
+          message: 'Page must be greater than 0'
+        });
+      }
+
+      const result = await orderService.getOrdersByStatus(status, limitNum, pageNum);
 
       res.json({
         success: true,
         status,
-        count: orders.length,
-        orders
+        count: result.orders.length,
+        total: result.total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(result.total / limitNum),
+        orders: result.orders
       });
     } catch (error) {
       console.error('❌ Error fetching orders by status:', error);

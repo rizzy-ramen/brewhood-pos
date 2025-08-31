@@ -35,6 +35,11 @@ const DeliveryDashboard = ({ user, onLogout }) => {
   const [ordersPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredOrders, setFilteredOrders] = useState([]);
+  const [paginationInfo, setPaginationInfo] = useState({
+    total: 0,
+    totalPages: 1,
+    currentPage: 1
+  });
 
 
 
@@ -107,7 +112,13 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       // Set section loading state
       setIsSectionLoading(true);
       
-      const response = await apiService.getOrders(currentFilter);
+      // Use pagination for delivered orders, regular fetch for others
+      let response;
+      if (currentFilter === 'delivered') {
+        response = await apiService.getOrders(currentFilter, ordersPerPage, currentPage);
+      } else {
+        response = await apiService.getOrders(currentFilter);
+      }
       
       console.log('📡 API response received:', response);
       
@@ -178,6 +189,15 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         console.log('📋 Setting orders state:', sortedOrders.length, 'orders');
         console.log('📋 Orders data:', sortedOrders);
         setOrders(sortedOrders);
+        
+        // Update pagination info for delivered orders
+        if (currentFilter === 'delivered' && response.total !== undefined) {
+          setPaginationInfo({
+            total: response.total,
+            totalPages: response.totalPages || Math.ceil(response.total / ordersPerPage),
+            currentPage: response.page || currentPage
+          });
+        }
       }
     } catch (error) {
       console.error('❌ Error fetching orders:', error);
@@ -603,7 +623,11 @@ const DeliveryDashboard = ({ user, onLogout }) => {
 
   const handlePageChange = useCallback((pageNumber) => {
     setCurrentPage(pageNumber);
-  }, []);
+    // Fetch orders for the new page
+    if (filter === 'delivered') {
+      fetchOrders('delivered');
+    }
+  }, [filter, fetchOrders]);
 
   // Calculate pagination for delivered orders
   const getPaginatedOrders = useCallback(() => {
@@ -618,9 +642,16 @@ const DeliveryDashboard = ({ user, onLogout }) => {
   // Calculate total pages for delivered orders
   const getTotalPages = useCallback(() => {
     if (filter !== 'delivered') return 1;
-    const ordersToFilter = searchTerm ? filteredOrders : orders;
-    return Math.ceil(ordersToFilter.length / ordersPerPage);
-  }, [filter, orders, searchTerm, filteredOrders, ordersPerPage]);
+    
+    // If we have search results, use filtered count
+    if (searchTerm && filteredOrders.length > 0) {
+      return Math.ceil(filteredOrders.length / ordersPerPage);
+    }
+    
+    // Otherwise, use backend total count if available
+    // This will be updated when fetchOrders completes
+    return 1; // Will be updated by backend response
+  }, [filter, searchTerm, filteredOrders, ordersPerPage]);
 
   // Reset pagination when filter changes
   useEffect(() => {
@@ -865,7 +896,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
                 </div>
 
                 {/* Pagination */}
-                {getTotalPages() > 1 && (
+                {paginationInfo.totalPages > 1 && (
                   <div style={{ 
                     display: 'flex', 
                     justifyContent: 'center', 
@@ -883,13 +914,13 @@ const DeliveryDashboard = ({ user, onLogout }) => {
                     </button>
                     
                     <span style={{ fontSize: '14px', color: '#666' }}>
-                      Page {currentPage} of {getTotalPages()}
+                      Page {currentPage} of {paginationInfo.totalPages}
                     </span>
                     
                     <button
                       className="btn btn-sm btn-outline"
                       onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage === getTotalPages()}
+                      disabled={currentPage === paginationInfo.totalPages}
                     >
                       Next
                     </button>
@@ -905,7 +936,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
                   borderTop: '1px solid #e9ecef',
                   marginTop: '20px'
                 }}>
-                  Showing {((currentPage - 1) * ordersPerPage) + 1} to {Math.min(currentPage * ordersPerPage, (searchTerm ? filteredOrders.length : orders.length))} of {searchTerm ? filteredOrders.length : orders.length} delivered orders
+                  Showing {((currentPage - 1) * ordersPerPage) + 1} to {Math.min(currentPage * ordersPerPage, orders.length)} of {searchTerm ? filteredOrders.length : paginationInfo.total} delivered orders
                 </div>
               </div>
             ) : (

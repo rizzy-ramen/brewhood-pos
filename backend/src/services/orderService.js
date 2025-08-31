@@ -151,8 +151,8 @@ class OrderService {
     }
   }
 
-  // Get orders by status with chronological sorting (oldest first for staff)
-  async getOrdersByStatus(status, limit = 100) {
+  // Get orders by status with chronological sorting and pagination
+  async getOrdersByStatus(status, limit = 100, page = 1) {
     try {
       this.ensureInitialized();
       
@@ -160,12 +160,21 @@ class OrderService {
         return this.getAllOrders(limit);
       }
 
+      // Calculate offset for pagination
+      const offset = (page - 1) * limit;
+
+      // First, get total count for pagination info
+      const countQuery = this.ordersRef.where('status', '==', status);
+      const countSnapshot = await countQuery.get();
+      const total = countSnapshot.size;
+
       // Temporarily disabled orderBy to avoid index requirement while troubleshooting
       // TODO: Re-enable once the composite index is confirmed working:
       // const query = this.ordersRef
       //   .where('status', '==', status)
       //   .orderBy('created_at', 'asc') // Oldest first for FIFO
-      //   .limit(limit);
+      //   .limit(limit)
+      //   .offset(offset);
       
       const query = this.ordersRef
         .where('status', '==', status)
@@ -201,8 +210,14 @@ class OrderService {
         }
       }
 
-      console.log(`✅ Retrieved ${orders.length} orders with status: ${status}`);
-      return orders;
+      console.log(`✅ Retrieved ${orders.length} orders with status: ${status} (page ${page}, limit ${limit})`);
+      return {
+        orders,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      };
     } catch (error) {
       console.error('❌ Error fetching orders by status:', error);
       throw error;
