@@ -25,7 +25,32 @@ const OrderDetailsSidebar = ({
       </div>
       
       <div style={{ marginBottom: '20px' }}>
-        <h4 style={{ marginBottom: '8px' }}>Order #{selectedOrder.id}</h4>
+        <h4 style={{ marginBottom: '8px' }}>
+          {selectedOrder.order_number ? (
+            <div>
+              <div style={{ 
+                fontSize: '22px', 
+                fontWeight: 'bold', 
+                color: '#007bff', 
+                marginBottom: '6px',
+                textShadow: '0 2px 4px rgba(0,123,255,0.3)',
+                letterSpacing: '1px'
+              }}>
+                #{selectedOrder.order_number}
+              </div>
+              <div style={{ 
+                fontSize: '13px', 
+                color: '#666', 
+                fontStyle: 'italic',
+                opacity: 0.8
+              }}>
+                ID: {selectedOrder.id}
+              </div>
+            </div>
+          ) : (
+            `Order #${selectedOrder.id}`
+          )}
+        </h4>
         <div style={{ fontSize: '14px', color: '#666', lineHeight: '1.6' }}>
           <p><strong>Customer:</strong> {selectedOrder.customer_name}</p>
           <p><strong>Customer ID:</strong> {selectedOrder.customer_id}</p>

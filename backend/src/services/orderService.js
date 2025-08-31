@@ -17,6 +17,37 @@ class OrderService {
     }
   }
 
+  // Generate the next sequential order number
+  async getNextOrderNumber() {
+    try {
+      this.ensureInitialized();
+      
+      // Get the highest existing order number
+      const snapshot = await this.ordersRef
+        .where('order_number', '!=', null)
+        .orderBy('order_number', 'desc')
+        .limit(1)
+        .get();
+      
+      if (snapshot.empty) {
+        // No existing order numbers, start with 1
+        return 1;
+      }
+      
+      // Get the highest order number and increment by 1
+      const highestOrder = snapshot.docs[0].data();
+      const nextNumber = (highestOrder.order_number || 0) + 1;
+      
+      console.log(`🔢 Next order number: ${nextNumber} (highest existing: ${highestOrder.order_number})`);
+      return nextNumber;
+    } catch (error) {
+      console.error('❌ Error getting next order number:', error);
+      // Fallback: use timestamp-based number if we can't get sequential
+      const fallbackNumber = Math.floor(Date.now() / 1000) % 10000; // 4-digit number
+      console.warn(`⚠️ Using fallback order number: ${fallbackNumber}`);
+      return fallbackNumber;
+    }
+  }
 
 
   // Helper function to convert various date formats to ISO string
@@ -78,6 +109,10 @@ class OrderService {
         throw new Error('Invalid order data: customer name and items are required');
       }
 
+      // Get the next sequential order number
+      const orderNumber = await this.getNextOrderNumber();
+      console.log(`🎯 Generated order number: ${orderNumber}`);
+
       // Calculate total amount
       const totalAmount = orderData.items.reduce((sum, item) => {
         return sum + (item.unit_price * item.quantity);
@@ -85,6 +120,7 @@ class OrderService {
 
       // Create order document
       const orderDoc = {
+        order_number: orderNumber, // Add the sequential order number
         customer_name: orderData.customer_name,
         customer_id: orderData.customer_id || `CUST${Date.now()}`,
         order_type: orderData.order_type || 'takeaway',
@@ -128,6 +164,7 @@ class OrderService {
 
       return {
         id: orderId,
+        order_number: orderNumber, // Include the order number in response
         ...processedOrderDoc,
         items: orderData.items
       };
@@ -558,6 +595,9 @@ class OrderService {
         // Check order ID
         const orderIdMatch = order.id.toLowerCase().includes(searchLower);
         
+        // Check order number (sequential number)
+        const orderNumberMatch = order.order_number && order.order_number.toString().includes(searchLower);
+        
         // Check customer ID
         const customerIdMatch = order.customer_id.toLowerCase().includes(searchLower);
         
@@ -566,12 +606,13 @@ class OrderService {
           item.product_name && item.product_name.toLowerCase().includes(searchLower)
         );
         
-        const isMatch = customerNameMatch || orderIdMatch || customerIdMatch || productMatch;
+        const isMatch = customerNameMatch || orderIdMatch || orderNumberMatch || customerIdMatch || productMatch;
         
         if (isMatch) {
           console.log(`✅ Order ${order.id} matches search:`, {
             customerName: order.customer_name,
             orderId: order.id,
+            orderNumber: order.order_number,
             customerId: order.customer_id,
             productNames: order.items.map(item => item.product_name)
           });

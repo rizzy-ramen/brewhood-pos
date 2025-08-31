@@ -23,7 +23,31 @@ const OrderCard = ({
     >
       <div className="order-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div className="order-id">Order #{order.id}</div>
+          <div className="order-id">
+            {order.order_number ? (
+              <div>
+                <div style={{ 
+                  fontSize: '18px', 
+                  fontWeight: 'bold', 
+                  color: '#007bff',
+                  textShadow: '0 1px 2px rgba(0,123,255,0.2)',
+                  letterSpacing: '0.5px'
+                }}>
+                  #{order.order_number}
+                </div>
+                <div style={{ 
+                  fontSize: '11px', 
+                  color: '#666', 
+                  fontStyle: 'italic',
+                  marginTop: '2px'
+                }}>
+                  ID: {order.id}
+                </div>
+              </div>
+            ) : (
+              <div>Order #{order.id}</div>
+            )}
+          </div>
           <span className={`order-status status-${order.status}`}>
             {order.status}
           </span>
