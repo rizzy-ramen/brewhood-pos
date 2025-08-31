@@ -5,6 +5,15 @@ import { apiService } from '../services/api';
 import websocketService from '../services/websocketService';
 import LoadingScreen from './LoadingScreen';
 
+// Debounce utility function (Google-style search delay)
+const debounce = (func, delay) => {
+  let timeoutId;
+  return (...args) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func.apply(null, args), delay);
+  };
+};
+
 const DeliveryDashboard = ({ user, onLogout }) => {
   const [orders, setOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -628,25 +637,23 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     );
   };
 
-  // Pagination and search functions for delivered orders
+    // Pagination and search functions for delivered orders
   const handleSearch = useCallback(async (searchValue) => {
     setSearchTerm(searchValue);
     setCurrentPage(1); // Reset to first page when searching
     
     if (filter === 'delivered') {
-              if (searchValue.trim() === '') {
-          // If search is empty, clear filtered results and show normal pagination
-          setFilteredOrders([]);
-          // Trigger a normal fetch to show the first page
-          // We'll use a timeout to ensure this happens after the current function completes
-          setTimeout(() => {
-            if (filter === 'delivered') {
-              // Fetch first page of normal orders
-              fetchOrdersWithPage('delivered', 1);
-            }
-          }, 0);
-          return;
-        }
+      if (searchValue.trim() === '') {
+        // If search is empty, clear filtered results and show normal pagination
+        setFilteredOrders([]);
+        // Trigger a normal fetch to show the first page
+        setTimeout(() => {
+          if (filter === 'delivered') {
+            fetchOrdersWithPage('delivered', 1);
+          }
+        }, 0);
+        return;
+      }
       
       // Show loading state
       setIsSectionLoading(true);
@@ -697,6 +704,80 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       }
     }
   }, [filter, orders]);
+
+  // Google-style real-time search with debouncing
+  const handleRealTimeSearch = useCallback(async (searchValue) => {
+    setSearchTerm(searchValue);
+    setCurrentPage(1); // Reset to first page when searching
+    
+    if (filter === 'delivered') {
+      if (searchValue.trim() === '') {
+        // If search is empty, clear filtered results and show normal pagination
+        setFilteredOrders([]);
+        setTimeout(() => {
+          if (filter === 'delivered') {
+            fetchOrdersWithPage('delivered', 1);
+          }
+        }, 0);
+        return;
+      }
+      
+      // Show loading state
+      setIsSectionLoading(true);
+      
+      try {
+        console.log(`🔍 Real-time search for: "${searchValue}" in delivered orders`);
+        
+        // Call backend search API
+        const response = await apiService.searchOrders('delivered', searchValue);
+        
+        if (response && response.success && response.orders) {
+          const searchResults = response.orders;
+          console.log(`🔍 Real-time results: ${searchResults.length} orders found`);
+          
+          // Update filtered orders with search results
+          setFilteredOrders(searchResults);
+          
+          // Update pagination info for search results
+          setPaginationInfo({
+            total: searchResults.length,
+            totalPages: Math.ceil(searchResults.length / ordersPerPage),
+            currentPage: 1
+          });
+          
+          // Clear the main orders state since we're showing search results
+          setOrders([]);
+        } else {
+          console.log('🔍 No real-time results found');
+          setFilteredOrders([]);
+          setPaginationInfo({
+            total: 0,
+            totalPages: 0,
+            currentPage: 1
+          });
+        }
+      } catch (error) {
+        console.error('❌ Real-time search error:', error);
+        // Fallback to client-side filtering if search fails
+        const filtered = orders.filter(order => 
+          order.customer_name && order.customer_name.toLowerCase().includes(searchValue.toLowerCase()) ||
+          order.id && order.id.toLowerCase().includes(searchValue.toLowerCase()) ||
+          order.customer_id && order.customer_id.toLowerCase().includes(searchValue.toLowerCase())
+        );
+        setFilteredOrders(filtered);
+      } finally {
+        setIsSectionLoading(false);
+      }
+    }
+  }, [filter, orders]);
+
+  // Debounced search function (Google-style)
+  const debouncedSearch = useCallback(
+    debounce((searchValue) => {
+      handleRealTimeSearch(searchValue);
+    }, 300), // Wait 300ms after user stops typing (like Google)
+    [handleRealTimeSearch]
+  );
 
   // Separate function to fetch orders with specific page
   const fetchOrdersWithPage = useCallback(async (currentFilter, pageNumber) => {
@@ -1031,7 +1112,11 @@ const DeliveryDashboard = ({ user, onLogout }) => {
                       type="text"
                       placeholder="Search orders by customer name, order ID, customer ID, or product name..."
                       value={searchTerm}
-                      onChange={(e) => handleSearch(e.target.value)}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setSearchTerm(value); // Update input immediately
+                        debouncedSearch(value); // Trigger debounced search
+                      }}
                       style={{
                         flex: 1,
                         padding: '12px 16px',
@@ -1074,6 +1159,20 @@ const DeliveryDashboard = ({ user, onLogout }) => {
                       >
                         <X size={16} />
                       </button>
+                    )}
+                    {/* Google-style "thinking" indicator */}
+                    {searchTerm && isSectionLoading && (
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '8px 12px',
+                        color: '#6c757d',
+                        fontSize: '12px'
+                      }}>
+                        <RefreshCw size={14} className="animate-spin" />
+                        <span>Searching...</span>
+                      </div>
                     )}
                   </div>
                   
