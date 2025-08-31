@@ -117,7 +117,27 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       // Use pagination for delivered orders, regular fetch for others
       let response;
       if (currentFilter === 'delivered') {
-        response = await apiService.getOrders(currentFilter, ordersPerPage, currentPage);
+        // For delivered orders, use fetchOrdersWithPage to ensure cursor storage
+        // But only if we're not already in fetchOrdersWithPage to prevent recursion
+        if (currentPage === 1) {
+          // For page 1, fetch directly and store cursor
+          response = await apiService.getOrders(currentFilter, ordersPerPage, currentPage);
+          
+          // Store cursor for page 2 if we have a response
+          if (response && response.lastDocumentId) {
+            const newCursors = {
+              ...pageCursorsRef.current,
+              1: response.lastDocumentId
+            };
+            setPageCursors(newCursors);
+            pageCursorsRef.current = newCursors;
+            console.log(`💾 fetchOrders: Stored cursor for page 2:`, response.lastDocumentId);
+          }
+        } else {
+          // For other pages, use fetchOrdersWithPage
+          await fetchOrdersWithPage(currentFilter, currentPage);
+          return; // Exit early since fetchOrdersWithPage handles everything
+        }
       } else {
         response = await apiService.getOrders(currentFilter);
       }
