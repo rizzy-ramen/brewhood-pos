@@ -622,15 +622,6 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     }
   }, [filter, orders]);
 
-  const handlePageChange = useCallback((pageNumber) => {
-    setCurrentPage(pageNumber);
-    // Fetch orders for the new page
-    if (filter === 'delivered') {
-      // Call fetchOrders with the new page number directly
-      fetchOrdersWithPage('delivered', pageNumber);
-    }
-  }, [filter, fetchOrdersWithPage]);
-
   // Separate function to fetch orders with specific page
   const fetchOrdersWithPage = useCallback(async (currentFilter, pageNumber) => {
     try {
@@ -754,6 +745,16 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       setIsSectionLoading(false);
     }
   }, [ordersPerPage, calculateNotifications, markSectionAsViewed]);
+
+  // Handle page change for pagination
+  const handlePageChange = useCallback((pageNumber) => {
+    setCurrentPage(pageNumber);
+    // Fetch orders for the new page
+    if (filter === 'delivered') {
+      // Call fetchOrders with the new page number directly
+      fetchOrdersWithPage('delivered', pageNumber);
+    }
+  }, [filter, fetchOrdersWithPage]);
 
   // Calculate pagination for delivered orders
   const getPaginatedOrders = useCallback(() => {
