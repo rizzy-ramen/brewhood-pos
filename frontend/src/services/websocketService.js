@@ -5,7 +5,6 @@ class WebSocketService {
   constructor() {
     this.socket = null;
     this.isConnected = false;
-    this.currentRole = null;
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
     this.reconnectDelay = 1000;
@@ -13,14 +12,9 @@ class WebSocketService {
   }
 
   // Connect to the backend WebSocket
-  connect(role = 'delivery') {
+  connect() {
     if (this.socket && this.isConnected) {
-      // If already connected but with different role, disconnect and reconnect
-      if (this.currentRole !== role) {
-        this.disconnect();
-      } else {
-        return;
-      }
+      return;
     }
 
     try {
@@ -35,15 +29,14 @@ class WebSocketService {
         reconnectionDelay: this.reconnectDelay
       });
 
-      this.currentRole = role;
-      this.setupEventHandlers(role);
+      this.setupEventHandlers();
     } catch (error) {
       console.error('❌ WebSocket connection failed:', error);
     }
   }
 
   // Setup WebSocket event handlers
-  setupEventHandlers(role = 'delivery') {
+  setupEventHandlers() {
     if (!this.socket) return;
 
     this.socket.on('connect', () => {
@@ -51,17 +44,16 @@ class WebSocketService {
       this.isConnected = true;
       this.reconnectAttempts = 0;
       
-      // Join the appropriate room based on role
-      const roomName = role === 'counter' ? 'counter' : 'delivery';
-      this.socket.emit('joinRoom', roomName);
-      console.log(`👥 WebSocket joined ${roomName} room`);
+      // Join the delivery room for real-time updates
+      this.socket.emit('joinRoom', 'delivery');
+      console.log('👥 WebSocket joined delivery room');
       
       // Authenticate with demo token
       this.socket.emit('authenticate', { 
-        role: role, 
+        role: 'delivery', 
         id: 'demo-user' 
       });
-      console.log(`🔐 WebSocket authenticated as ${role} user`);
+      console.log('🔐 WebSocket authenticated as delivery user');
     });
 
     this.socket.on('disconnect', (reason) => {
