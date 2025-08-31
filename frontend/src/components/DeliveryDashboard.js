@@ -736,11 +736,16 @@ const DeliveryDashboard = ({ user, onLogout }) => {
   const getPaginatedOrders = useCallback(() => {
     if (filter !== 'delivered') return orders;
     
-    const ordersToFilter = searchTerm ? filteredOrders : orders;
-    const indexOfLastOrder = currentPage * ordersPerPage;
-    const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
-    return ordersToFilter.slice(indexOfFirstOrder, indexOfLastOrder);
-  }, [filter, orders, searchTerm, filteredOrders, currentPage, ordersPerPage]);
+    // For delivered orders, the backend already returns the correct page
+    // No need to slice since we're getting exactly what we need
+    if (searchTerm && filteredOrders.length > 0) {
+      console.log('🔍 getPaginatedOrders: Returning filtered orders:', filteredOrders.length);
+      return filteredOrders;
+    }
+    
+    console.log('🔍 getPaginatedOrders: Returning orders from backend:', orders.length, 'currentPage:', currentPage);
+    return orders;
+  }, [filter, orders, searchTerm, filteredOrders, currentPage]);
 
   // Calculate total pages for delivered orders
   const getTotalPages = useCallback(() => {
@@ -947,53 +952,57 @@ const DeliveryDashboard = ({ user, onLogout }) => {
                       </tr>
                     </thead>
                     <tbody>
-                      {getPaginatedOrders().map(order => (
-                        <tr 
-                          key={order.id}
-                          style={{ 
-                            borderBottom: '1px solid #e9ecef',
-                            cursor: 'pointer',
-                            backgroundColor: selectedOrder?.id === order.id ? '#f8f9ff' : 'transparent'
-                          }}
-                          onClick={() => fetchOrderDetails(order.id)}
-                        >
-                          <td style={{ padding: '12px', fontWeight: '500', color: '#007bff' }}>
-                            #{order.id.slice(-8)}
-                          </td>
-                          <td style={{ padding: '12px' }}>{order.customer_name}</td>
-                          <td style={{ padding: '12px' }}>
-                            <span style={{
-                              padding: '4px 8px',
-                              borderRadius: '12px',
-                              fontSize: '12px',
-                              fontWeight: '500',
-                              backgroundColor: order.order_type === 'takeaway' ? '#e3f2fd' : '#f3e5f5',
-                              color: order.order_type === 'takeaway' ? '#1565c0' : '#7b1fa2'
-                            }}>
-                              {order.order_type}
-                            </span>
-                          </td>
-                          <td style={{ padding: '12px' }}>{order.items.length} items</td>
-                          <td style={{ padding: '12px', textAlign: 'right', fontWeight: '600' }}>
-                            ₹{order.total_amount}
-                          </td>
-                          <td style={{ padding: '12px', fontSize: '12px', color: '#666' }}>
-                            {new Date(order.created_at).toLocaleDateString()}
-                          </td>
-                          <td style={{ padding: '12px', textAlign: 'center' }}>
-                            <button
-                              className="btn btn-sm btn-outline"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                fetchOrderDetails(order.id);
-                              }}
-                              title="View Details"
-                            >
-                              View
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                      {(() => {
+                        const paginatedOrders = getPaginatedOrders();
+                        console.log('🔍 Table rendering: paginatedOrders length:', paginatedOrders.length, 'currentPage:', currentPage);
+                        return paginatedOrders.map(order => (
+                          <tr 
+                            key={order.id}
+                            style={{ 
+                              borderBottom: '1px solid #e9ecef',
+                              cursor: 'pointer',
+                              backgroundColor: selectedOrder?.id === order.id ? '#f8f9ff' : 'transparent'
+                            }}
+                            onClick={() => fetchOrderDetails(order.id)}
+                          >
+                            <td style={{ padding: '12px', fontWeight: '500', color: '#007bff' }}>
+                              #{order.id.slice(-8)}
+                            </td>
+                            <td style={{ padding: '12px' }}>{order.customer_name}</td>
+                            <td style={{ padding: '12px' }}>
+                              <span style={{
+                                padding: '4px 8px',
+                                borderRadius: '12px',
+                                fontSize: '12px',
+                                fontWeight: '500',
+                                backgroundColor: order.order_type === 'takeaway' ? '#e3f2fd' : '#f3e5f5',
+                                color: order.order_type === 'takeaway' ? '#1565c0' : '#7b1fa2'
+                              }}>
+                                {order.order_type}
+                              </span>
+                            </td>
+                            <td style={{ padding: '12px' }}>{order.items.length} items</td>
+                            <td style={{ padding: '12px', textAlign: 'right', fontWeight: '600' }}>
+                              ₹{order.total_amount}
+                            </td>
+                            <td style={{ padding: '12px', fontSize: '12px', color: '#666' }}>
+                              {new Date(order.created_at).toLocaleDateString()}
+                            </td>
+                            <td style={{ padding: '12px', textAlign: 'center' }}>
+                              <button
+                                className="btn btn-sm btn-outline"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  fetchOrderDetails(order.id);
+                                }}
+                                title="View Details"
+                              >
+                                View
+                              </button>
+                            </td>
+                          </tr>
+                        ));
+                      })()}
                     </tbody>
                   </table>
                 </div>
