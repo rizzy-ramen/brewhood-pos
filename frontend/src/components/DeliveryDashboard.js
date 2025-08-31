@@ -637,6 +637,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         const lastDocId = pageNumber > 1 ? pageCursors[pageNumber - 1] : null;
         console.log(`🔄 Fetching page ${pageNumber} with cursor:`, lastDocId);
         console.log(`🔍 Available cursors:`, pageCursors);
+        console.log(`🔍 Looking for cursor at key:`, pageNumber - 1);
         response = await apiService.getOrders(currentFilter, ordersPerPage, pageNumber, lastDocId);
       } else {
         response = await apiService.getOrders(currentFilter);
@@ -715,20 +716,15 @@ const DeliveryDashboard = ({ user, onLogout }) => {
           
                   // Store the cursor for this page to use for next page
         if (response.lastDocumentId) {
-          setPageCursors(prev => ({
-            ...prev,
-            [pageNumber]: response.lastDocumentId
-          }));
-          console.log(`💾 Stored cursor for page ${pageNumber}:`, response.lastDocumentId);
-          
-          // Also store the cursor for the NEXT page (this is the key fix!)
-          if (pageNumber < (response.totalPages || 1)) {
-            setPageCursors(prev => ({
+          setPageCursors(prev => {
+            const newCursors = {
               ...prev,
-              [pageNumber + 1]: response.lastDocumentId
-            }));
-            console.log(`💾 Pre-stored cursor for page ${pageNumber + 1}:`, response.lastDocumentId);
-          }
+              [pageNumber]: response.lastDocumentId
+            };
+            console.log(`💾 Updated cursors object:`, newCursors);
+            return newCursors;
+          });
+          console.log(`💾 Stored cursor for page ${pageNumber}:`, response.lastDocumentId);
         }
         }
       }
