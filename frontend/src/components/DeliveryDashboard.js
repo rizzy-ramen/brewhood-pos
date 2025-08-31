@@ -629,7 +629,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       // Call fetchOrders with the new page number directly
       fetchOrdersWithPage('delivered', pageNumber);
     }
-  }, [filter]);
+  }, [filter, fetchOrdersWithPage]);
 
   // Separate function to fetch orders with specific page
   const fetchOrdersWithPage = useCallback(async (currentFilter, pageNumber) => {
@@ -645,6 +645,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         // For cursor-based pagination, we need the last document ID from the previous page
         const lastDocId = pageNumber > 1 ? pageCursors[pageNumber - 1] : null;
         console.log(`🔄 Fetching page ${pageNumber} with cursor:`, lastDocId);
+        console.log(`🔍 Available cursors:`, pageCursors);
         response = await apiService.getOrders(currentFilter, ordersPerPage, pageNumber, lastDocId);
       } else {
         response = await apiService.getOrders(currentFilter);
@@ -721,14 +722,23 @@ const DeliveryDashboard = ({ user, onLogout }) => {
             currentPage: response.page || pageNumber
           });
           
-          // Store the cursor for this page to use for next page
-          if (response.lastDocumentId) {
+                  // Store the cursor for this page to use for next page
+        if (response.lastDocumentId) {
+          setPageCursors(prev => ({
+            ...prev,
+            [pageNumber]: response.lastDocumentId
+          }));
+          console.log(`💾 Stored cursor for page ${pageNumber}:`, response.lastDocumentId);
+          
+          // Also store the cursor for the NEXT page (this is the key fix!)
+          if (pageNumber < (response.totalPages || 1)) {
             setPageCursors(prev => ({
               ...prev,
-              [pageNumber]: response.lastDocumentId
+              [pageNumber + 1]: response.lastDocumentId
             }));
-            console.log(`💾 Stored cursor for page ${pageNumber}:`, response.lastDocumentId);
+            console.log(`💾 Pre-stored cursor for page ${pageNumber + 1}:`, response.lastDocumentId);
           }
+        }
         }
       }
     } catch (error) {
