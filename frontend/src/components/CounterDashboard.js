@@ -29,7 +29,7 @@ const CounterDashboard = ({ user, onLogout }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   
   // Order counter for generating sequential order numbers
-  const [orderCounter, setOrderCounter] = useState(0); // Will be set from backend
+  const [orderCounter, setOrderCounter] = useState(15); // Start with a reasonable default
 
   // Set minimum loading time for better UX
   useEffect(() => {
@@ -48,14 +48,17 @@ const CounterDashboard = ({ user, onLogout }) => {
         const response = await apiService.getOrders('all', 1); // Get just 1 recent order
         if (response && response.orders && response.orders.length > 0) {
           const latestOrder = response.orders[0];
-          if (latestOrder.order_number) {
+          if (latestOrder.order_number && typeof latestOrder.order_number === 'number') {
             setOrderCounter(latestOrder.order_number + 1); // Set counter to next number
             console.log('✅ Synced order counter with backend:', latestOrder.order_number + 1);
+          } else {
+            console.log('⚠️ Latest order has no valid order_number, keeping current counter:', orderCounter);
           }
+        } else {
+          console.log('⚠️ No orders found, keeping current counter:', orderCounter);
         }
       } catch (error) {
-        console.log('⚠️ Could not sync order counter, using default:', error);
-        setOrderCounter(11); // Fallback to 11
+        console.log('⚠️ Could not sync order counter, keeping current counter:', orderCounter, error);
       }
     };
 
@@ -346,6 +349,9 @@ const CounterDashboard = ({ user, onLogout }) => {
 
   // Function to format bill message
   const formatBillMessage = (orderData) => {
+    console.log('🔍 formatBillMessage called with orderData:', orderData);
+    console.log('🔍 formatBillMessage orderData.order_number:', orderData.order_number);
+    
     const currentTime = new Date().toLocaleString('en-IN', {
       year: 'numeric',
       month: 'long',
@@ -356,6 +362,7 @@ const CounterDashboard = ({ user, onLogout }) => {
 
     // Use order_number for display
     const orderDisplayId = orderData.order_number;
+    console.log('🔍 formatBillMessage orderDisplayId:', orderDisplayId);
 
     let message = `*BREWHOOD - ORDER CONFIRMATION*\n\n`;
     message += `*Date:* ${currentTime}\n`;
@@ -375,6 +382,7 @@ const CounterDashboard = ({ user, onLogout }) => {
     message += `Thank you for choosing Brewhood!\n`;
     message += `Your order will be ready soon.`;
     
+    console.log('🔍 formatBillMessage final message:', message);
     return message;
   };
 
@@ -413,38 +421,57 @@ const CounterDashboard = ({ user, onLogout }) => {
       
       // Debug: Log what the backend returned
       console.log('🔍 Backend response:', createdOrder);
+      console.log('🔍 Backend response order_number:', createdOrder.order_number);
+      console.log('🔍 Backend response id:', createdOrder.id);
+      console.log('🔍 Current orderCounter:', orderCounter);
       
-      // Wait a moment for the order to be created in the database
+      // Wait a moment for the order to be saved in the database
+      console.log('⏳ Waiting 1 second for database write...');
       await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('✅ Wait complete, fetching order details...');
       
-      // Fetch the latest order to get the actual order number from the database
+      // Fetch the specific order by ID to get the actual order number
       let actualOrderNumber = null;
       try {
-        const latestOrders = await apiService.getOrders('all', 1);
-        if (latestOrders && latestOrders.orders && latestOrders.orders.length > 0) {
-          const latestOrder = latestOrders.orders[0];
-          if (latestOrder.order_number) {
-            actualOrderNumber = latestOrder.order_number;
-            console.log('✅ Got actual order number from database:', actualOrderNumber);
+        if (createdOrder.id) {
+          console.log('🔍 Fetching order by ID:', createdOrder.id);
+          const orderDetails = await apiService.getOrderById(createdOrder.id);
+          console.log('🔍 Order details from getOrderById:', orderDetails);
+          console.log('🔍 Order details order_number:', orderDetails?.order_number);
+          
+          if (orderDetails && orderDetails.order_number) {
+            actualOrderNumber = orderDetails.order_number;
+            console.log('✅ Got order number from specific order:', actualOrderNumber);
+          } else {
+            console.log('⚠️ No order_number found in order details');
           }
+        } else {
+          console.log('⚠️ No order ID in createdOrder response');
         }
       } catch (error) {
-        console.log('⚠️ Could not fetch latest order:', error);
+        console.log('⚠️ Could not fetch specific order:', error);
+        console.log('⚠️ Error details:', error.message);
       }
       
-      // Use the actual order number from database, or fallback to counter
-      const orderNumber = actualOrderNumber || orderCounter;
-      setOrderCounter(prev => prev + 1); // Increment for next order
+      // Use the order number from the specific order, or fallback to backend response
+      const orderNumber = actualOrderNumber || createdOrder.order_number || orderCounter;
+      console.log('🔍 Final order number calculation:');
+      console.log('  - actualOrderNumber:', actualOrderNumber);
+      console.log('  - createdOrder.order_number:', createdOrder.order_number);
+      console.log('  - orderCounter fallback:', orderCounter);
+      console.log('  - Final orderNumber:', orderNumber);
       
-      // Set the order number
+      // Set the order number for WhatsApp message
       orderData.order_number = orderNumber;
-      console.log('✅ Using order number:', orderNumber);
+      console.log('✅ Using order number for WhatsApp:', orderNumber);
       
       // Reset form
       setCart([]);
       setCustomerInfo({ name: '', contact_number: '', order_type: 'takeaway' });
       
       // Show order number for reference
+      console.log('🔍 Final orderData for toast:', orderData);
+      console.log('🔍 Final orderData.order_number for toast:', orderData.order_number);
       toast.success(`Order created! Order Number: ${orderData.order_number}`);
       
       // Send WhatsApp bill if contact number is provided
