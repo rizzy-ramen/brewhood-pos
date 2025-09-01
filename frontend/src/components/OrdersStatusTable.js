@@ -150,7 +150,7 @@ const OrdersStatusTable = ({
         order.customer_name && order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         order.id && order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
         order.order_number && order.order_number.toString().includes(searchTerm) ||
-        order.customer_id && order.customer_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+
         order.status && order.status.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }

@@ -250,7 +250,7 @@ export const ordersService = {
       const ordersRef = collection(db, 'orders');
       const orderRef = await addDoc(ordersRef, {
         customer_name: orderData.customer_name,
-        customer_id: orderData.customer_id,
+
         order_type: orderData.order_type,
         status: 'pending',
         total_amount: orderData.total_amount,

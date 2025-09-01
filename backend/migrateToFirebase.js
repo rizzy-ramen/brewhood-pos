@@ -97,7 +97,7 @@ const migrateOrders = () => {
           // Create order in Firestore
           const orderData = {
             customer_name: order.customer_name,
-            customer_id: order.customer_id,
+
             order_type: order.order_type,
             status: order.status,
             total_amount: order.total_amount,

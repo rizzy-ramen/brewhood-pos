@@ -31,7 +31,7 @@ db.serialize(() => {
   // Orders table
   db.run(`CREATE TABLE IF NOT EXISTS orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    customer_id TEXT NOT NULL,
+
     customer_name TEXT,
     total_amount DECIMAL(10,2) NOT NULL,
     status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'preparing', 'ready', 'delivered', 'cancelled')),

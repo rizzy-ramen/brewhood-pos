@@ -53,7 +53,7 @@ const OrderDetailsSidebar = ({
         </h4>
         <div style={{ fontSize: '14px', color: '#666', lineHeight: '1.6' }}>
           <p><strong>Customer:</strong> {selectedOrder.customer_name}</p>
-          <p><strong>Customer ID:</strong> {selectedOrder.customer_id}</p>
+
           <p><strong>Type:</strong> {selectedOrder.order_type}</p>
           <p><strong>Status:</strong> 
             <span className={`order-status status-${selectedOrder.status}`} style={{ marginLeft: '8px' }}>

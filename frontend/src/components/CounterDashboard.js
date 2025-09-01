@@ -354,8 +354,8 @@ const CounterDashboard = ({ user, onLogout }) => {
       minute: '2-digit'
     });
 
-    // Use order_number if available, otherwise fallback to customer_id
-    const orderDisplayId = orderData.order_number || orderData.customer_id;
+    // Use order_number for display
+    const orderDisplayId = orderData.order_number;
 
     let message = `*BREWHOOD - ORDER CONFIRMATION*\n\n`;
     message += `*Date:* ${currentTime}\n`;

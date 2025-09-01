@@ -134,7 +134,7 @@ app.get('/api/products/:id', (req, res) => {
 // Order Routes
 app.post('/api/orders', authenticateToken, (req, res) => {
   const { customer_name, items, order_type = 'dine-in' } = req.body;
-  const customer_id = uuidv4();
+
   const created_by = req.user.id;
   
   // Calculate total amount
@@ -172,8 +172,8 @@ app.post('/api/orders', authenticateToken, (req, res) => {
     
     // Insert order
     db.run(
-      'INSERT INTO orders (customer_id, customer_name, total_amount, order_type, created_by) VALUES (?, ?, ?, ?, ?)',
-      [customer_id, customer_name, total_amount, order_type, created_by],
+      'INSERT INTO orders (customer_name, total_amount, order_type, created_by) VALUES (?, ?, ?, ?)',
+      [customer_name, total_amount, order_type, created_by],
       function(err) {
         if (err) {
           res.status(500).json({ error: err.message });
@@ -219,7 +219,7 @@ app.post('/api/orders', authenticateToken, (req, res) => {
                     const newOrder = {
                       id: order_id,
                       order_id,
-                      customer_id,
+
                       customer_name,
                       total_amount,
                       status: 'pending',
@@ -447,15 +447,15 @@ app.get('/api/analytics/sales', authenticateToken, (req, res) => {
   });
 });
 
-// Customer lookup by customer_id
-app.get('/api/customers/:customer_id/orders', authenticateToken, (req, res) => {
-  const { customer_id } = req.params;
+// Customer lookup by customer name
+app.get('/api/customers/:customer_name/orders', authenticateToken, (req, res) => {
+  const { customer_name } = req.params;
   
   db.all(`
     SELECT * FROM orders 
-    WHERE customer_id = ? 
+    WHERE customer_name = ? 
     ORDER BY created_at DESC
-  `, [customer_id], (err, orders) => {
+  `, [customer_name], (err, orders) => {
     if (err) {
       res.status(500).json({ error: err.message });
       return;

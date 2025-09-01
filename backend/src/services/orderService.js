@@ -122,7 +122,7 @@ class OrderService {
       const orderDoc = {
         order_number: orderNumber, // Add the sequential order number
         customer_name: orderData.customer_name,
-        customer_id: orderData.customer_id || `CUST${Date.now()}`,
+
         order_type: orderData.order_type || 'takeaway',
         status: 'pending',
         total_amount: totalAmount,
@@ -584,7 +584,7 @@ class OrderService {
       
       const filteredOrders = allOrders.filter(order => {
         // Check if order has required fields
-        if (!order.customer_name || !order.id || !order.customer_id || !order.items) {
+        if (!order.customer_name || !order.id || !order.items) {
           console.log(`⚠️ Order ${order.id} missing required fields, skipping`);
           return false;
         }
@@ -598,22 +598,19 @@ class OrderService {
         // Check order number (sequential number)
         const orderNumberMatch = order.order_number && order.order_number.toString().includes(searchLower);
         
-        // Check customer ID
-        const customerIdMatch = order.customer_id.toLowerCase().includes(searchLower);
-        
         // Check product names in items
         const productMatch = order.items.some(item => 
           item.product_name && item.product_name.toLowerCase().includes(searchLower)
         );
         
-        const isMatch = customerNameMatch || orderIdMatch || orderNumberMatch || customerIdMatch || productMatch;
+        const isMatch = customerNameMatch || orderIdMatch || orderNumberMatch || productMatch;
         
         if (isMatch) {
           console.log(`✅ Order ${order.id} matches search:`, {
             customerName: order.customer_name,
             orderId: order.id,
             orderNumber: order.order_number,
-            customerId: order.customer_id,
+
             productNames: order.items.map(item => item.product_name)
           });
         }

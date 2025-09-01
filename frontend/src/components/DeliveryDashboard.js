@@ -648,7 +648,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
           order.customer_name && order.customer_name.toLowerCase().includes(searchValue.toLowerCase()) ||
           order.id && order.id.toLowerCase().includes(searchValue.toLowerCase()) ||
           order.order_number && order.order_number.toString().includes(searchValue) ||
-          order.customer_id && order.customer_id.toLowerCase().includes(searchValue.toLowerCase())
+          order.status && order.status.toLowerCase().includes(searchValue.toLowerCase())
         );
         setFilteredOrders(filtered);
       } finally {
@@ -715,7 +715,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
           order.customer_name && order.customer_name.toLowerCase().includes(searchValue.toLowerCase()) ||
           order.id && order.id.toLowerCase().includes(searchValue.toLowerCase()) ||
           order.order_number && order.order_number.toString().includes(searchValue) ||
-          order.customer_id && order.customer_id.toLowerCase().includes(searchValue.toLowerCase())
+          order.status && order.status.toLowerCase().includes(searchValue.toLowerCase())
         );
         setFilteredOrders(filtered);
       } finally {
