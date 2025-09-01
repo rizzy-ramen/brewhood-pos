@@ -390,15 +390,34 @@ const CounterDashboard = ({ user, onLogout }) => {
       // Debug: Log what the backend returned
       console.log('🔍 Backend response:', createdOrder);
       
-      // Update orderData with the order_number from backend response
+      // Try to get the order number from the created order
+      let orderNumber = null;
+      
       if (createdOrder && createdOrder.order_number) {
-        orderData.order_number = createdOrder.order_number;
-        console.log('✅ Order number from backend:', createdOrder.order_number);
+        orderNumber = createdOrder.order_number;
+        console.log('✅ Order number from backend response:', orderNumber);
+      } else if (createdOrder && createdOrder.id) {
+        // If we have the order ID, try to fetch the full order data
+        try {
+          console.log('🔄 Fetching order details for ID:', createdOrder.id);
+          const orderDetails = await apiService.getOrderById(createdOrder.id);
+          if (orderDetails && orderDetails.order_number) {
+            orderNumber = orderDetails.order_number;
+            console.log('✅ Order number from fetched order:', orderNumber);
+          }
+        } catch (error) {
+          console.log('⚠️ Could not fetch order details:', error);
+        }
+      }
+      
+      // Set the order number
+      if (orderNumber) {
+        orderData.order_number = orderNumber;
       } else {
-        // Fallback: Generate a simple order number if backend doesn't provide one
+        // Fallback: Generate a simple order number if we can't get the real one
         const fallbackOrderNumber = Math.floor(Math.random() * 1000) + 1;
         orderData.order_number = fallbackOrderNumber;
-        console.log('⚠️ No order_number in backend response, using fallback:', fallbackOrderNumber);
+        console.log('⚠️ Using fallback order number:', fallbackOrderNumber);
       }
       
       // Reset form

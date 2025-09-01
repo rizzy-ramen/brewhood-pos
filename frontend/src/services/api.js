@@ -33,6 +33,27 @@ export const apiService = {
     }
   },
 
+  getOrderById: async (orderId) => {
+    try {
+      const token = generateDemoToken();
+      const response = await fetch(`${API_BASE_URL}/orders/${orderId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to fetch order');
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('❌ API Error - getOrderById:', error);
+      throw error;
+    }
+  },
+
   getOrders: async (status = null, limit = 100, page = 1, lastDocId = null) => {
     try {
       const token = generateDemoToken();
