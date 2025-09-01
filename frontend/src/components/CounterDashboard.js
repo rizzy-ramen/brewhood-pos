@@ -27,6 +27,9 @@ const CounterDashboard = ({ user, onLogout }) => {
   const [notifications, setNotifications] = useState([]);
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  
+  // Order counter for generating sequential order numbers
+  const [orderCounter, setOrderCounter] = useState(0); // Will be set from backend
 
   // Set minimum loading time for better UX
   useEffect(() => {
@@ -35,6 +38,28 @@ const CounterDashboard = ({ user, onLogout }) => {
     }, 3000); // Show loading screen for at least 3 seconds
 
     return () => clearTimeout(timer);
+  }, []);
+
+  // Sync order counter with backend
+  useEffect(() => {
+    const syncOrderCounter = async () => {
+      try {
+        // Fetch recent orders to get the latest order number
+        const response = await apiService.getOrders('all', 1); // Get just 1 recent order
+        if (response && response.orders && response.orders.length > 0) {
+          const latestOrder = response.orders[0];
+          if (latestOrder.order_number) {
+            setOrderCounter(latestOrder.order_number + 1); // Set counter to next number
+            console.log('✅ Synced order counter with backend:', latestOrder.order_number + 1);
+          }
+        }
+      } catch (error) {
+        console.log('⚠️ Could not sync order counter, using default:', error);
+        setOrderCounter(11); // Fallback to 11
+      }
+    };
+
+    syncOrderCounter();
   }, []);
 
   // Function to fetch products from backend
@@ -371,7 +396,6 @@ const CounterDashboard = ({ user, onLogout }) => {
       const orderData = {
         customer_name: customerInfo.name,
         contact_number: customerInfo.contact_number,
-        customer_id: `CUST${Date.now()}`,
         order_type: customerInfo.order_type,
         status: 'pending',
         items: cart.map(item => ({
@@ -390,43 +414,38 @@ const CounterDashboard = ({ user, onLogout }) => {
       // Debug: Log what the backend returned
       console.log('🔍 Backend response:', createdOrder);
       
-      // Try to get the order number from the created order
-      let orderNumber = null;
+      // Wait a moment for the order to be created in the database
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      if (createdOrder && createdOrder.order_number) {
-        orderNumber = createdOrder.order_number;
-        console.log('✅ Order number from backend response:', orderNumber);
-      } else if (createdOrder && createdOrder.id) {
-        // If we have the order ID, try to fetch the full order data
-        try {
-          console.log('🔄 Fetching order details for ID:', createdOrder.id);
-          const orderDetails = await apiService.getOrderById(createdOrder.id);
-          if (orderDetails && orderDetails.order_number) {
-            orderNumber = orderDetails.order_number;
-            console.log('✅ Order number from fetched order:', orderNumber);
+      // Fetch the latest order to get the actual order number from the database
+      let actualOrderNumber = null;
+      try {
+        const latestOrders = await apiService.getOrders('all', 1);
+        if (latestOrders && latestOrders.orders && latestOrders.orders.length > 0) {
+          const latestOrder = latestOrders.orders[0];
+          if (latestOrder.order_number) {
+            actualOrderNumber = latestOrder.order_number;
+            console.log('✅ Got actual order number from database:', actualOrderNumber);
           }
-        } catch (error) {
-          console.log('⚠️ Could not fetch order details:', error);
         }
+      } catch (error) {
+        console.log('⚠️ Could not fetch latest order:', error);
       }
+      
+      // Use the actual order number from database, or fallback to counter
+      const orderNumber = actualOrderNumber || orderCounter;
+      setOrderCounter(prev => prev + 1); // Increment for next order
       
       // Set the order number
-      if (orderNumber) {
-        orderData.order_number = orderNumber;
-      } else {
-        // Fallback: Generate a simple order number if we can't get the real one
-        const fallbackOrderNumber = Math.floor(Math.random() * 1000) + 1;
-        orderData.order_number = fallbackOrderNumber;
-        console.log('⚠️ Using fallback order number:', fallbackOrderNumber);
-      }
+      orderData.order_number = orderNumber;
+      console.log('✅ Using order number:', orderNumber);
       
       // Reset form
       setCart([]);
       setCustomerInfo({ name: '', contact_number: '', order_type: 'takeaway' });
       
       // Show order number for reference
-      const displayId = orderData.order_number || orderData.customer_id;
-      toast.success(`Order created! Order Number: ${displayId}`);
+      toast.success(`Order created! Order Number: ${orderData.order_number}`);
       
       // Send WhatsApp bill if contact number is provided
       if (customerInfo.contact_number.trim()) {
@@ -657,7 +676,6 @@ const CounterDashboard = ({ user, onLogout }) => {
                 onClick={() => sendWhatsAppBill({
                   customer_name: customerInfo.name,
                   contact_number: customerInfo.contact_number,
-                  customer_id: `PREVIEW${Date.now()}`,
                   order_number: `PREVIEW-${Date.now().toString().slice(-4)}`,
                   order_type: customerInfo.order_type,
                   items: cart.map(item => ({
