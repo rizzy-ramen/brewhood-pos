@@ -28,6 +28,7 @@ const AdminDashboard = ({ user, onLogout }) => {
   const [showAddForm, setShowAddForm] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
+  const [updatingProducts, setUpdatingProducts] = useState(new Set()); // Track which products are being updated
   const [activeSection, setActiveSection] = useState('active'); // 'active', 'hidden', 'total'
   const [formData, setFormData] = useState({
     name: '',
@@ -211,10 +212,18 @@ const AdminDashboard = ({ user, onLogout }) => {
 
   const toggleAvailability = async (product) => {
     try {
+      // Set loading state for this product
+      setUpdatingProducts(prev => new Set([...prev, product.id]));
+      
       // Get the current product data to ensure we have all fields
       const currentProduct = products.find(p => p.id === product.id);
       if (!currentProduct) {
         toast.error('Product not found');
+        setUpdatingProducts(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(product.id);
+          return newSet;
+        });
         return;
       }
       
@@ -233,15 +242,30 @@ const AdminDashboard = ({ user, onLogout }) => {
     } catch (error) {
       console.error('❌ Error toggling availability:', error);
       toast.error('Failed to update product availability');
+    } finally {
+      // Clear loading state for this product
+      setUpdatingProducts(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(product.id);
+        return newSet;
+      });
     }
   };
 
   const enableProduct = async (product) => {
     try {
+      // Set loading state for this product
+      setUpdatingProducts(prev => new Set([...prev, product.id]));
+      
       // Get the current product data to ensure we have all fields
       const currentProduct = products.find(p => p.id === product.id);
       if (!currentProduct) {
         toast.error('Product not found');
+        setUpdatingProducts(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(product.id);
+          return newSet;
+        });
         return;
       }
       
@@ -257,6 +281,13 @@ const AdminDashboard = ({ user, onLogout }) => {
     } catch (error) {
       console.error('❌ Error enabling product:', error);
       toast.error('Failed to enable product');
+    } finally {
+      // Clear loading state for this product
+      setUpdatingProducts(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(product.id);
+        return newSet;
+      });
     }
   };
 
@@ -415,9 +446,27 @@ const AdminDashboard = ({ user, onLogout }) => {
                           <button 
                             className="btn btn-warning btn-sm"
                             onClick={() => toggleAvailability(product)}
+                            disabled={updatingProducts.has(product.id)}
                           >
-                            <EyeOff size={16} />
-                            Hide
+                            {updatingProducts.has(product.id) ? (
+                              <>
+                                <div className="spinner" style={{
+                                  width: '16px',
+                                  height: '16px',
+                                  border: '2px solid #ffffff',
+                                  borderTop: '2px solid transparent',
+                                  borderRadius: '50%',
+                                  animation: 'spin 1s linear infinite',
+                                  marginRight: '8px'
+                                }}></div>
+                                Updating...
+                              </>
+                            ) : (
+                              <>
+                                <EyeOff size={16} />
+                                Hide
+                              </>
+                            )}
                           </button>
                         </div>
                       </div>
@@ -518,9 +567,27 @@ const AdminDashboard = ({ user, onLogout }) => {
                           <button 
                             className="btn btn-success btn-sm"
                             onClick={() => enableProduct(product)}
+                            disabled={updatingProducts.has(product.id)}
                           >
-                            <Eye size={16} />
-                            Enable
+                            {updatingProducts.has(product.id) ? (
+                              <>
+                                <div className="spinner" style={{
+                                  width: '16px',
+                                  height: '16px',
+                                  border: '2px solid #ffffff',
+                                  borderTop: '2px solid transparent',
+                                  borderRadius: '50%',
+                                  animation: 'spin 1s linear infinite',
+                                  marginRight: '8px'
+                                }}></div>
+                                Updating...
+                              </>
+                            ) : (
+                              <>
+                                <Eye size={16} />
+                                Enable
+                              </>
+                            )}
                           </button>
                           <button 
                             className="btn btn-danger btn-sm"
@@ -625,17 +692,53 @@ const AdminDashboard = ({ user, onLogout }) => {
                             <button 
                               className="btn btn-warning btn-sm"
                               onClick={() => toggleAvailability(product)}
+                              disabled={updatingProducts.has(product.id)}
                             >
-                              <EyeOff size={16} />
-                              Hide
+                              {updatingProducts.has(product.id) ? (
+                                <>
+                                  <div className="spinner" style={{
+                                    width: '16px',
+                                    height: '16px',
+                                    border: '2px solid #ffffff',
+                                    borderTop: '2px solid transparent',
+                                    borderRadius: '50%',
+                                    animation: 'spin 1s linear infinite',
+                                    marginRight: '8px'
+                                  }}></div>
+                                  Updating...
+                                </>
+                              ) : (
+                                <>
+                                  <EyeOff size={16} />
+                                  Hide
+                                </>
+                              )}
                             </button>
                           ) : (
                             <button 
                               className="btn btn-success btn-sm"
                               onClick={() => enableProduct(product)}
+                              disabled={updatingProducts.has(product.id)}
                             >
-                              <Eye size={16} />
-                              Enable
+                              {updatingProducts.has(product.id) ? (
+                                <>
+                                  <div className="spinner" style={{
+                                    width: '16px',
+                                    height: '16px',
+                                    border: '2px solid #ffffff',
+                                    borderTop: '2px solid transparent',
+                                    borderRadius: '50%',
+                                    animation: 'spin 1s linear infinite',
+                                    marginRight: '8px'
+                                  }}></div>
+                                  Updating...
+                                </>
+                              ) : (
+                                <>
+                                  <Eye size={16} />
+                                  Enable
+                                </>
+                                )}
                             </button>
                           )}
                           <button 
@@ -781,9 +884,30 @@ const AdminDashboard = ({ user, onLogout }) => {
         </div>
       )}
 
-
-
-
+      {/* CSS for loading states and animations */}
+      <style jsx>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        
+        /* Disabled button styles */
+        .btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+        
+        .btn:disabled:hover {
+          transform: none;
+          box-shadow: none;
+        }
+        
+        /* Spinner styles */
+        .spinner {
+          display: inline-block;
+          vertical-align: middle;
+        }
+      `}</style>
     </div>
   );
 };

@@ -29,6 +29,8 @@ const OrdersStatusTable = ({
     totalPages: 1,
     currentPage: 1
   });
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [previousOrderCount, setPreviousOrderCount] = useState(0);
 
 
   // Fetch all orders
@@ -83,7 +85,45 @@ const OrdersStatusTable = ({
         return timeB - timeA; // Newest first
       });
 
+      // Check if there are new orders
+      if (previousOrderCount > 0 && sortedOrders.length > previousOrderCount) {
+        const newOrdersCount = sortedOrders.length - previousOrderCount;
+        console.log(`🆕 OrdersStatusTable: ${newOrdersCount} new order(s) detected!`);
+        
+        // Show notification for new orders
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          background: #28a745;
+          color: white;
+          padding: 12px 20px;
+          border-radius: 8px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+          z-index: 10000;
+          font-size: 14px;
+          animation: slideInRight 0.3s ease-out;
+        `;
+        notification.textContent = `🆕 ${newOrdersCount} new order(s) detected!`;
+        document.body.appendChild(notification);
+        
+        // Remove notification after 3 seconds
+        setTimeout(() => {
+          if (notification.parentNode) {
+            notification.style.animation = 'slideOutRight 0.3s ease-out';
+            setTimeout(() => {
+              if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+              }
+            }, 300);
+          }
+        }, 3000);
+      }
+      
       setOrders(sortedOrders);
+      setLastUpdated(new Date());
+      setPreviousOrderCount(sortedOrders.length);
     } catch (error) {
       console.error('❌ Error fetching all orders:', error);
     } finally {
@@ -235,6 +275,123 @@ const OrdersStatusTable = ({
     }
   }, [orders, statusFilter, searchTerm]);
 
+  // Auto-refresh orders every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchAllOrders(true); // true = isRefresh
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Refresh when component becomes visible (when user switches back to this tab)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log('🔄 OrdersStatusTable: Tab became visible, refreshing orders...');
+        fetchAllOrders(true);
+      }
+    };
+
+    const handleFocus = () => {
+      console.log('🔄 OrdersStatusTable: Window focused, refreshing orders...');
+      fetchAllOrders(true);
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, []);
+
+  // Listen for order updates from other components
+  useEffect(() => {
+    const handleOrderUpdate = (event) => {
+      if (event.data && event.data.type === 'ORDER_PLACED') {
+        console.log('🔄 OrdersStatusTable: Received order update, refreshing...');
+        // Show a subtle notification
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          background: #28a745;
+          color: white;
+          padding: 12px 20px;
+          border-radius: 8px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+          z-index: 10000;
+          font-size: 14px;
+          animation: slideInRight 0.3s ease-out;
+        `;
+        notification.textContent = '🆕 New order detected! Refreshing...';
+        document.body.appendChild(notification);
+        
+        // Remove notification after 3 seconds
+        setTimeout(() => {
+          if (notification.parentNode) {
+            notification.style.animation = 'slideOutRight 0.3s ease-out';
+            setTimeout(() => {
+              if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+              }
+            }, 300);
+          }
+        }, 3000);
+        
+        fetchAllOrders(true);
+      }
+    };
+
+    const handleStorageChange = (event) => {
+      if (event.key === 'orderUpdate') {
+        try {
+          const updateData = JSON.parse(event.newValue);
+          if (updateData && updateData.type === 'ORDER_PLACED') {
+            console.log('🔄 OrdersStatusTable: Storage change detected, refreshing...');
+            fetchAllOrders(true);
+          }
+        } catch (error) {
+          console.error('Error parsing storage update:', error);
+        }
+      }
+    };
+
+    const handleBroadcastMessage = (event) => {
+      if (event.data && event.data.type === 'ORDER_PLACED') {
+        console.log('🔄 OrdersStatusTable: Broadcast message received, refreshing...');
+        fetchAllOrders(true);
+      }
+    };
+
+    // Method 1: PostMessage listener
+    window.addEventListener('message', handleOrderUpdate);
+    
+    // Method 2: Storage event listener
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Method 3: BroadcastChannel listener
+    if (window.BroadcastChannel) {
+      const channel = new BroadcastChannel('orderUpdates');
+      channel.addEventListener('message', handleBroadcastMessage);
+      
+      return () => {
+        window.removeEventListener('message', handleOrderUpdate);
+        window.removeEventListener('storage', handleStorageChange);
+        channel.removeEventListener('message', handleBroadcastMessage);
+        channel.close();
+      };
+    }
+
+    return () => {
+      window.removeEventListener('message', handleOrderUpdate);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
 
 
   return (
@@ -275,6 +432,21 @@ const OrdersStatusTable = ({
             0%, 20% { opacity: 0.3; transform: scale(0.8); }
             40% { opacity: 1; transform: scale(1.2); }
             60%, 100% { opacity: 0.3; transform: scale(0.8); }
+          }
+          
+          @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+          }
+          
+          @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+          }
+          
+          @keyframes slideOutRight {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
           }
           
           .dot1 { animation-delay: 0s; }
@@ -449,6 +621,11 @@ const OrdersStatusTable = ({
               </span>
             )}
             Showing {filteredOrders.length} of {orders.length} total orders
+            {lastUpdated && (
+              <span style={{ marginLeft: '16px' }}>
+                • Last updated: <strong>{lastUpdated.toLocaleTimeString()}</strong>
+              </span>
+            )}
             {searchTerm && (
               <span style={{ marginLeft: '16px' }}>
                 • Search: <strong>"{searchTerm}"</strong>
@@ -456,60 +633,84 @@ const OrdersStatusTable = ({
             )}
           </div>
           
-          <button
-            onClick={() => fetchAllOrders(true)}
-            disabled={loading || refreshing}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              padding: '8px 16px',
-              border: '1px solid #ced4da',
-              borderRadius: '6px',
-              background: 'white',
-              cursor: (loading || refreshing) ? 'not-allowed' : 'pointer',
-              color: '#6c757d',
-              fontSize: '14px',
-              transition: 'all 0.2s ease',
-              opacity: (loading || refreshing) ? 0.6 : 1,
-              minWidth: '100px',
-              height: '36px'
-            }}
-            onMouseEnter={(e) => {
-              if (!loading) {
-                e.target.style.backgroundColor = '#f8f9fa';
-                e.target.style.borderColor = '#adb5bd';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!loading) {
-                e.target.style.backgroundColor = 'white';
-                e.target.style.borderColor = '#ced4da';
-              }
-            }}
-          >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {/* Auto-refresh indicator */}
             <div style={{
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              width: '16px',
-              height: '16px'
+              gap: '6px',
+              fontSize: '12px',
+              color: '#28a745',
+              padding: '4px 8px',
+              backgroundColor: '#d4edda',
+              borderRadius: '4px',
+              border: '1px solid #c3e6cb'
             }}>
-              <RefreshCw 
-                size={16} 
-                style={{
-                  animation: refreshing ? 'spin 1s linear infinite' : 'none'
-                }}
-              />
+              <div style={{
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                backgroundColor: '#28a745',
+                animation: 'pulse 2s infinite'
+              }}></div>
+              Auto-refresh every 30s
             </div>
-            <span style={{ 
-              display: 'inline-block',
-              lineHeight: '1'
-            }}>
-              {refreshing ? 'Refreshing...' : 'Refresh'}
-            </span>
-          </button>
+            
+            <button
+              onClick={() => fetchAllOrders(true)}
+              disabled={loading || refreshing}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                padding: '8px 16px',
+                border: '1px solid #ced4da',
+                borderRadius: '6px',
+                background: 'white',
+                cursor: (loading || refreshing) ? 'not-allowed' : 'pointer',
+                color: '#6c757d',
+                fontSize: '14px',
+                transition: 'all 0.2s ease',
+                opacity: (loading || refreshing) ? 0.6 : 1,
+                minWidth: '100px',
+                height: '36px'
+              }}
+              onMouseEnter={(e) => {
+                if (!loading) {
+                  e.target.style.backgroundColor = '#f8f9fa';
+                  e.target.style.borderColor = '#adb5bd';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!loading) {
+                  e.target.style.backgroundColor = 'white';
+                  e.target.style.borderColor = '#ced4da';
+                }
+              }}
+            >
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '16px',
+                height: '16px'
+              }}>
+                <RefreshCw 
+                  size={16} 
+                  style={{
+                    animation: refreshing ? 'spin 1s linear infinite' : 'none'
+                  }}
+                />
+              </div>
+              <span style={{ 
+                display: 'inline-block',
+                lineHeight: '1'
+              }}>
+                {refreshing ? 'Refreshing...' : 'Refresh'}
+              </span>
+            </button>
+          </div>
         </div>
       </div>
 

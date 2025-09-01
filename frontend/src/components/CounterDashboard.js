@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { ShoppingCart, Plus, Minus, X, User, LogOut, Bell, Package, Edit, Trash2 } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, X, Package, Edit, Trash2 } from 'lucide-react';
 import { apiService } from '../services/api';
 import websocketService from '../services/websocketService';
 import LoadingScreen from './LoadingScreen';
@@ -14,9 +14,9 @@ const CounterDashboard = ({ user, onLogout }) => {
   const [cart, setCart] = useState([]);
   const [customerInfo, setCustomerInfo] = useState({
     name: '',
+    contact_number: '',
     order_type: 'takeaway'
   });
-  const [recentOrders, setRecentOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [minLoadingComplete, setMinLoadingComplete] = useState(false);
   
@@ -77,11 +77,8 @@ const CounterDashboard = ({ user, onLogout }) => {
     setNotifications(prev => [newNotification, ...prev]);
     setUnreadCount(prev => prev + 1);
     
-    // Auto-remove notification after 8 seconds
-    setTimeout(() => {
-      setNotifications(prev => prev.filter(n => n.id !== newNotification.id));
-      setUnreadCount(prev => Math.max(0, prev - 1));
-    }, 8000);
+    // No auto-removal - notifications stay until manually attended
+    console.log('🔔 Notification added:', { type, title, message });
   };
 
   const markNotificationAsRead = (notificationId) => {
@@ -294,9 +291,75 @@ const CounterDashboard = ({ user, onLogout }) => {
     setCurrentView('take-orders');
   };
 
+  // Function to send WhatsApp bill
+  const sendWhatsAppBill = async (orderData) => {
+    try {
+      // Format the bill message
+      const billMessage = formatBillMessage(orderData);
+      
+      // Encode the message for WhatsApp
+      const encodedMessage = encodeURIComponent(billMessage);
+      const phoneNumber = orderData.contact_number || customerInfo.contact_number;
+      
+      // Create WhatsApp URL
+      const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodedMessage}`;
+      
+      // Open WhatsApp in new tab
+      window.open(whatsappUrl, '_blank');
+      
+      toast.success('WhatsApp bill opened! Please send the message manually.');
+      
+    } catch (error) {
+      console.error('Failed to send WhatsApp bill:', error);
+      toast.error('Failed to open WhatsApp bill');
+    }
+  };
+
+
+
+
+
+  // Function to format bill message
+  const formatBillMessage = (orderData) => {
+    const currentTime = new Date().toLocaleString('en-IN', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    // Use order_number if available, otherwise fallback to customer_id
+    const orderDisplayId = orderData.order_number || orderData.customer_id;
+
+    let message = `*BREWHOOD - ORDER CONFIRMATION*\n\n`;
+    message += `*Date:* ${currentTime}\n`;
+    message += `*Order Number:* ${orderDisplayId}\n`;
+    message += `*Customer:* ${orderData.customer_name}\n`;
+    message += `*Contact:* ${orderData.contact_number}\n`;
+    message += `*Order Type:* ${orderData.order_type}\n\n`;
+    message += `*Order Details:*\n`;
+    
+    orderData.items.forEach((item, index) => {
+      message += `${index + 1}. ${item.product_name} x${item.quantity} = ₹${item.total_price}\n`;
+    });
+    
+    message += `\n*Total Amount:* ₹${orderData.total_amount.toFixed(2)}\n\n`;
+    message += `*Status:* Order Confirmed\n`;
+    message += `*Estimated Time:* 15-20 minutes\n\n`;
+    message += `Thank you for choosing Brewhood!\n`;
+    message += `Your order will be ready soon.`;
+    
+    return message;
+  };
+
   const handlePlaceOrder = async () => {
     if (!customerInfo.name.trim()) {
       toast.error('Please enter customer name');
+      return;
+    }
+    if (!customerInfo.contact_number.trim()) {
+      toast.error('Please enter contact number');
       return;
     }
     if (cart.length === 0) {
@@ -307,6 +370,7 @@ const CounterDashboard = ({ user, onLogout }) => {
     try {
       const orderData = {
         customer_name: customerInfo.name,
+        contact_number: customerInfo.contact_number,
         customer_id: `CUST${Date.now()}`,
         order_type: customerInfo.order_type,
         status: 'pending',
@@ -323,12 +387,32 @@ const CounterDashboard = ({ user, onLogout }) => {
 
       const createdOrder = await apiService.createOrder(orderData);
       
+      // Debug: Log what the backend returned
+      console.log('🔍 Backend response:', createdOrder);
+      
+      // Update orderData with the order_number from backend response
+      if (createdOrder && createdOrder.order_number) {
+        orderData.order_number = createdOrder.order_number;
+        console.log('✅ Order number from backend:', createdOrder.order_number);
+      } else {
+        // Fallback: Generate a simple order number if backend doesn't provide one
+        const fallbackOrderNumber = Math.floor(Math.random() * 1000) + 1;
+        orderData.order_number = fallbackOrderNumber;
+        console.log('⚠️ No order_number in backend response, using fallback:', fallbackOrderNumber);
+      }
+      
       // Reset form
       setCart([]);
-      setCustomerInfo({ name: '', order_type: 'takeaway' });
+      setCustomerInfo({ name: '', contact_number: '', order_type: 'takeaway' });
       
-      // Show customer ID for reference
-      toast.success(`Order created! Customer ID: ${orderData.customer_id}`);
+      // Show order number for reference
+      const displayId = orderData.order_number || orderData.customer_id;
+      toast.success(`Order created! Order Number: ${displayId}`);
+      
+      // Send WhatsApp bill if contact number is provided
+      if (customerInfo.contact_number.trim()) {
+        await sendWhatsAppBill(orderData);
+      }
       
       // Send immediate update to delivery dashboard
       try {
@@ -374,7 +458,7 @@ const CounterDashboard = ({ user, onLogout }) => {
   }
 
   return (
-    <div className="container">
+    <div className={`container ${notifications.filter(n => !n.read).length > 0 ? 'notification-overlay-active' : ''}`}>
       <div className="header" style={{ 
         display: 'flex', 
         alignItems: 'center', 
@@ -395,75 +479,7 @@ const CounterDashboard = ({ user, onLogout }) => {
           </h1>
         </div>
         
-        {/* Notification Bell */}
-        <div className="notification-section" style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          {/* Test notification button */}
-          <button
-            onClick={() => addNotification('success', 'Test Notification', 'This is a test notification to verify the system is working!', 'Test Product')}
-            style={{
-              background: '#007bff',
-              border: 'none',
-              color: 'white',
-              padding: '6px 12px',
-              borderRadius: '6px',
-              fontSize: '12px',
-              cursor: 'pointer',
-              transition: 'background-color 0.2s ease'
-            }}
-            onMouseEnter={(e) => e.target.style.backgroundColor = '#0056b3'}
-            onMouseLeave={(e) => e.target.style.backgroundColor = '#007bff'}
-          >
-            Test Notif
-          </button>
-          
-          <button 
-            className="notification-bell"
-            onClick={() => setShowNotificationCenter(!showNotificationCenter)}
-            title="Notifications"
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              position: 'relative',
-              padding: '8px',
-              borderRadius: '50%',
-              transition: 'background-color 0.2s ease',
-              color: '#6c757d'
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.backgroundColor = '#e9ecef';
-              e.target.style.color = '#495057';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.backgroundColor = 'transparent';
-              e.target.style.color = '#6c757d';
-            }}
-          >
-            <Bell size={20} />
-            {unreadCount > 0 && (
-              <span 
-                className="notification-badge"
-                style={{
-                  position: 'absolute',
-                  top: '0',
-                  right: '0',
-                  backgroundColor: '#dc3545',
-                  color: 'white',
-                  borderRadius: '50%',
-                  width: '18px',
-                  height: '18px',
-                  fontSize: '10px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 'bold'
-                }}
-              >
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </span>
-            )}
-          </button>
-        </div>
+
       </div>
 
       {currentView === 'take-orders' ? (
@@ -473,7 +489,7 @@ const CounterDashboard = ({ user, onLogout }) => {
             <div className="card">
             <h3 style={{ marginBottom: '16px' }}>Customer Information</h3>
             <div className="customer-info-layout">
-              <div className="form-group" style={{ marginBottom: '0' }}>
+              <div className="form-group" style={{ marginBottom: '12px' }}>
                 <label className="form-label">Customer Name</label>
                 <input
                   type="text"
@@ -481,6 +497,18 @@ const CounterDashboard = ({ user, onLogout }) => {
                   onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })}
                   className="form-input"
                   placeholder="Enter customer name"
+                />
+              </div>
+              <div className="form-group" style={{ marginBottom: '12px' }}>
+                <label className="form-label">Contact Number</label>
+                <input
+                  type="tel"
+                  value={customerInfo.contact_number}
+                  onChange={(e) => setCustomerInfo({ ...customerInfo, contact_number: e.target.value })}
+                  className="form-input"
+                  placeholder="Enter contact number"
+                  pattern="[0-9]{10}"
+                  title="Please enter a 10-digit phone number"
                 />
               </div>
               <div style={{ 
@@ -606,6 +634,28 @@ const CounterDashboard = ({ user, onLogout }) => {
                 Total: ₹{getCartTotal().toFixed(2)}
               </div>
               <button 
+                className="btn btn-primary"
+                onClick={() => sendWhatsAppBill({
+                  customer_name: customerInfo.name,
+                  contact_number: customerInfo.contact_number,
+                  customer_id: `PREVIEW${Date.now()}`,
+                  order_number: `PREVIEW-${Date.now().toString().slice(-4)}`,
+                  order_type: customerInfo.order_type,
+                  items: cart.map(item => ({
+                    product_name: item.name,
+                    quantity: item.quantity,
+                    total_price: item.price * item.quantity
+                  })),
+                  total_amount: getCartTotal(),
+                  created_at: new Date()
+                })}
+                style={{ width: '100%', marginBottom: '8px' }}
+                disabled={!customerInfo.name.trim() || !customerInfo.contact_number.trim()}
+              >
+                Send Bill via WhatsApp
+              </button>
+
+              <button 
                 className="btn btn-success"
                 onClick={handlePlaceOrder}
                 style={{ width: '100%' }}
@@ -722,7 +772,7 @@ const CounterDashboard = ({ user, onLogout }) => {
                   textAlign: 'center',
                   color: '#666'
                 }}>
-                  <Bell size={48} style={{ opacity: 0.3, marginBottom: '16px' }} />
+                  <div style={{ fontSize: '48px', opacity: 0.3, marginBottom: '16px' }}>🔔</div>
                   <p>No notifications yet</p>
                 </div>
               ) : (
@@ -839,6 +889,133 @@ const CounterDashboard = ({ user, onLogout }) => {
           </div>
         </div>
       )}
+
+      {/* Background Overlay for Notifications */}
+      {notifications.filter(n => !n.read).length > 0 && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-[9998]" 
+          style={{
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            pointerEvents: 'none'
+          }}
+        />
+      )}
+
+                  {/* Centered Simple Notifications */}
+      {notifications.filter(n => !n.read).map((notification, index) => (
+        <div
+          key={`persistent-${notification.id}`}
+          className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 bg-white rounded-xl shadow-2xl border border-gray-200 min-w-[400px] max-w-[500px] p-6"
+          style={{
+            zIndex: 9999 + index,
+            animation: `slideInFromTop 0.3s ease-out ${index * 0.1}s both`
+          }}
+        >
+          {/* Colored left border */}
+          <div 
+            className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-xl ${
+              notification.type === 'success' ? 'bg-green-500' :
+              notification.type === 'warning' ? 'bg-yellow-500' :
+              notification.type === 'error' ? 'bg-red-500' : 'bg-blue-500'
+            }`}
+          />
+
+          {/* Header */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              {/* Icon */}
+              <div className={`
+                w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0
+                ${notification.type === 'success' ? 'bg-green-100 text-green-700' : 
+                  notification.type === 'warning' ? 'bg-yellow-100 text-yellow-700' :
+                  notification.type === 'error' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}
+              `}>
+                {notification.type === 'success' && <Package size={20} />}
+                {notification.type === 'warning' && <Package size={20} />}
+                {notification.type === 'error' && <Trash2 size={20} />}
+                {notification.type === 'info' && <Edit size={20} />}
+              </div>
+              
+              {/* Title */}
+              <div className="font-semibold text-lg text-gray-900">
+                {notification.title}
+              </div>
+            </div>
+
+            {/* Close button */}
+            <button
+              onClick={() => markNotificationAsRead(notification.id)}
+              className="p-2 rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-all duration-200"
+              title="Mark as read"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          {/* Message */}
+          <div className="text-gray-700 text-base leading-relaxed mb-6">
+            {notification.message}
+          </div>
+
+          {/* Footer */}
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-500">
+              {notification.timestamp.toLocaleString([], { 
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit', 
+                minute: '2-digit' 
+              })}
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => markNotificationAsRead(notification.id)}
+                className="px-5 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-200 transition-all duration-200"
+              >
+                Mark as Read
+              </button>
+              
+              <button
+                onClick={() => clearNotification(notification.id)}
+                className="px-5 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 hover:border-gray-400 focus:ring-4 focus:ring-gray-200 transition-all duration-200"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        </div>
+      ))}
+
+      {/* CSS Animation */}
+      <style jsx>{`
+        @keyframes slideInFromTop {
+          0% {
+            opacity: 0;
+            transform: translate(-50%, -60%) scale(0.9);
+          }
+          100% {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+          }
+        }
+        
+        /* Ensure blur works on all elements */
+        .notification-overlay-background {
+          backdrop-filter: blur(8px) !important;
+          -webkit-backdrop-filter: blur(8px) !important;
+        }
+        
+        /* Force blur on cart and other elements when overlay is active */
+        .notification-overlay-active .cart,
+        .notification-overlay-active .product-grid,
+        .notification-overlay-active .customer-info-layout {
+          filter: blur(2px);
+          transition: filter 0.3s ease;
+        }
+      `}</style>
     </div>
   );
 };

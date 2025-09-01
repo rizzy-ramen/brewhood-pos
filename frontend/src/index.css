@@ -294,6 +294,8 @@ body {
   margin-bottom: 16px;
 }
 
+
+
 .order-list {
   display: grid;
   gap: 16px;
@@ -548,9 +550,9 @@ body {
 
 .customer-info-layout {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr;
   gap: 16px;
-  align-items: end;
+  align-items: start;
 }
 
 /* Modern Tab-Based Filter UI */
