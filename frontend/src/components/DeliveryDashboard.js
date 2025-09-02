@@ -10,7 +10,7 @@ import SearchBar from './SearchBar';
 import OrdersTable from './OrdersTable';
 import FilterTabs from './FilterTabs';
 import OrderCard from './OrderCard';
-import OrderDetailsSidebar from './OrderDetailsSidebar';
+
 
 // Debounce utility function (Google-style search delay)
 const debounce = (func, delay) => {
@@ -23,7 +23,7 @@ const debounce = (func, delay) => {
 
 const DeliveryDashboard = ({ user, onLogout }) => {
   const [orders, setOrders] = useState([]);
-  const [selectedOrder, setSelectedOrder] = useState(null);
+
   const [loading, setLoading] = useState(true);
   const [minLoadingComplete, setMinLoadingComplete] = useState(false);
   const [filter, setFilter] = useState('pending');
@@ -487,17 +487,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     fetchOrders(filter);
   }, [filter, fetchOrders]); // Include fetchOrders in dependencies
 
-  const fetchOrderDetails = async (orderId) => {
-    try {
-      // Find the order from the current orders list
-      const order = orders.find(o => o.id === orderId);
-      if (order) {
-        setSelectedOrder(order);
-      }
-    } catch (error) {
-      toast.error('Failed to fetch order details');
-    }
-  };
+
 
   const updateOrderStatus = async (orderId, status) => {
     try {
@@ -1088,7 +1078,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         <span>🌐 Backend Status: Check the indicator in the top-right corner</span>
       </div>
 
-      <div className="delivery-main-layout" style={{ display: 'grid', gridTemplateColumns: selectedOrder ? '1fr 400px' : '1fr', gap: '20px' }}>
+      <div className="delivery-main-layout" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}>
         <div>
           {/* Filter Tabs - Now using the new component */}
           <FilterTabs 
@@ -1140,8 +1130,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
                     paginationInfo={paginationInfo}
                     ordersPerPage={ordersPerPage}
                     handlePageChange={handlePageChange}
-                    fetchOrderDetails={fetchOrderDetails}
-                    selectedOrder={selectedOrder}
+
                   />
                 </div>
               ) : (
@@ -1209,8 +1198,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
                       <OrderCard 
                         key={order.id}
                         order={order}
-                        selectedOrder={selectedOrder}
-                        fetchOrderDetails={fetchOrderDetails}
+
                         updateOrderStatus={updateOrderStatus}
                         markOrderDelivered={markOrderDelivered}
                         updateItemPreparedCount={updateItemPreparedCount}
@@ -1225,15 +1213,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
           </div>
         </div>
 
-        {/* Order Details Sidebar - Using the new OrderDetailsSidebar component */}
-        <OrderDetailsSidebar 
-          selectedOrder={selectedOrder}
-          setSelectedOrder={setSelectedOrder}
-          updateOrderStatus={updateOrderStatus}
-          markOrderDelivered={markOrderDelivered}
-          updateItemPreparedCount={updateItemPreparedCount}
-          calculatePreparationProgress={calculatePreparationProgress}
-        />
+
       </div>
 
       {/* Refresh Notification Popup */}

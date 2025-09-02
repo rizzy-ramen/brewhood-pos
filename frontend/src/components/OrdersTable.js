@@ -10,9 +10,7 @@ const OrdersTable = ({
   currentPage, 
   paginationInfo, 
   ordersPerPage, 
-  handlePageChange, 
-  fetchOrderDetails, 
-  selectedOrder 
+  handlePageChange
 }) => {
   // Utility function to parse dates from various formats
   const parseOrderDate = (createdAt) => {
@@ -154,12 +152,9 @@ const OrdersTable = ({
                 return paginatedOrders.map(order => (
                   <tr 
                     key={order.id}
-                    style={{ 
-                      borderBottom: '1px solid #e9ecef',
-                      cursor: 'pointer',
-                      backgroundColor: selectedOrder?.id === order.id ? '#f8f9ff' : 'transparent'
+                                        style={{
+                      borderBottom: '1px solid #e9ecef'
                     }}
-                    onClick={() => fetchOrderDetails(order.id)}
                   >
                     <td style={{ padding: '12px', fontWeight: '500', color: '#007bff' }}>
                       {order.order_number ? (
@@ -209,10 +204,6 @@ const OrdersTable = ({
                     <td style={{ padding: '12px', textAlign: 'center' }}>
                       <button
                         className="btn btn-sm btn-outline"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          fetchOrderDetails(order.id);
-                        }}
                         title="View Details"
                         style={{ padding: '6px 12px', fontSize: '12px' }}
                       >

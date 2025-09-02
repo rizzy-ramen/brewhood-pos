@@ -104,10 +104,10 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Trust proxy for Cloudflare Tunnel
 app.set('trust proxy', 1);
 
-// Global rate limiting
+// Global rate limiting - Increased for POS system usage
 const globalRateLimit = createRateLimiter(
   process.env.RATE_LIMIT_WINDOW_MS || 900000, // 15 minutes
-  process.env.RATE_LIMIT_MAX_REQUESTS || 100,
+  process.env.RATE_LIMIT_MAX_REQUESTS || 500, // Increased from 100 to 500
   'Too many requests from this IP. Please try again later.'
 );
 app.use(globalRateLimit);

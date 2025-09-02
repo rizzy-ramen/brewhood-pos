@@ -3,8 +3,6 @@ import { Clock, Package, CheckCircle, RefreshCw } from 'lucide-react';
 
 const OrderCard = ({ 
   order, 
-  selectedOrder, 
-  fetchOrderDetails, 
   updateOrderStatus, 
   markOrderDelivered, 
   updateItemPreparedCount, 
@@ -16,10 +14,8 @@ const OrderCard = ({
       key={order.id} 
       className="order-card"
       style={{ 
-        cursor: 'pointer',
-        border: selectedOrder?.id === order.id ? '2px solid #007bff' : '1px solid #e1e5e9'
+        border: '1px solid #e1e5e9'
       }}
-      onClick={() => fetchOrderDetails(order.id)}
     >
       <div className="order-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

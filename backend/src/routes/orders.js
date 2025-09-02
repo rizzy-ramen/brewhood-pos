@@ -5,10 +5,10 @@ const { authenticateToken, requireRole, createRateLimiter } = require('../middle
 
 const router = express.Router();
 
-// Rate limiting for order endpoints
+// Rate limiting for order endpoints - Increased for POS system usage
 const orderRateLimit = createRateLimiter(
   process.env.RATE_LIMIT_WINDOW_MS || 900000, // 15 minutes
-  process.env.RATE_LIMIT_MAX_REQUESTS || 100,
+  process.env.RATE_LIMIT_MAX_REQUESTS || 500, // Increased from 100 to 500
   'Too many order requests. Please try again later.'
 );
 

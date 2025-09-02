@@ -30,6 +30,10 @@ const CounterDashboard = ({ user, onLogout }) => {
   
   // Order counter for generating sequential order numbers
   const [orderCounter, setOrderCounter] = useState(15); // Start with a reasonable default
+  
+  // Loading state for order placement
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [orderStatus, setOrderStatus] = useState('');
 
   // Set minimum loading time for better UX
   useEffect(() => {
@@ -50,15 +54,10 @@ const CounterDashboard = ({ user, onLogout }) => {
           const latestOrder = response.orders[0];
           if (latestOrder.order_number && typeof latestOrder.order_number === 'number') {
             setOrderCounter(latestOrder.order_number + 1); // Set counter to next number
-            console.log('✅ Synced order counter with backend:', latestOrder.order_number + 1);
-          } else {
-            console.log('⚠️ Latest order has no valid order_number, keeping current counter:', orderCounter);
           }
-        } else {
-          console.log('⚠️ No orders found, keeping current counter:', orderCounter);
         }
       } catch (error) {
-        console.log('⚠️ Could not sync order counter, keeping current counter:', orderCounter, error);
+        // Silent fallback
       }
     };
 
@@ -69,7 +68,6 @@ const CounterDashboard = ({ user, onLogout }) => {
   const fetchProducts = async () => {
     try {
       const products = await apiService.getProducts();
-      console.log('Fetched products from backend:', products);
       setProducts(products);
     } catch (error) {
       console.error('Failed to fetch products from backend:', error);
@@ -106,7 +104,6 @@ const CounterDashboard = ({ user, onLogout }) => {
     setUnreadCount(prev => prev + 1);
     
     // No auto-removal - notifications stay until manually attended
-    console.log('🔔 Notification added:', { type, title, message });
   };
 
   const markNotificationAsRead = (notificationId) => {
@@ -329,6 +326,11 @@ const CounterDashboard = ({ user, onLogout }) => {
       const encodedMessage = encodeURIComponent(billMessage);
       const phoneNumber = orderData.contact_number || customerInfo.contact_number;
       
+      if (!phoneNumber || !phoneNumber.trim()) {
+        toast.error('No contact number provided for WhatsApp bill');
+        return;
+      }
+      
       // Create WhatsApp URL
       const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodedMessage}`;
       
@@ -349,9 +351,6 @@ const CounterDashboard = ({ user, onLogout }) => {
 
   // Function to format bill message
   const formatBillMessage = (orderData) => {
-    console.log('🔍 formatBillMessage called with orderData:', orderData);
-    console.log('🔍 formatBillMessage orderData.order_number:', orderData.order_number);
-    
     const currentTime = new Date().toLocaleString('en-IN', {
       year: 'numeric',
       month: 'long',
@@ -362,7 +361,6 @@ const CounterDashboard = ({ user, onLogout }) => {
 
     // Use order_number for display
     const orderDisplayId = orderData.order_number;
-    console.log('🔍 formatBillMessage orderDisplayId:', orderDisplayId);
 
     let message = `*BREWHOOD - ORDER CONFIRMATION*\n\n`;
     message += `*Date:* ${currentTime}\n`;
@@ -382,7 +380,6 @@ const CounterDashboard = ({ user, onLogout }) => {
     message += `Thank you for choosing Brewhood!\n`;
     message += `Your order will be ready soon.`;
     
-    console.log('🔍 formatBillMessage final message:', message);
     return message;
   };
 
@@ -399,6 +396,9 @@ const CounterDashboard = ({ user, onLogout }) => {
       toast.error('Cart is empty');
       return;
     }
+
+    setIsPlacingOrder(true);
+    setOrderStatus('Creating order...');
 
     try {
       const orderData = {
@@ -417,67 +417,49 @@ const CounterDashboard = ({ user, onLogout }) => {
         created_at: new Date()
       };
 
-      const createdOrder = await apiService.createOrder(orderData);
+      const backendResponse = await apiService.createOrder(orderData);
       
-      // Debug: Log what the backend returned
-      console.log('🔍 Backend response:', createdOrder);
-      console.log('🔍 Backend response order_number:', createdOrder.order_number);
-      console.log('🔍 Backend response id:', createdOrder.id);
-      console.log('🔍 Current orderCounter:', orderCounter);
+      // Extract the actual order data from the response
+      const createdOrder = backendResponse.order || backendResponse;
       
       // Wait a moment for the order to be saved in the database
-      console.log('⏳ Waiting 1 second for database write...');
       await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log('✅ Wait complete, fetching order details...');
       
       // Fetch the specific order by ID to get the actual order number
       let actualOrderNumber = null;
       try {
         if (createdOrder.id) {
-          console.log('🔍 Fetching order by ID:', createdOrder.id);
           const orderDetails = await apiService.getOrderById(createdOrder.id);
-          console.log('🔍 Order details from getOrderById:', orderDetails);
-          console.log('🔍 Order details order_number:', orderDetails?.order_number);
           
           if (orderDetails && orderDetails.order_number) {
             actualOrderNumber = orderDetails.order_number;
-            console.log('✅ Got order number from specific order:', actualOrderNumber);
-          } else {
-            console.log('⚠️ No order_number found in order details');
           }
-        } else {
-          console.log('⚠️ No order ID in createdOrder response');
         }
       } catch (error) {
-        console.log('⚠️ Could not fetch specific order:', error);
-        console.log('⚠️ Error details:', error.message);
+        // Silent fallback
       }
       
       // Use the order number from the specific order, or fallback to backend response
       const orderNumber = actualOrderNumber || createdOrder.order_number || orderCounter;
-      console.log('🔍 Final order number calculation:');
-      console.log('  - actualOrderNumber:', actualOrderNumber);
-      console.log('  - createdOrder.order_number:', createdOrder.order_number);
-      console.log('  - orderCounter fallback:', orderCounter);
-      console.log('  - Final orderNumber:', orderNumber);
       
       // Set the order number for WhatsApp message
       orderData.order_number = orderNumber;
-      console.log('✅ Using order number for WhatsApp:', orderNumber);
-      
-      // Reset form
-      setCart([]);
-      setCustomerInfo({ name: '', contact_number: '', order_type: 'takeaway' });
       
       // Show order number for reference
-      console.log('🔍 Final orderData for toast:', orderData);
-      console.log('🔍 Final orderData.order_number for toast:', orderData.order_number);
       toast.success(`Order created! Order Number: ${orderData.order_number}`);
       
-      // Send WhatsApp bill if contact number is provided
+      // Send WhatsApp bill if contact number is provided (check BEFORE resetting form)
       if (customerInfo.contact_number.trim()) {
+        setOrderStatus('Sending bill to WhatsApp...');
         await sendWhatsAppBill(orderData);
+        
+        // Small delay to show the WhatsApp status
+        await new Promise(resolve => setTimeout(resolve, 1500));
       }
+      
+      // Reset form AFTER sending WhatsApp bill
+      setCart([]);
+      setCustomerInfo({ name: '', contact_number: '', order_type: 'takeaway' });
       
       // Send immediate update to delivery dashboard
       try {
@@ -506,14 +488,20 @@ const CounterDashboard = ({ user, onLogout }) => {
           channel.close();
         }
         
-        console.log('🚨 Immediate order update sent to delivery dashboard');
+        // Order update sent to delivery dashboard
       } catch (error) {
-        console.log('⚠️ Immediate update failed, will rely on polling fallback');
+        // Silent fallback
       }
+      
+      // Reset loading state
+      setIsPlacingOrder(false);
+      setOrderStatus('');
       
     } catch (error) {
       console.error('Failed to place order:', error);
       toast.error('Failed to place order');
+      setIsPlacingOrder(false);
+      setOrderStatus('');
     }
   };
 
@@ -698,33 +686,28 @@ const CounterDashboard = ({ user, onLogout }) => {
               <div className="total-amount">
                 Total: ₹{getCartTotal().toFixed(2)}
               </div>
-              <button 
-                className="btn btn-primary"
-                onClick={() => sendWhatsAppBill({
-                  customer_name: customerInfo.name,
-                  contact_number: customerInfo.contact_number,
-                  order_number: `PREVIEW-${Date.now().toString().slice(-4)}`,
-                  order_type: customerInfo.order_type,
-                  items: cart.map(item => ({
-                    product_name: item.name,
-                    quantity: item.quantity,
-                    total_price: item.price * item.quantity
-                  })),
-                  total_amount: getCartTotal(),
-                  created_at: new Date()
-                })}
-                style={{ width: '100%', marginBottom: '8px' }}
-                disabled={!customerInfo.name.trim() || !customerInfo.contact_number.trim()}
-              >
-                Send Bill via WhatsApp
-              </button>
 
               <button 
                 className="btn btn-success"
                 onClick={handlePlaceOrder}
                 style={{ width: '100%' }}
+                disabled={isPlacingOrder || !customerInfo.name.trim() || !customerInfo.contact_number.trim()}
               >
-                Place Order
+                {isPlacingOrder ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                    <div style={{
+                      width: '16px',
+                      height: '16px',
+                      border: '2px solid #ffffff',
+                      borderTop: '2px solid transparent',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite'
+                    }}></div>
+                    <span>{orderStatus}</span>
+                  </div>
+                ) : (
+                  'Place Order'
+                )}
               </button>
             </div>
           )}
@@ -1063,6 +1046,15 @@ const CounterDashboard = ({ user, onLogout }) => {
           100% {
             opacity: 1;
             transform: translate(-50%, -50%) scale(1);
+          }
+        }
+        
+        @keyframes spin {
+          0% {
+            transform: rotate(0deg);
+          }
+          100% {
+            transform: rotate(360deg);
           }
         }
         
