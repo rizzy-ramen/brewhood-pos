@@ -35,7 +35,7 @@ const BackendStatusIndicator = ({
   useEffect(() => {
     checkBackendHealth();
     
-    const interval = setInterval(checkBackendHealth, 120000); // 2 minutes instead of 30 seconds
+    const interval = setInterval(checkBackendHealth, 600000); // 10 minutes instead of 2 minutes
     return () => clearInterval(interval);
   }, []);
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, Package, Search, X, Clock, CheckCircle } from 'lucide-react';
+import { RefreshCw, Search, X, Package } from 'lucide-react';
 import { apiService } from '../services/api';
 
 // Debounce utility function
@@ -21,6 +21,7 @@ const OrdersStatusTable = ({
   const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [ordersPerPage] = useState(20);
@@ -210,9 +211,9 @@ const OrdersStatusTable = ({
       case 'ready':
         return <Package size={16} />;
       case 'delivered':
-        return <CheckCircle size={16} />;
+        return <Package size={16} />;
       default:
-        return <Clock size={16} />;
+        return <Package size={16} />;
     }
   };
 
@@ -275,11 +276,11 @@ const OrdersStatusTable = ({
     }
   }, [orders, statusFilter, searchTerm]);
 
-  // Auto-refresh orders every 30 seconds
+  // Auto-refresh orders every 5 minutes (reduced from 30 seconds)
   useEffect(() => {
     const interval = setInterval(() => {
       fetchAllOrders(true); // true = isRefresh
-    }, 30000); // 30 seconds
+    }, 300000); // 5 minutes instead of 30 seconds
 
     return () => clearInterval(interval);
   }, []);
@@ -501,45 +502,50 @@ const OrdersStatusTable = ({
 
         {/* Status Filter */}
         <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          marginBottom: '16px',
-          flexWrap: 'wrap'
+          padding: '20px',
+          borderBottom: '1px solid #e9ecef'
         }}>
-          <span style={{ fontSize: '14px', color: '#666', fontWeight: '500' }}>Filter by Status:</span>
-          {['all', 'pending', 'preparing', 'ready', 'delivered', 'cancelled'].map(status => (
-            <button
-              key={status}
-              onClick={() => handleStatusFilter(status)}
-              style={{
-                padding: '8px 16px',
-                border: '1px solid #ced4da',
-                borderRadius: '20px',
-                background: statusFilter === status ? getStatusColor(status) : 'white',
-                color: statusFilter === status ? 'white' : '#495057',
-                cursor: 'pointer',
-                fontSize: '13px',
-                fontWeight: '500',
-                transition: 'all 0.2s ease',
-                textTransform: 'capitalize'
-              }}
-              onMouseEnter={(e) => {
-                if (statusFilter !== status) {
-                  e.target.style.backgroundColor = '#f8f9fa';
-                  e.target.style.borderColor = '#adb5bd';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (statusFilter !== status) {
-                  e.target.style.backgroundColor = 'white';
-                  e.target.style.borderColor = '#ced4da';
-                }
-              }}
-            >
-              {status === 'all' ? 'All Orders' : status}
-            </button>
-          ))}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            marginBottom: '16px',
+            flexWrap: 'wrap'
+          }}>
+            <span style={{ fontSize: '14px', color: '#666', fontWeight: '500' }}>Filter by Status:</span>
+            {['all', 'pending', 'preparing', 'ready', 'delivered', 'cancelled'].map(status => (
+              <button
+                key={status}
+                onClick={() => handleStatusFilter(status)}
+                style={{
+                  padding: '8px 16px',
+                  border: '1px solid #ced4da',
+                  borderRadius: '20px',
+                  background: statusFilter === status ? getStatusColor(status) : 'white',
+                  color: statusFilter === status ? 'white' : '#495057',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: '500',
+                  transition: 'all 0.2s ease',
+                  textTransform: 'capitalize'
+                }}
+                onMouseEnter={(e) => {
+                  if (statusFilter !== status) {
+                    e.target.style.backgroundColor = '#f8f9fa';
+                    e.target.style.borderColor = '#adb5bd';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (statusFilter !== status) {
+                    e.target.style.backgroundColor = 'white';
+                    e.target.style.borderColor = '#ced4da';
+                  }
+                }}
+              >
+                {status === 'all' ? 'All Orders' : status}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Search Bar */}
@@ -611,10 +617,10 @@ const OrdersStatusTable = ({
           alignItems: 'center',
           marginTop: '12px'
         }}>
-          <div style={{
-            fontSize: '14px',
-            color: '#666'
-          }}>
+                      <div style={{
+              fontSize: '14px',
+              color: '#666'
+            }}>
             {statusFilter !== 'all' && (
               <span style={{ marginRight: '16px' }}>
                 Status: <strong style={{ color: getStatusColor(statusFilter) }}>{statusFilter}</strong>

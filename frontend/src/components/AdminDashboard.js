@@ -3,6 +3,9 @@ import { toast } from 'react-hot-toast';
 import './AdminDashboard.css';
 import { apiService } from '../services/api';
 import LoadingScreen from './LoadingScreen';
+import AdminHamburgerMenu from './AdminHamburgerMenu';
+import AdminOrdersTable from './AdminOrdersTable';
+import SalesReport from './SalesReport';
 import { 
   Plus, 
   Edit, 
@@ -15,9 +18,7 @@ import {
   DollarSign,
   FileText,
   Image as ImageIcon,
-  LogOut,
-  User,
-  RefreshCw
+  User
 } from 'lucide-react';
 
 const AdminDashboard = ({ user, onLogout }) => {
@@ -30,6 +31,8 @@ const AdminDashboard = ({ user, onLogout }) => {
   const [submitting, setSubmitting] = useState(false);
   const [updatingProducts, setUpdatingProducts] = useState(new Set()); // Track which products are being updated
   const [activeSection, setActiveSection] = useState('active'); // 'active', 'hidden', 'total'
+  const [currentView, setCurrentView] = useState('products'); // 'products', 'orders', 'sales'
+  const [showSalesReport, setShowSalesReport] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -37,6 +40,31 @@ const AdminDashboard = ({ user, onLogout }) => {
     image_url: '',
     category: 'Beverage'
   });
+
+  // Menu handlers
+  const handleModifyProducts = () => {
+    setCurrentView('products');
+  };
+
+  const handleSales = () => {
+    setCurrentView('sales');
+  };
+
+  const handleBackToProducts = () => {
+    setCurrentView('products');
+  };
+
+  const handleCloseOrdersTable = () => {
+    setCurrentView('products');
+  };
+
+  const handleSalesReport = () => {
+    setShowSalesReport(true);
+  };
+
+  const handleCloseSalesReport = () => {
+    setShowSalesReport(false);
+  };
 
   // Function to get proper image URL or fallback
   const getImageUrl = (product) => {
@@ -301,34 +329,41 @@ const AdminDashboard = ({ user, onLogout }) => {
   return (
     <div className="container">
       <div className="header">
-        <h1 className="header-title">Admin Dashboard</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <AdminHamburgerMenu 
+            onLogout={onLogout}
+            onModifyProducts={handleModifyProducts}
+            onSales={handleSales}
+            user={user}
+          />
+          <h1 className="header-title">Admin Dashboard</h1>
+        </div>
         <div className="user-info">
           <div className="role-badge admin">Admin</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <User size={18} />
             <span>{user.username}</span>
           </div>
-          <button className="btn btn-secondary" onClick={onLogout}>
-            <LogOut size={18} />
-            Logout
-          </button>
         </div>
       </div>
 
-      <div className="admin-header">
-        <div className="admin-controls">
-          <button 
-            className="btn btn-primary add-product-btn"
-            onClick={() => setShowAddForm(true)}
-          >
-            <Plus size={18} />
-            Add New Product
-          </button>
-        </div>
-      </div>
+      {/* Conditional rendering based on current view */}
+      {currentView === 'products' && (
+        <>
+          <div className="admin-header">
+            <div className="admin-controls">
+              <button 
+                className="btn btn-primary add-product-btn"
+                onClick={() => setShowAddForm(true)}
+              >
+                <Plus size={18} />
+                Add New Product
+              </button>
+            </div>
+          </div>
 
-      {/* Unified Admin Dashboard Card */}
-      <div className="admin-dashboard-card">
+          {/* Unified Admin Dashboard Card */}
+          <div className="admin-dashboard-card">
         {/* Stats Section */}
         <div className="stats-section">
           <div className="admin-stats">
@@ -771,6 +806,61 @@ const AdminDashboard = ({ user, onLogout }) => {
           )}
         </div>
       </div>
+        </>
+      )}
+
+
+
+      {/* Sales View */}
+      {currentView === 'sales' && (
+        <div style={{ padding: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px' }}>
+            <button 
+              className="btn btn-secondary"
+              onClick={handleBackToProducts}
+              style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+            >
+              <Package size={16} />
+              Back to Products
+            </button>
+            <h2>Sales Report</h2>
+          </div>
+          <div style={{
+            display: 'flex',
+            gap: '16px',
+            marginBottom: '20px',
+            flexWrap: 'wrap'
+          }}>
+            <button
+              onClick={handleSalesReport}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '12px 20px',
+                backgroundColor: '#28a745',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = '#218838';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = '#28a745';
+              }}
+            >
+              <FileText size={16} />
+              Generate Sales Report
+            </button>
+          </div>
+          <AdminOrdersTable onClose={handleCloseOrdersTable} />
+        </div>
+      )}
 
       {/* Add/Edit Product Form */}
       {showAddForm && (
@@ -882,6 +972,11 @@ const AdminDashboard = ({ user, onLogout }) => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Sales Report Modal */}
+      {showSalesReport && (
+        <SalesReport onClose={handleCloseSalesReport} />
       )}
 
       {/* CSS for loading states and animations */}
