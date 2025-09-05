@@ -1,10 +1,11 @@
-// Updated to use SQLite backend instead of Firestore
+// Backend Authentication Service
+// This replaces Firebase Auth with your SQLite backend authentication
+
 const API_BASE_URL = 'https://gotten-fact-indoor-weather.trycloudflare.com/api';
 
-// Custom login function that works with your SQLite backend
+// Login function using backend API
 export const loginUser = async (username, password) => {
   try {
-    // Use backend API for authentication
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
       headers: {
@@ -66,4 +67,30 @@ export const isAuthenticated = () => {
   const token = localStorage.getItem('token');
   const user = localStorage.getItem('user');
   return !!(token && user);
+};
+
+// Get auth token
+export const getAuthToken = () => {
+  return localStorage.getItem('token');
+};
+
+// Check if user has specific role
+export const hasRole = (role) => {
+  const user = getCurrentUser();
+  return user && user.role === role;
+};
+
+// Check if user is admin
+export const isAdmin = () => {
+  return hasRole('admin');
+};
+
+// Check if user is counter staff
+export const isCounter = () => {
+  return hasRole('counter');
+};
+
+// Check if user is delivery staff
+export const isDelivery = () => {
+  return hasRole('delivery');
 };

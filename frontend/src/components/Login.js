@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff, Coffee, Lock, User } from 'lucide-react';
-import { loginUser } from '../services/firebaseAuth';
+import { loginUser } from '../services/backendAuth';
 import toast from 'react-hot-toast';
 
 const Login = ({ onLogin }) => {

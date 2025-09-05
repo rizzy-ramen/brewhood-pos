@@ -244,7 +244,7 @@ app.post('/api/orders', authenticateToken, (req, res) => {
 });
 
 app.get('/api/orders', authenticateToken, (req, res) => {
-  const { status, limit = 50 } = req.query;
+  const { status, limit = 50, page = 1, lastDocId } = req.query;
   let query = `
     SELECT o.*, u1.username as created_by_user, u2.username as delivered_by_user
     FROM orders o
@@ -254,9 +254,15 @@ app.get('/api/orders', authenticateToken, (req, res) => {
   
   const params = [];
   
-  if (status) {
+  if (status && status !== 'all') {
     query += ' WHERE o.status = ?';
     params.push(status);
+  }
+  
+  // Add pagination support
+  if (lastDocId) {
+    query += status && status !== 'all' ? ' AND o.id < ?' : ' WHERE o.id < ?';
+    params.push(parseInt(lastDocId));
   }
   
   query += ' ORDER BY o.created_at DESC LIMIT ?';
@@ -273,7 +279,7 @@ app.get('/api/orders', authenticateToken, (req, res) => {
     const ordersWithItems = orders.map(order => ({ ...order, items: [] }));
     
     if (orders.length === 0) {
-      res.json(orders);
+      res.json({ orders: ordersWithItems, lastDocumentId: null });
       return;
     }
     
@@ -290,7 +296,8 @@ app.get('/api/orders', authenticateToken, (req, res) => {
         
         completed++;
         if (completed === orders.length) {
-          res.json(ordersWithItems);
+          const lastDocumentId = orders.length > 0 ? orders[orders.length - 1].id : null;
+          res.json({ orders: ordersWithItems, lastDocumentId });
         }
       });
     });
@@ -442,6 +449,62 @@ app.get('/api/analytics/sales', authenticateToken, (req, res) => {
       res.json({
         daily_sales: salesData,
         totals
+      });
+    });
+  });
+});
+
+// Search orders endpoint
+app.get('/api/orders/search', authenticateToken, (req, res) => {
+  const { status, q: searchTerm } = req.query;
+  
+  let query = `
+    SELECT o.*, u1.username as created_by_user, u2.username as delivered_by_user
+    FROM orders o
+    LEFT JOIN users u1 ON o.created_by = u1.id
+    LEFT JOIN users u2 ON o.delivered_by = u2.id
+    WHERE (o.customer_name LIKE ? OR o.id LIKE ?)
+  `;
+  
+  const params = [`%${searchTerm}%`, `%${searchTerm}%`];
+  
+  if (status && status !== 'all') {
+    query += ' AND o.status = ?';
+    params.push(status);
+  }
+  
+  query += ' ORDER BY o.created_at DESC LIMIT 100';
+  
+  db.all(query, params, (err, orders) => {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    
+    // Fetch items for each order
+    let completed = 0;
+    const ordersWithItems = orders.map(order => ({ ...order, items: [] }));
+    
+    if (orders.length === 0) {
+      res.json({ orders: ordersWithItems });
+      return;
+    }
+    
+    orders.forEach((order, index) => {
+      db.all(`
+        SELECT oi.*, p.name as product_name
+        FROM order_items oi
+        JOIN products p ON oi.product_id = p.id
+        WHERE oi.order_id = ?
+      `, [order.id], (err, items) => {
+        if (!err) {
+          ordersWithItems[index].items = items;
+        }
+        
+        completed++;
+        if (completed === orders.length) {
+          res.json({ orders: ordersWithItems });
+        }
       });
     });
   });
@@ -724,6 +787,43 @@ app.delete('/api/admin/products/:id', authenticateToken, (req, res) => {
   });
 });
 
+// Stats endpoint for overview
+app.get('/api/stats/overview', authenticateToken, (req, res) => {
+  const { startDate, endDate } = req.query;
+  
+  let dateFilter = '';
+  const params = [];
+  
+  if (startDate && endDate) {
+    dateFilter = ' AND DATE(created_at) BETWEEN ? AND ?';
+    params.push(startDate, endDate);
+  }
+  
+  // Get order statistics
+  db.get(`
+    SELECT 
+      COUNT(*) as total_orders,
+      SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_orders,
+      SUM(CASE WHEN status = 'preparing' THEN 1 ELSE 0 END) as preparing_orders,
+      SUM(CASE WHEN status = 'ready' THEN 1 ELSE 0 END) as ready_orders,
+      SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) as delivered_orders,
+      SUM(CASE WHEN status = 'delivered' THEN total_amount ELSE 0 END) as total_revenue,
+      AVG(CASE WHEN status = 'delivered' THEN total_amount ELSE NULL END) as avg_order_value
+    FROM orders 
+    WHERE 1=1 ${dateFilter}
+  `, params, (err, stats) => {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    
+    res.json({
+      orders: stats,
+      last_updated: new Date().toISOString()
+    });
+  });
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Food Stall POS API is running' });
@@ -748,6 +848,21 @@ app.get('/api/debug/products', (req, res) => {
         created_at: p.created_at
       }))
     });
+  });
+});
+
+// Get all products (including hidden) - for admin use
+app.get('/api/products/all', authenticateToken, (req, res) => {
+  // Check if user is admin
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  
+  db.all('SELECT * FROM products ORDER BY category, name', (err, products) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(products);
   });
 });
 

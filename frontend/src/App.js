@@ -31,8 +31,7 @@ function App() {
 
   const handleLogin = (userData) => {
     setUser(userData);
-    localStorage.setItem('token', 'firebase-auth');
-    localStorage.setItem('user', JSON.stringify(userData));
+    // Token is already set by the loginUser function in backendAuth.js
     toast.success(`Welcome, ${userData.username}!`);
   };
 
