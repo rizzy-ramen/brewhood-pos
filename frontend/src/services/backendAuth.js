@@ -1,7 +1,7 @@
 // Backend Authentication Service
 // This replaces Firebase Auth with your SQLite backend authentication
 
-const API_BASE_URL = 'https://gotten-fact-indoor-weather.trycloudflare.com/api';
+const API_BASE_URL = 'https://replication-trans-ant-wc.trycloudflare.com/api';
 
 // Login function using backend API
 export const loginUser = async (username, password) => {

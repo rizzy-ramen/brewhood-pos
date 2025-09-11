@@ -19,14 +19,21 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: [
-      "http://localhost:3000", 
-      "http://192.168.1.5:3000",  // Frontend PC IP
-      "http://192.168.1.6:3000", 
-      "http://192.168.1.29:3000",
-      "https://brewhood-pos.web.app",
-      "https://brewhood-pos.firebaseapp.com"
-    ],
+    origin: function (origin, callback) {
+      // Allow requests with no origin
+      if (!origin) return callback(null, true);
+      
+      // Allow localhost and any IP on 192.168.1.x network
+      const allowedOrigins = [
+        /^http:\/\/localhost:\d+$/,
+        /^http:\/\/192\.168\.1\.\d+:\d+$/,
+        /^https:\/\/brewhood-pos\.web\.app$/,
+        /^https:\/\/brewhood-pos\.firebaseapp\.com$/
+      ];
+      
+      const isAllowed = allowedOrigins.some(pattern => pattern.test(origin));
+      callback(null, isAllowed);
+    },
     methods: ["GET", "POST"],
     credentials: true
   }
@@ -37,14 +44,27 @@ const JWT_SECRET = process.env.JWT_SECRET || 'food-stall-pos-secret-key-change-i
 
 // Middleware
 app.use(cors({
-  origin: [
-    "http://localhost:3000", 
-    "http://192.168.1.5:3000",  // Frontend PC IP
-    "http://192.168.1.6:3000", 
-    "http://192.168.1.29:3000",
-    "https://brewhood-pos.web.app",
-    "https://brewhood-pos.firebaseapp.com"
-  ],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Allow localhost and any IP on 192.168.1.x network
+    const allowedOrigins = [
+      /^http:\/\/localhost:\d+$/,
+      /^http:\/\/192\.168\.1\.\d+:\d+$/,
+      /^https:\/\/brewhood-pos\.web\.app$/,
+      /^https:\/\/brewhood-pos\.firebaseapp\.com$/
+    ];
+    
+    const isAllowed = allowedOrigins.some(pattern => pattern.test(origin));
+    
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
