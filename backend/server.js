@@ -34,7 +34,18 @@ const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'food-stall-pos-secret-key-change-in-production';
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: [
+    "http://localhost:3000", 
+    "http://192.168.1.6:3000", 
+    "http://192.168.1.29:3000",
+    "https://brewhood-pos.web.app",
+    "https://brewhood-pos.firebaseapp.com"
+  ],
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
 app.use(express.json());
 app.use('/images', express.static(path.join(__dirname, 'public/images')));
 
