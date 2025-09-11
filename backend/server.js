@@ -150,6 +150,21 @@ app.get('/api/products', (req, res) => {
   });
 });
 
+// Get all products (including hidden) - for admin use
+app.get('/api/products/all', authenticateToken, (req, res) => {
+  // Check if user is admin
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  
+  db.all('SELECT * FROM products ORDER BY category, name', (err, products) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(products);
+  });
+});
+
 app.get('/api/products/:id', (req, res) => {
   const { id } = req.params;
   db.get('SELECT * FROM products WHERE id = ?', [id], (err, product) => {
@@ -897,21 +912,6 @@ app.get('/api/debug/products', (req, res) => {
         created_at: p.created_at
       }))
     });
-  });
-});
-
-// Get all products (including hidden) - for admin use
-app.get('/api/products/all', authenticateToken, (req, res) => {
-  // Check if user is admin
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ error: 'Admin access required' });
-  }
-  
-  db.all('SELECT * FROM products ORDER BY category, name', (err, products) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-    res.json(products);
   });
 });
 
