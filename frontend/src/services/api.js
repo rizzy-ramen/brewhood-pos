@@ -1,6 +1,6 @@
 // API Service for communicating with your internet-accessible backend
 // Your backend is now accessible via Cloudflare Tunnel: https://gotten-fact-indoor-weather.trycloudflare.com
-export const API_BASE_URL = 'https://gotten-fact-indoor-weather.trycloudflare.com/api';
+export const API_BASE_URL = 'http://192.168.1.6:5001/api';
 
 // Generate a simple demo token (replace with proper JWT in production)
 const generateDemoToken = () => {
