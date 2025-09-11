@@ -858,6 +858,21 @@ app.get('/api/stats/overview', authenticateToken, (req, res) => {
   });
 });
 
+// Root route
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'Brewhood POS Backend API', 
+    status: 'running',
+    version: '1.0.0',
+    endpoints: {
+      health: '/api/health',
+      auth: '/api/auth/login',
+      orders: '/api/orders',
+      products: '/api/products'
+    }
+  });
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Food Stall POS API is running' });
