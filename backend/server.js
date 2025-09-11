@@ -775,6 +775,48 @@ app.put('/api/admin/products/:id', authenticateToken, (req, res) => {
   });
 });
 
+// Toggle product availability
+app.patch('/api/products/:id/availability', authenticateToken, (req, res) => {
+  const { id } = req.params;
+  const { is_available } = req.body;
+  
+  console.log(`Toggling availability for product ${id} to ${is_available}`);
+  
+  // First check if product exists
+  db.get('SELECT * FROM products WHERE id = ?', [id], (err, product) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    
+    // Update availability
+    const newAvailability = is_available ? 1 : 0;
+    db.run('UPDATE products SET is_available = ? WHERE id = ?', [newAvailability, id], function(err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      
+      // Get updated product
+      db.get('SELECT * FROM products WHERE id = ?', [id], (err, updatedProduct) => {
+        if (err) {
+          return res.status(500).json({ error: err.message });
+        }
+        
+        // Emit real-time update to all clients
+        io.emit('productUpdated', updatedProduct);
+        
+        res.json({
+          message: 'Product availability updated successfully',
+          product: updatedProduct
+        });
+      });
+    });
+  });
+});
+
 app.delete('/api/admin/products/:id', authenticateToken, (req, res) => {
   // Check if user is admin
   if (req.user.role !== 'admin') {
