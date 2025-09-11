@@ -21,12 +21,14 @@ const io = socketIo(server, {
   cors: {
     origin: [
       "http://localhost:3000", 
+      "http://192.168.1.5:3000",  // Frontend PC IP
       "http://192.168.1.6:3000", 
       "http://192.168.1.29:3000",
       "https://brewhood-pos.web.app",
       "https://brewhood-pos.firebaseapp.com"
     ],
-    methods: ["GET", "POST"]
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
@@ -37,6 +39,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'food-stall-pos-secret-key-change-i
 app.use(cors({
   origin: [
     "http://localhost:3000", 
+    "http://192.168.1.5:3000",  // Frontend PC IP
     "http://192.168.1.6:3000", 
     "http://192.168.1.29:3000",
     "https://brewhood-pos.web.app",
