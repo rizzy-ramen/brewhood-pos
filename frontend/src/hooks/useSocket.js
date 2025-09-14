@@ -23,7 +23,7 @@ const useSocket = (onOrderCreated, onOrderStatusUpdated, onItemPreparationUpdate
 
     // Set up event listeners
     if (onOrderCreated) {
-      socket.on('orderCreated', onOrderCreated);
+      socket.on('orderPlaced', onOrderCreated);
     }
 
     if (onOrderStatusUpdated) {

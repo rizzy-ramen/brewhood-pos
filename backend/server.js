@@ -369,7 +369,7 @@ app.post('/api/orders', authenticateToken, (req, res) => {
                     };
                     
                     // Emit new order event to all connected clients
-                    io.emit('orderCreated', newOrder);
+                    io.emit('orderPlaced', newOrder);
                     
                     res.json(newOrder);
                   });
