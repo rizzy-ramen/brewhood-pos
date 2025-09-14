@@ -24,15 +24,15 @@ const SalesReport = ({ onClose }) => {
         allOrders = response;
       }
 
-      // Filter orders by selected date
+      // Filter orders by selected date - show ONLY orders for the selected date
       const selectedDateObj = new Date(date);
       const filteredOrders = allOrders.filter(order => {
         const orderDate = new Date(order.created_at);
         return orderDate.toDateString() === selectedDateObj.toDateString();
       });
 
-      // If no orders found for selected date, show all orders as fallback
-      const ordersToUse = filteredOrders.length > 0 ? filteredOrders : allOrders;
+      // Use only the filtered orders for the selected date
+      const ordersToUse = filteredOrders;
 
       setOrders(ordersToUse);
       generateReportData(ordersToUse);
@@ -390,7 +390,7 @@ const SalesReport = ({ onClose }) => {
               }}></div>
               <p>Loading sales data...</p>
             </div>
-          ) : reportData ? (
+          ) : reportData && reportData.totalOrders > 0 ? (
             <div>
               {/* Summary Cards */}
               <div style={{
@@ -548,7 +548,10 @@ const SalesReport = ({ onClose }) => {
               color: '#666'
             }}>
               <FileSpreadsheet size={48} style={{ opacity: 0.3, marginBottom: '16px' }} />
-              <p>No data available for the selected date</p>
+              <p>No orders found for {selectedDate}</p>
+              <p style={{ fontSize: '14px', marginTop: '8px', opacity: 0.7 }}>
+                Try selecting a different date to view sales data
+              </p>
             </div>
           )}
         </div>
