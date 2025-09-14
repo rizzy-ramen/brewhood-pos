@@ -87,45 +87,126 @@ const SalesReport = ({ onClose }) => {
     // Create workbook
     const workbook = XLSX.utils.book_new();
 
-    // Summary sheet
+    // Summary sheet with better formatting
     const summaryData = [
-      ['Sales Report Summary'],
+      ['SALES REPORT SUMMARY'],
       [''],
-      ['Date', selectedDate],
+      ['Report Date', selectedDate],
+      ['Generated On', new Date().toLocaleString()],
+      [''],
+      ['OVERVIEW'],
       ['Total Orders', reportData.totalOrders],
       ['Total Revenue', `₹${reportData.totalRevenue.toFixed(2)}`],
       ['Total Items Sold', reportData.totalItems],
+      ['Average Order Value', `₹${(reportData.totalRevenue / reportData.totalOrders).toFixed(2)}`],
       [''],
-      ['Order Types'],
-      ...Object.entries(reportData.orderTypes).map(([type, count]) => [type, count]),
+      ['ORDER TYPES BREAKDOWN'],
+      ['Type', 'Count', 'Percentage'],
+      ...Object.entries(reportData.orderTypes).map(([type, count]) => [
+        type.charAt(0).toUpperCase() + type.slice(1), 
+        count, 
+        `${((count / reportData.totalOrders) * 100).toFixed(1)}%`
+      ]),
       [''],
-      ['Order Statuses'],
-      ...Object.entries(reportData.orderStatuses).map(([status, count]) => [status, count]),
+      ['ORDER STATUS BREAKDOWN'],
+      ['Status', 'Count', 'Percentage'],
+      ...Object.entries(reportData.orderStatuses).map(([status, count]) => [
+        status.charAt(0).toUpperCase() + status.slice(1), 
+        count, 
+        `${((count / reportData.totalOrders) * 100).toFixed(1)}%`
+      ]),
       [''],
-      ['Hourly Breakdown'],
-      ['Hour', 'Orders'],
-      ...Object.entries(reportData.hourlyData).map(([hour, count]) => [hour, count])
+      ['HOURLY BREAKDOWN'],
+      ['Hour', 'Orders', 'Percentage'],
+      ...Object.entries(reportData.hourlyData)
+        .sort(([a], [b]) => parseInt(a) - parseInt(b))
+        .map(([hour, count]) => [
+          `${hour}:00`, 
+          count, 
+          `${((count / reportData.totalOrders) * 100).toFixed(1)}%`
+        ])
     ];
 
     const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+    
+    // Add basic styling to summary sheet
+    const summaryRange = XLSX.utils.decode_range(summarySheet['!ref']);
+    for (let row = 0; row <= summaryRange.e.r; row++) {
+      for (let col = 0; col <= summaryRange.e.c; col++) {
+        const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });
+        if (!summarySheet[cellAddress]) continue;
+        
+        if (row === 0) {
+          // Main title
+          summarySheet[cellAddress].s = {
+            font: { bold: true, size: 16 },
+            alignment: { horizontal: "center" }
+          };
+        } else if (summaryData[row] && summaryData[row][0] && summaryData[row][0].includes('BREAKDOWN')) {
+          // Section headers
+          summarySheet[cellAddress].s = {
+            font: { bold: true, size: 12 },
+            fill: { fgColor: { rgb: "D9E2F3" } }
+          };
+        }
+      }
+    }
+    
     XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
 
     // Detailed orders sheet
     const ordersData = [
-      ['Order ID', 'Order Number', 'Customer Name', 'Order Type', 'Status', 'Total Amount', 'Items', 'Time'],
-      ...reportData.orders.map(order => [
-        order.id,
-        order.order_number || 'N/A',
-        order.customer_name || 'N/A',
-        order.order_type || 'N/A',
-        order.status || 'N/A',
-        order.total_amount || 0,
-        order.items.map(item => `${item.product_name} x${item.quantity}`).join(', '),
-        new Date(order.created_at).toLocaleString()
-      ])
+      ['Order ID', 'Order Number', 'Customer Name', 'Order Type', 'Status', 'Total Amount (₹)', 'Items Details', 'Created Time'],
+      ...reportData.orders.map(order => {
+        // Handle missing items array
+        const itemsText = order.items && Array.isArray(order.items) 
+          ? order.items.map(item => `${item.product_name || 'Unknown'} x${item.quantity || 0}`).join(', ')
+          : 'No items data';
+        
+        return [
+          String(order.id || 'N/A'),
+          order.order_number || 'N/A',
+          order.customer_name || 'N/A',
+          order.order_type || 'N/A',
+          order.status || 'N/A',
+          order.total_amount || 0,
+          itemsText,
+          order.created_at ? new Date(order.created_at).toLocaleString() : 'N/A'
+        ];
+      })
     ];
 
     const ordersSheet = XLSX.utils.aoa_to_sheet(ordersData);
+    
+    // Auto-size columns and add styling
+    const ordersRange = XLSX.utils.decode_range(ordersSheet['!ref']);
+    const colWidths = [];
+    for (let col = 0; col <= ordersRange.e.c; col++) {
+      let maxWidth = 10;
+      for (let row = 0; row <= ordersRange.e.r; row++) {
+        const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });
+        const cell = ordersSheet[cellAddress];
+        if (cell && cell.v) {
+          const cellLength = String(cell.v).length;
+          maxWidth = Math.max(maxWidth, cellLength);
+        }
+      }
+      colWidths.push({ wch: Math.min(maxWidth + 2, 50) });
+    }
+    ordersSheet['!cols'] = colWidths;
+    
+    // Style header row
+    for (let col = 0; col <= ordersRange.e.c; col++) {
+      const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
+      if (ordersSheet[cellAddress]) {
+        ordersSheet[cellAddress].s = {
+          font: { bold: true },
+          fill: { fgColor: { rgb: "366092" } },
+          alignment: { horizontal: "center" }
+        };
+      }
+    }
+    
     XLSX.utils.book_append_sheet(workbook, ordersSheet, 'Orders');
 
     // Save file
