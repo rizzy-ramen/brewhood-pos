@@ -426,7 +426,7 @@ const SalesReport = ({ onClose }) => {
                       {reportData.orders.slice(0, 10).map(order => (
                         <tr key={order.id} style={{ borderBottom: '1px solid #f1f3f4' }}>
                           <td style={{ padding: '12px', fontWeight: '500', color: '#007bff' }}>
-                            #{order.order_number || order.id.slice(-8)}
+                            #{order.order_number || String(order.id).slice(-8)}
                           </td>
                           <td style={{ padding: '12px' }}>{order.customer_name || 'N/A'}</td>
                           <td style={{ padding: '12px', textTransform: 'capitalize' }}>{order.order_type || 'N/A'}</td>
