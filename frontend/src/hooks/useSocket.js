@@ -9,7 +9,7 @@ const useSocket = (onOrderCreated, onOrderStatusUpdated, onItemPreparationUpdate
     const getSocketUrl = () => {
       const host = window.location.hostname;
       if (host === 'localhost' || host === '127.0.0.1') {
-        return 'http://localhost:5000';
+        return 'https://crash-food-enjoying-colin.trycloudflare.com';
       } else {
         // Use the same host as the frontend for network access
         return `http://${host}:5000`;

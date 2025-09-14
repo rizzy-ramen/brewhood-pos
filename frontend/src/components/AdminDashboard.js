@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import './AdminDashboard.css';
 import { apiService } from '../services/api';
+import { websocketService } from '../services/websocketService';
 import LoadingScreen from './LoadingScreen';
 import AdminHamburgerMenu from './AdminHamburgerMenu';
 import AdminOrdersTable from './AdminOrdersTable';
@@ -77,8 +78,8 @@ const AdminDashboard = ({ user, onLogout }) => {
     
     // If it's a local path, construct the proper URL for Firebase Hosting
     if (product.image_url.startsWith('/images/')) {
-      // Use the backend server URL (you'll need to update this to your actual backend URL)
-      const backendUrl = 'http://localhost:5000'; // Change this to your actual backend URL
+      // Use the backend server URL from the tunnel
+      const backendUrl = 'https://crash-food-enjoying-colin.trycloudflare.com';
       return `${backendUrl}${product.image_url}`;
     }
     
@@ -117,13 +118,20 @@ const AdminDashboard = ({ user, onLogout }) => {
 
   const fetchProducts = async () => {
     try {
-      // Fetch ALL products (including hidden) from backend API for admin
-      const products = await apiService.getAllProducts();
-      console.log('Fetched all products (including hidden) from backend:', products);
+      // Try to fetch ALL products (including hidden) first, fallback to regular products
+      let products;
+      try {
+        products = await apiService.getAllProducts();
+        console.log('Fetched all products (including hidden) from backend:', products);
+      } catch (adminError) {
+        console.log('Admin access not available, fetching regular products:', adminError.message);
+        products = await apiService.getProducts();
+        console.log('Fetched regular products from backend:', products);
+      }
       setProducts(products);
     } catch (error) {
-      console.error('Failed to fetch all products from backend:', error);
-      toast.error('Failed to fetch all products from backend');
+      console.error('Failed to fetch products from backend:', error);
+      toast.error('Failed to fetch products from backend');
     } finally {
       setLoading(false);
     }
@@ -132,8 +140,35 @@ const AdminDashboard = ({ user, onLogout }) => {
   useEffect(() => {
     fetchProducts();
     
-    // No more polling - use WebSocket for real-time updates instead
-    console.log('🔄 Admin Dashboard - Initial fetch complete, WebSocket will handle real-time updates');
+    // WebSocket integration for real-time product updates
+    const handleProductUpdated = (product) => {
+      console.log('🔄 Admin Dashboard received productUpdated event:', product);
+      setProducts(prevProducts => 
+        prevProducts.map(p => p.id === product.id ? product : p)
+      );
+    };
+
+    const handleProductCreated = (product) => {
+      console.log('🔄 Admin Dashboard received productCreated event:', product);
+      setProducts(prevProducts => [...prevProducts, product]);
+    };
+
+    const handleProductDeleted = (productId) => {
+      console.log('🔄 Admin Dashboard received productDeleted event:', productId);
+      setProducts(prevProducts => prevProducts.filter(p => p.id !== productId));
+    };
+
+    // Set up WebSocket listeners
+    websocketService.on('productUpdated', handleProductUpdated);
+    websocketService.on('productCreated', handleProductCreated);
+    websocketService.on('productDeleted', handleProductDeleted);
+
+    // Cleanup WebSocket listeners on unmount
+    return () => {
+      websocketService.off('productUpdated', handleProductUpdated);
+      websocketService.off('productCreated', handleProductCreated);
+      websocketService.off('productDeleted', handleProductDeleted);
+    };
   }, []);
 
   // Set minimum loading time for better UX
@@ -529,6 +564,8 @@ const AdminDashboard = ({ user, onLogout }) => {
           {activeSection === 'hidden' && (
             <div className="hidden-products-section">
               <div className="product-grid">
+                {console.log('🔍 Debug - All products:', products)}
+                {console.log('🔍 Debug - Hidden products:', products.filter(p => !p.is_available))}
                 {products.filter(p => !p.is_available).length > 0 ? (
                   products.filter(p => !p.is_available).map(product => (
                     <div key={product.id} className="product-card">

@@ -1,17 +1,17 @@
 // API Service for communicating with your internet-accessible backend
 // Your backend is now accessible via Cloudflare Tunnel: https://gotten-fact-indoor-weather.trycloudflare.com
-export const API_BASE_URL = 'https://replication-trans-ant-wc.trycloudflare.com/api';
+export const API_BASE_URL = 'https://crash-food-enjoying-colin.trycloudflare.com/api';
 
 // Generate a simple demo token (replace with proper JWT in production)
-const generateDemoToken = () => {
-  return 'demo-token';
+const getAuthToken = () => {
+  return localStorage.getItem('token') || 'demo-token';
 };
 
 export const apiService = {
   // Orders
   createOrder: async (orderData) => {
     try {
-      const token = generateDemoToken();
+      const token = getAuthToken();
       const response = await fetch(`${API_BASE_URL}/orders`, {
         method: 'POST',
         headers: {
@@ -35,7 +35,7 @@ export const apiService = {
 
   getOrderById: async (orderId) => {
     try {
-      const token = generateDemoToken();
+      const token = getAuthToken();
       const response = await fetch(`${API_BASE_URL}/orders/${orderId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -56,7 +56,7 @@ export const apiService = {
 
   getOrders: async (status = null, limit = 100, page = 1, lastDocId = null) => {
     try {
-      const token = generateDemoToken();
+      const token = getAuthToken();
       let url;
       
       if (status && status !== 'all') {
@@ -92,7 +92,7 @@ export const apiService = {
   // Search orders across all pages in the database
   searchOrders: async (status, searchTerm) => {
     try {
-      const token = generateDemoToken();
+      const token = getAuthToken();
       const url = `${API_BASE_URL}/orders/search?status=${status}&q=${encodeURIComponent(searchTerm)}`;
       
       const response = await fetch(url, {
@@ -115,7 +115,7 @@ export const apiService = {
 
   updateOrderStatus: async (orderId, status) => {
     try {
-      const token = generateDemoToken();
+      const token = getAuthToken();
       const response = await fetch(`${API_BASE_URL}/orders/${orderId}/status`, {
         method: 'PATCH',
         headers: {
@@ -139,7 +139,7 @@ export const apiService = {
 
   getOrderStats: async () => {
     try {
-      const token = generateDemoToken();
+      const token = getAuthToken();
       const response = await fetch(`${API_BASE_URL}/stats/overview`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -161,7 +161,7 @@ export const apiService = {
   // Products
   getProducts: async () => {
     try {
-      const token = generateDemoToken();
+      const token = getAuthToken();
       const response = await fetch(`${API_BASE_URL}/products`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -183,7 +183,7 @@ export const apiService = {
   // Get all products (including hidden) for admin
   getAllProducts: async () => {
     try {
-      const token = generateDemoToken();
+      const token = getAuthToken();
       const response = await fetch(`${API_BASE_URL}/products/all`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -204,7 +204,7 @@ export const apiService = {
 
   createProduct: async (productData) => {
     try {
-      const token = generateDemoToken();
+      const token = getAuthToken();
       const response = await fetch(`${API_BASE_URL}/products`, {
         method: 'POST',
         headers: {
@@ -228,7 +228,7 @@ export const apiService = {
 
   updateProduct: async (productId, productData) => {
     try {
-      const token = generateDemoToken();
+      const token = getAuthToken();
       const response = await fetch(`${API_BASE_URL}/products/${productId}`, {
         method: 'PATCH',
         headers: {
@@ -253,7 +253,7 @@ export const apiService = {
   // Toggle product availability specifically
   toggleProductAvailability: async (productId, isAvailable) => {
     try {
-      const token = generateDemoToken();
+      const token = getAuthToken();
       const response = await fetch(`${API_BASE_URL}/products/${productId}/availability`, {
         method: 'PATCH',
         headers: {
@@ -277,7 +277,7 @@ export const apiService = {
 
   deleteProduct: async (productId) => {
     try {
-      const token = generateDemoToken();
+      const token = getAuthToken();
       const response = await fetch(`${API_BASE_URL}/products/${productId}`, {
         method: 'DELETE',
         headers: {
@@ -300,7 +300,7 @@ export const apiService = {
   // Update item preparation status
   updateItemPreparation: async (orderId, itemId, preparedQuantity) => {
     try {
-      const token = generateDemoToken();
+      const token = getAuthToken();
       const response = await fetch(`${API_BASE_URL}/orders/${orderId}/items/${itemId}/preparation`, {
         method: 'PATCH',
         headers: {
@@ -325,7 +325,7 @@ export const apiService = {
   // Health check
   checkHealth: async () => {
     try {
-      const response = await fetch(`${API_BASE_URL.replace('/api', '')}/health`);
+      const response = await fetch(`${API_BASE_URL}/health`);
       return await response.json();
     } catch (error) {
       console.error('❌ API Error - health check:', error);
@@ -364,7 +364,7 @@ export const config = {
   // Update this to your local backend IP address
   // For local development: http://localhost:5000
   // For network access: http://YOUR_IP_ADDRESS:5000
-  backendUrl: 'http://localhost:5000',
+  backendUrl: 'https://crash-food-enjoying-colin.trycloudflare.com',
   
   // Update this when you want to access from other devices
   // Example: http://192.168.1.100:5000 (your PC's IP address)

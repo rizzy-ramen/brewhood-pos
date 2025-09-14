@@ -263,9 +263,19 @@ const CounterDashboard = ({ user, onLogout }) => {
 
   // Function to get proper image URL or fallback
   const getImageUrl = (product) => {
-    if (product.image_url) {
+    if (!product.image_url || product.image_url === '') return '🍽️';
+    
+    // If it's already a full URL, use it
+    if (product.image_url.startsWith('http')) {
       return product.image_url;
     }
+    
+    // If it's a local path, construct the proper URL for the backend
+    if (product.image_url.startsWith('/images/')) {
+      const backendUrl = 'https://crash-food-enjoying-colin.trycloudflare.com';
+      return `${backendUrl}${product.image_url}`;
+    }
+    
     return '🍽️'; // Fallback emoji
   };
 

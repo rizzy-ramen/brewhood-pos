@@ -925,7 +925,13 @@ app.get('/', (req, res) => {
       health: '/api/health',
       auth: '/api/auth/login',
       orders: '/api/orders',
-      products: '/api/products'
+      products: '/api/products',
+      products_all: '/api/products/all',
+      products_availability: '/api/products/:id/availability',
+      stats: '/api/stats/overview',
+      analytics: '/api/analytics/sales',
+      orders_search: '/api/orders/search',
+      admin_products: '/api/admin/products'
     }
   });
 });
