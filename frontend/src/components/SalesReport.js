@@ -234,13 +234,13 @@ const SalesReport = ({ onClose }) => {
   const handleDateChange = (date) => {
     setSelectedDate(date);
     setShowCalendar(false);
-    fetchOrdersForDate(date);
+    // fetchOrdersForDate will be called automatically by useEffect when selectedDate changes
   };
 
   // Initial load
   useEffect(() => {
     fetchOrdersForDate(selectedDate);
-  }, []);
+  }, [selectedDate]);
 
   return (
     <div style={{
