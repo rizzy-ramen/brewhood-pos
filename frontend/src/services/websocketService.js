@@ -183,6 +183,26 @@ class WebSocketService {
     }
   }
 
+  // Register dashboard type
+  registerDashboard(dashboardType) {
+    if (!this.socket || !this.isConnected) {
+      console.warn('⚠️ WebSocket not connected, cannot register dashboard');
+      return Promise.reject(new Error('WebSocket not connected'));
+    }
+
+    return new Promise((resolve, reject) => {
+      this.socket.emit('joinRoom', dashboardType, (response) => {
+        if (response && response.success) {
+          console.log(`✅ Registered as ${dashboardType} dashboard`);
+          resolve(response);
+        } else {
+          console.error(`❌ Failed to register as ${dashboardType} dashboard:`, response);
+          reject(new Error(response?.error || 'Registration failed'));
+        }
+      });
+    });
+  }
+
   // Get connection status
   getConnectionStatus() {
     return {

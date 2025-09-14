@@ -23,12 +23,13 @@ const io = socketIo(server, {
       // Allow requests with no origin
       if (!origin) return callback(null, true);
       
-      // Allow localhost and any IP on 192.168.1.x network
+      // Allow localhost, network IPs, and Cloudflare tunnel domains
       const allowedOrigins = [
         /^http:\/\/localhost:\d+$/,
         /^http:\/\/192\.168\.1\.\d+:\d+$/,
         /^https:\/\/brewhood-pos\.web\.app$/,
-        /^https:\/\/brewhood-pos\.firebaseapp\.com$/
+        /^https:\/\/brewhood-pos\.firebaseapp\.com$/,
+        /^https:\/\/.*\.trycloudflare\.com$/
       ];
       
       const isAllowed = allowedOrigins.some(pattern => pattern.test(origin));
@@ -48,12 +49,13 @@ app.use(cors({
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
-    // Allow localhost and any IP on 192.168.1.x network
+    // Allow localhost, network IPs, and Cloudflare tunnel domains
     const allowedOrigins = [
       /^http:\/\/localhost:\d+$/,
       /^http:\/\/192\.168\.1\.\d+:\d+$/,
       /^https:\/\/brewhood-pos\.web\.app$/,
-      /^https:\/\/brewhood-pos\.firebaseapp\.com$/
+      /^https:\/\/brewhood-pos\.firebaseapp\.com$/,
+      /^https:\/\/.*\.trycloudflare\.com$/
     ];
     
     const isAllowed = allowedOrigins.some(pattern => pattern.test(origin));
