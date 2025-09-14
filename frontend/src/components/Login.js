@@ -32,9 +32,8 @@ const Login = ({ onLogin }) => {
       const result = await loginUser(formData.username, formData.password);
       
       if (result.success) {
-        // Store user info in localStorage
-        localStorage.setItem('user', JSON.stringify(result.user));
-        localStorage.setItem('token', 'firebase-auth'); // Placeholder token
+        // User info and token are already stored by loginUser function
+        // No need to store them again here
         
         toast.success(`Welcome back, ${result.user.username}!`);
         onLogin(result.user);
