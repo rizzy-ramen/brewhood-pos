@@ -102,10 +102,10 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       smartCounts[filter] = 0;
     }
     
-    // Clear notifications for sections that have been viewed
-    viewedSections.forEach(viewedSection => {
-      smartCounts[viewedSection] = 0;
-    });
+    // Don't clear notifications for other sections - let them persist until user switches to them
+    // viewedSections.forEach(viewedSection => {
+    //   smartCounts[viewedSection] = 0;
+    // });
     
     // Only update notifications if they've actually changed to prevent flickering
     setNotifications(prev => {
@@ -115,7 +115,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       }
       return prev;
     });
-  }, []); // Removed dependencies to prevent constant recreation
+  }, [filter]); // Add filter as dependency since we use it
 
   // Fetch orders function with stable state management
   const fetchOrders = useCallback(async (currentFilter = filter) => {
