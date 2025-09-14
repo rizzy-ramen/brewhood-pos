@@ -365,6 +365,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
           debouncedUpdate(() => fetchOrdersDynamic(currentFilter), 1000);
         } else {
           console.log(`🔄 Not viewing ${data.status} section, notification badge updated`);
+          // Don't call calculateNotifications here as it would overwrite the WebSocket increment
         }
         // Removed toast notification for cleaner UI
       });
