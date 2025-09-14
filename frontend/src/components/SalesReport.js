@@ -83,6 +83,10 @@ const SalesReport = ({ onClose }) => {
   // Export to Excel
   const exportToExcel = () => {
     if (!reportData) return;
+    
+    console.log('🔍 Exporting Excel report with data:', reportData);
+    console.log('🔍 Orders count:', reportData.orders?.length);
+    console.log('🔍 Sample order:', reportData.orders?.[0]);
 
     // Create workbook
     const workbook = XLSX.utils.book_new();
@@ -155,9 +159,11 @@ const SalesReport = ({ onClose }) => {
     XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
 
     // Detailed orders sheet
+    console.log('🔍 Creating orders sheet with', reportData.orders?.length, 'orders');
     const ordersData = [
       ['Order ID', 'Order Number', 'Customer Name', 'Order Type', 'Status', 'Total Amount (₹)', 'Items Details', 'Created Time'],
       ...reportData.orders.map(order => {
+        console.log('🔍 Processing order:', order);
         // Handle missing items array
         const itemsText = order.items && Array.isArray(order.items) 
           ? order.items.map(item => `${item.product_name || 'Unknown'} x${item.quantity || 0}`).join(', ')
@@ -175,6 +181,8 @@ const SalesReport = ({ onClose }) => {
         ];
       })
     ];
+    
+    console.log('🔍 Orders data for Excel:', ordersData);
 
     const ordersSheet = XLSX.utils.aoa_to_sheet(ordersData);
     
