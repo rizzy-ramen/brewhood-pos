@@ -36,8 +36,12 @@ const SalesReport = ({ onClose }) => {
       console.log('🔍 Filtered orders for date:', filteredOrders.length);
       console.log('🔍 Sample filtered order:', filteredOrders[0]);
 
-      setOrders(filteredOrders);
-      generateReportData(filteredOrders);
+      // If no orders found for selected date, show all orders as fallback
+      const ordersToUse = filteredOrders.length > 0 ? filteredOrders : allOrders;
+      console.log('🔍 Using orders:', ordersToUse.length, 'orders');
+
+      setOrders(ordersToUse);
+      generateReportData(ordersToUse);
     } catch (error) {
       console.error('Error fetching orders for date:', error);
     } finally {
@@ -47,10 +51,13 @@ const SalesReport = ({ onClose }) => {
 
   // Generate report data
   const generateReportData = (ordersData) => {
+    console.log('🔍 Generating report data for', ordersData.length, 'orders');
+    console.log('🔍 Sample order in generateReportData:', ordersData[0]);
+    
     const totalOrders = ordersData.length;
     const totalRevenue = ordersData.reduce((sum, order) => sum + (order.total_amount || 0), 0);
     const totalItems = ordersData.reduce((sum, order) => 
-      sum + order.items.reduce((itemSum, item) => itemSum + (item.quantity || 0), 0), 0
+      sum + (order.items ? order.items.reduce((itemSum, item) => itemSum + (item.quantity || 0), 0) : 0), 0
     );
     
     // Group by order type
