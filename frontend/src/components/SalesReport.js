@@ -31,6 +31,11 @@ const SalesReport = ({ onClose }) => {
         return orderDate.toDateString() === selectedDateObj.toDateString();
       });
 
+      console.log('🔍 Fetched orders for date:', date);
+      console.log('🔍 Total orders fetched:', allOrders.length);
+      console.log('🔍 Filtered orders for date:', filteredOrders.length);
+      console.log('🔍 Sample filtered order:', filteredOrders[0]);
+
       setOrders(filteredOrders);
       generateReportData(filteredOrders);
     } catch (error) {
