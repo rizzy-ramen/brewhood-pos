@@ -211,6 +211,51 @@ app.patch('/api/products/:id/availability', authenticateToken, (req, res) => {
   });
 });
 
+// Update product details - MUST be before /api/products/:id to avoid route conflict
+app.patch('/api/products/:id', authenticateToken, (req, res) => {
+  const { id } = req.params;
+  const { name, description, price, image_url, category } = req.body;
+  
+  console.log(`Updating product ${id} with data:`, { name, description, price, image_url, category });
+  
+  // First check if product exists
+  db.get('SELECT * FROM products WHERE id = ?', [id], (err, product) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    
+    // Update product details
+    db.run(
+      'UPDATE products SET name = ?, description = ?, price = ?, image_url = ?, category = ? WHERE id = ?',
+      [name, description, price, image_url, category, id],
+      function(err) {
+        if (err) {
+          return res.status(500).json({ error: err.message });
+        }
+        
+        // Get the updated product
+        db.get('SELECT * FROM products WHERE id = ?', [id], (err, updatedProduct) => {
+          if (err) {
+            return res.status(500).json({ error: err.message });
+          }
+          
+          // Emit real-time update to all clients
+          io.emit('productUpdated', updatedProduct);
+          
+          res.json({
+            message: 'Product updated successfully',
+            product: updatedProduct
+          });
+        });
+      }
+    );
+  });
+});
+
 app.get('/api/products/:id', (req, res) => {
   const { id } = req.params;
   db.get('SELECT * FROM products WHERE id = ?', [id], (err, product) => {
@@ -932,6 +977,7 @@ app.get('/', (req, res) => {
       products: '/api/products',
       products_all: '/api/products/all',
       products_availability: '/api/products/:id/availability',
+      products_update: '/api/products/:id',
       stats: '/api/stats/overview',
       analytics: '/api/analytics/sales',
       orders_search: '/api/orders/search',
