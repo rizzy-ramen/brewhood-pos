@@ -1,6 +1,6 @@
 // API Service for communicating with your internet-accessible backend
-// Your backend is now accessible via Cloudflare Tunnel: https://recovered-ware-confused-carlo.trycloudflare.com
-export const API_BASE_URL = 'https://recovered-ware-confused-carlo.trycloudflare.com/api';
+// Your backend is now accessible via Cloudflare Tunnel: https://brave-relate-travelers-fs.trycloudflare.com
+export const API_BASE_URL = 'https://brave-relate-travelers-fs.trycloudflare.com/api';
 
 // Generate a simple demo token (replace with proper JWT in production)
 const getAuthToken = () => {
@@ -325,7 +325,7 @@ export const apiService = {
   // Health check
   checkHealth: async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/health`);
+      const response = await fetch(`${API_BASE_URL.replace('/api', '')}/api/health`);
       return await response.json();
     } catch (error) {
       console.error('❌ API Error - health check:', error);
@@ -364,7 +364,7 @@ export const config = {
   // Update this to your local backend IP address
   // For local development: http://localhost:5000
   // For network access: http://YOUR_IP_ADDRESS:5000
-  backendUrl: 'https://recovered-ware-confused-carlo.trycloudflare.com',
+  backendUrl: 'https://brave-relate-travelers-fs.trycloudflare.com',
   
   // Update this when you want to access from other devices
   // Example: http://192.168.1.100:5000 (your PC's IP address)

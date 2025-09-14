@@ -272,7 +272,7 @@ const CounterDashboard = ({ user, onLogout }) => {
     
     // If it's a local path, construct the proper URL for the backend
     if (product.image_url.startsWith('/images/')) {
-        const backendUrl = 'https://recovered-ware-confused-carlo.trycloudflare.com';
+        const backendUrl = 'https://brave-relate-travelers-fs.trycloudflare.com';
       return `${backendUrl}${product.image_url}`;
     }
     
