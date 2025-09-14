@@ -139,6 +139,7 @@ const OrdersStatusTable = ({
 
   // Apply filters (search + status)
   const applyFilters = () => {
+    console.log('🔍 applyFilters called with searchTerm:', searchTerm, 'statusFilter:', statusFilter);
     let filtered = orders;
     
     // Apply status filter
@@ -148,6 +149,7 @@ const OrdersStatusTable = ({
     
     // Apply search filter
     if (searchTerm.trim() !== '') {
+      console.log('🔍 Applying search filter for term:', searchTerm);
       filtered = filtered.filter(order => 
         order.customer_name && order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         order.id && String(order.id).toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -155,6 +157,7 @@ const OrdersStatusTable = ({
 
         order.status && order.status.toLowerCase().includes(searchTerm.toLowerCase())
       );
+      console.log('🔍 Filtered results count:', filtered.length);
     }
     
     setFilteredOrders(filtered);
@@ -181,6 +184,7 @@ const OrdersStatusTable = ({
 
   // Debounced search - only updates the actual search term after delay
   const debouncedSearch = debounce((value) => {
+    console.log('🔍 Debounced search executing with value:', value);
     setSearchTerm(value);
     setCurrentPage(1);
     applyFilters();
@@ -567,6 +571,7 @@ const OrdersStatusTable = ({
             value={searchInput}
             onChange={(e) => {
               const value = e.target.value;
+              console.log('🔍 Input changed to:', value);
               setSearchInput(value);
               debouncedSearch(value);
             }}
