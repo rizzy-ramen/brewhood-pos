@@ -79,7 +79,7 @@ const AdminDashboard = ({ user, onLogout }) => {
     // If it's a local path, construct the proper URL for Firebase Hosting
     if (product.image_url.startsWith('/images/')) {
       // Use the backend server URL from the tunnel
-      const backendUrl = 'https://crash-food-enjoying-colin.trycloudflare.com';
+        const backendUrl = 'https://sticker-appearance-chains-were.trycloudflare.com';
       return `${backendUrl}${product.image_url}`;
     }
     

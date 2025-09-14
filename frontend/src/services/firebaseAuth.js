@@ -1,5 +1,5 @@
 // Updated to use SQLite backend instead of Firestore
-const API_BASE_URL = 'https://crash-food-enjoying-colin.trycloudflare.com/api';
+const API_BASE_URL = 'https://sticker-appearance-chains-were.trycloudflare.com/api';
 
 // Custom login function that works with your SQLite backend
 export const loginUser = async (username, password) => {

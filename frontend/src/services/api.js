@@ -1,6 +1,6 @@
 // API Service for communicating with your internet-accessible backend
 // Your backend is now accessible via Cloudflare Tunnel: https://gotten-fact-indoor-weather.trycloudflare.com
-export const API_BASE_URL = 'https://crash-food-enjoying-colin.trycloudflare.com/api';
+export const API_BASE_URL = 'https://sticker-appearance-chains-were.trycloudflare.com/api';
 
 // Generate a simple demo token (replace with proper JWT in production)
 const getAuthToken = () => {
@@ -364,7 +364,7 @@ export const config = {
   // Update this to your local backend IP address
   // For local development: http://localhost:5000
   // For network access: http://YOUR_IP_ADDRESS:5000
-  backendUrl: 'https://crash-food-enjoying-colin.trycloudflare.com',
+  backendUrl: 'https://sticker-appearance-chains-were.trycloudflare.com',
   
   // Update this when you want to access from other devices
   // Example: http://192.168.1.100:5000 (your PC's IP address)
