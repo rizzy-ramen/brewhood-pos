@@ -72,17 +72,6 @@ const DeliveryDashboard = ({ user, onLogout }) => {
   const markSectionAsViewed = useCallback((status) => {
     if (status !== 'all') {
       setViewedSections(prev => new Set([...prev, status]));
-      // Don't immediately clear notifications - let them persist until user interacts with orders
-      // setNotifications(prev => ({
-      //   ...prev,
-      //   [status]: 0
-      // }));
-    }
-  }, []);
-
-  // Clear notifications for a specific section when user interacts with orders
-  const clearSectionNotifications = useCallback((status) => {
-    if (status !== 'all') {
       setNotifications(prev => ({
         ...prev,
         [status]: 0
@@ -525,9 +514,6 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       // Immediately remove the order from the current section since its status changed
       setOrders(prevOrders => prevOrders.filter(order => order.id !== orderId));
       
-      // Clear notifications for the current section since user is actively working on it
-      clearSectionNotifications(filter);
-      
       // Removed toast notifications for cleaner UI
       // Real-time updates will handle the UI refresh via socket
     } catch (error) {
@@ -582,9 +568,6 @@ const DeliveryDashboard = ({ user, onLogout }) => {
           : order
       )
     );
-
-    // Clear notifications for the current section since user is actively working on it
-    clearSectionNotifications(filter);
 
     // Update Firestore in background - no await to block UI
     apiService.updateItemPreparation(orderId, itemId, newQuantity)
