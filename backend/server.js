@@ -85,6 +85,10 @@ io.on('connection', (socket) => {
 const dbPath = path.join(__dirname, 'database.sqlite');
 const db = new sqlite3.Database(dbPath);
 
+console.log('📊 Database connected:', dbPath);
+console.log('🔐 JWT Secret configured');
+console.log('🌐 CORS configured for local network and Firebase Hosting');
+
 // Auth middleware
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -979,8 +983,11 @@ app.get('/api/admin/products', authenticateToken, (req, res) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server is running on port ${PORT}`);
-  console.log(`Local access: http://localhost:${PORT}`);
-  console.log(`Network access: http://192.168.1.29:${PORT}`);
-  console.log(`Socket.io server is ready for real-time updates`);
+  console.log('🚀 POS Backend Server started successfully!');
+  console.log('📡 Server running on port:', PORT);
+  console.log('🌍 Environment:', process.env.NODE_ENV || 'development');
+  console.log('🔌 Socket.io enabled for real-time updates');
+  console.log('📊 API endpoints available at: http://localhost:' + PORT + '/api');
+  console.log('❤️  Health check: http://localhost:' + PORT + '/health');
+  console.log('🌐 Network access: http://192.168.1.29:' + PORT);
 });
