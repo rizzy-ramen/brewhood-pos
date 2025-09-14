@@ -20,6 +20,7 @@ const OrdersStatusTable = ({
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState(''); // Separate state for input display
   const [statusFilter, setStatusFilter] = useState('all');
 
   const [filteredOrders, setFilteredOrders] = useState([]);
@@ -178,8 +179,12 @@ const OrdersStatusTable = ({
     applyFilters();
   };
 
-  // Debounced search
-  const debouncedSearch = debounce(handleSearch, 300);
+  // Debounced search - only updates the actual search term after delay
+  const debouncedSearch = debounce((value) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+    applyFilters();
+  }, 300);
 
   // Get paginated orders
   const getPaginatedOrders = () => {
@@ -269,12 +274,12 @@ const OrdersStatusTable = ({
     fetchAllOrders();
   }, []);
 
-  // Apply filters when orders or filters change
+  // Apply filters when orders or status filter changes (search is handled by debounced function)
   useEffect(() => {
     if (orders.length > 0) {
       applyFilters();
     }
-  }, [orders, statusFilter, searchTerm]);
+  }, [orders, statusFilter]);
 
   // Auto-refresh orders every 5 minutes (reduced from 30 seconds)
   useEffect(() => {
@@ -559,10 +564,10 @@ const OrdersStatusTable = ({
           <input
             type="text"
             placeholder="Search orders by customer name, order ID, customer ID, or status..."
-            value={searchTerm}
+            value={searchInput}
             onChange={(e) => {
               const value = e.target.value;
-              setSearchTerm(value);
+              setSearchInput(value);
               debouncedSearch(value);
             }}
             style={{
@@ -584,9 +589,12 @@ const OrdersStatusTable = ({
               e.target.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
             }}
           />
-          {searchTerm && (
+          {searchInput && (
             <button
-              onClick={() => handleSearch('')}
+              onClick={() => {
+                setSearchInput('');
+                handleSearch('');
+              }}
               style={{
                 padding: '8px 12px',
                 border: '1px solid #ced4da',
