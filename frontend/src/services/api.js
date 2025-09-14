@@ -205,7 +205,7 @@ export const apiService = {
   createProduct: async (productData) => {
     try {
       const token = getAuthToken();
-      const response = await fetch(`${API_BASE_URL}/products`, {
+      const response = await fetch(`${API_BASE_URL}/admin/products`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -229,8 +229,8 @@ export const apiService = {
   updateProduct: async (productId, productData) => {
     try {
       const token = getAuthToken();
-      const response = await fetch(`${API_BASE_URL}/products/${productId}`, {
-        method: 'PATCH',
+      const response = await fetch(`${API_BASE_URL}/admin/products/${productId}`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
@@ -278,7 +278,7 @@ export const apiService = {
   deleteProduct: async (productId) => {
     try {
       const token = getAuthToken();
-      const response = await fetch(`${API_BASE_URL}/products/${productId}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/products/${productId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
