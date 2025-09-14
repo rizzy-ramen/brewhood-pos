@@ -187,7 +187,7 @@ const OrdersStatusTable = ({
     console.log('🔍 Debounced search executing with value:', value);
     setSearchTerm(value);
     setCurrentPage(1);
-    applyFilters();
+    // applyFilters() will be called by useEffect when searchTerm changes
   }, 300);
 
   // Get paginated orders
@@ -278,12 +278,19 @@ const OrdersStatusTable = ({
     fetchAllOrders();
   }, []);
 
-  // Apply filters when orders or status filter changes (search is handled by debounced function)
+  // Apply filters when orders or status filter changes
   useEffect(() => {
     if (orders.length > 0) {
       applyFilters();
     }
   }, [orders, statusFilter]);
+
+  // Apply filters when search term changes (for debounced search)
+  useEffect(() => {
+    if (orders.length > 0) {
+      applyFilters();
+    }
+  }, [searchTerm]);
 
   // Auto-refresh orders every 5 minutes (reduced from 30 seconds)
   useEffect(() => {
