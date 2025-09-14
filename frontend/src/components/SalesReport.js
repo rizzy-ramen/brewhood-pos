@@ -392,110 +392,455 @@ const SalesReport = ({ onClose }) => {
             </div>
           ) : reportData && reportData.totalOrders > 0 ? (
             <div>
-              {/* Summary Cards */}
+              {/* Enhanced Summary Cards with Visual Metrics */}
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                gap: '16px',
-                marginBottom: '24px'
+                gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+                gap: '20px',
+                marginBottom: '32px'
               }}>
+                {/* Total Orders Card */}
                 <div style={{
-                  padding: '20px',
-                  backgroundColor: '#f8f9fa',
-                  borderRadius: '8px',
-                  border: '1px solid #e9ecef'
+                  padding: '24px',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  borderRadius: '12px',
+                  color: 'white',
+                  boxShadow: '0 8px 25px rgba(102, 126, 234, 0.3)',
+                  position: 'relative',
+                  overflow: 'hidden'
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                    <Package size={20} style={{ color: '#007bff' }} />
-                    <span style={{ fontWeight: '600', color: '#333' }}>Total Orders</span>
+                  <div style={{ position: 'absolute', top: '-20px', right: '-20px', opacity: 0.1 }}>
+                    <Package size={80} />
                   </div>
-                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#007bff' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                    <div style={{ 
+                      padding: '8px', 
+                      backgroundColor: 'rgba(255, 255, 255, 0.2)', 
+                      borderRadius: '8px' 
+                    }}>
+                      <Package size={24} />
+                    </div>
+                    <span style={{ fontWeight: '600', fontSize: '16px' }}>Total Orders</span>
+                  </div>
+                  <div style={{ fontSize: '36px', fontWeight: 'bold', marginBottom: '8px' }}>
                     {reportData.totalOrders}
                   </div>
+                  <div style={{ fontSize: '14px', opacity: 0.9 }}>
+                    Orders placed on {selectedDate}
+                  </div>
                 </div>
 
+                {/* Total Revenue Card */}
                 <div style={{
-                  padding: '20px',
-                  backgroundColor: '#f8f9fa',
-                  borderRadius: '8px',
-                  border: '1px solid #e9ecef'
+                  padding: '24px',
+                  background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+                  borderRadius: '12px',
+                  color: 'white',
+                  boxShadow: '0 8px 25px rgba(17, 153, 142, 0.3)',
+                  position: 'relative',
+                  overflow: 'hidden'
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                    <DollarSign size={20} style={{ color: '#28a745' }} />
-                    <span style={{ fontWeight: '600', color: '#333' }}>Total Revenue</span>
+                  <div style={{ position: 'absolute', top: '-20px', right: '-20px', opacity: 0.1 }}>
+                    <DollarSign size={80} />
                   </div>
-                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#28a745' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                    <div style={{ 
+                      padding: '8px', 
+                      backgroundColor: 'rgba(255, 255, 255, 0.2)', 
+                      borderRadius: '8px' 
+                    }}>
+                      <DollarSign size={24} />
+                    </div>
+                    <span style={{ fontWeight: '600', fontSize: '16px' }}>Total Revenue</span>
+                  </div>
+                  <div style={{ fontSize: '36px', fontWeight: 'bold', marginBottom: '8px' }}>
                     ₹{reportData.totalRevenue.toFixed(2)}
                   </div>
+                  <div style={{ fontSize: '14px', opacity: 0.9 }}>
+                    Revenue generated today
+                  </div>
                 </div>
 
+                {/* Total Items Card */}
                 <div style={{
-                  padding: '20px',
-                  backgroundColor: '#f8f9fa',
-                  borderRadius: '8px',
-                  border: '1px solid #e9ecef'
+                  padding: '24px',
+                  background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                  borderRadius: '12px',
+                  color: 'white',
+                  boxShadow: '0 8px 25px rgba(240, 147, 251, 0.3)',
+                  position: 'relative',
+                  overflow: 'hidden'
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                    <Users size={20} style={{ color: '#ffc107' }} />
-                    <span style={{ fontWeight: '600', color: '#333' }}>Items Sold</span>
+                  <div style={{ position: 'absolute', top: '-20px', right: '-20px', opacity: 0.1 }}>
+                    <Package size={80} />
                   </div>
-                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#ffc107' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                    <div style={{ 
+                      padding: '8px', 
+                      backgroundColor: 'rgba(255, 255, 255, 0.2)', 
+                      borderRadius: '8px' 
+                    }}>
+                      <Package size={24} />
+                    </div>
+                    <span style={{ fontWeight: '600', fontSize: '16px' }}>Items Sold</span>
+                  </div>
+                  <div style={{ fontSize: '36px', fontWeight: 'bold', marginBottom: '8px' }}>
                     {reportData.totalItems}
                   </div>
+                  <div style={{ fontSize: '14px', opacity: 0.9 }}>
+                    Total items sold today
+                  </div>
+                </div>
+
+                {/* Average Order Value Card */}
+                <div style={{
+                  padding: '24px',
+                  background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                  borderRadius: '12px',
+                  color: 'white',
+                  boxShadow: '0 8px 25px rgba(79, 172, 254, 0.3)',
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}>
+                  <div style={{ position: 'absolute', top: '-20px', right: '-20px', opacity: 0.1 }}>
+                    <TrendingUp size={80} />
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                    <div style={{ 
+                      padding: '8px', 
+                      backgroundColor: 'rgba(255, 255, 255, 0.2)', 
+                      borderRadius: '8px' 
+                    }}>
+                      <TrendingUp size={24} />
+                    </div>
+                    <span style={{ fontWeight: '600', fontSize: '16px' }}>Avg Order Value</span>
+                  </div>
+                  <div style={{ fontSize: '36px', fontWeight: 'bold', marginBottom: '8px' }}>
+                    ₹{reportData.totalOrders > 0 ? (reportData.totalRevenue / reportData.totalOrders).toFixed(2) : '0.00'}
+                  </div>
+                  <div style={{ fontSize: '14px', opacity: 0.9 }}>
+                    Per order average
+                  </div>
                 </div>
               </div>
 
-              {/* Order Types */}
-              <div style={{ marginBottom: '24px' }}>
-                <h3 style={{ marginBottom: '16px', color: '#333' }}>Order Types</h3>
+              {/* Enhanced Order Types with Progress Bars */}
+              <div style={{ marginBottom: '32px' }}>
+                <h3 style={{ 
+                  marginBottom: '20px', 
+                  color: '#333', 
+                  fontSize: '20px',
+                  fontWeight: '600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <Package size={20} style={{ color: '#007bff' }} />
+                  Order Types Distribution
+                </h3>
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-                  gap: '12px'
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                  gap: '16px'
                 }}>
-                  {Object.entries(reportData.orderTypes).map(([type, count]) => (
-                    <div key={type} style={{
-                      padding: '12px',
-                      backgroundColor: '#f8f9fa',
-                      borderRadius: '6px',
-                      border: '1px solid #e9ecef',
-                      textAlign: 'center'
-                    }}>
-                      <div style={{ fontWeight: '600', color: '#333', textTransform: 'capitalize' }}>
-                        {type}
+                  {Object.entries(reportData.orderTypes).map(([type, count], index) => {
+                    const percentage = reportData.totalOrders > 0 ? (count / reportData.totalOrders) * 100 : 0;
+                    const colors = [
+                      'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+                      'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                      'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                      'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'
+                    ];
+                    const color = colors[index % colors.length];
+                    
+                    return (
+                      <div key={type} style={{
+                        padding: '20px',
+                        background: color,
+                        borderRadius: '12px',
+                        color: 'white',
+                        boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)',
+                        position: 'relative',
+                        overflow: 'hidden'
+                      }}>
+                        <div style={{ 
+                          position: 'absolute', 
+                          top: '-10px', 
+                          right: '-10px', 
+                          opacity: 0.1 
+                        }}>
+                          <Package size={40} />
+                        </div>
+                        <div style={{ 
+                          fontWeight: '600', 
+                          fontSize: '16px', 
+                          textTransform: 'capitalize',
+                          marginBottom: '8px'
+                        }}>
+                          {type}
+                        </div>
+                        <div style={{ 
+                          fontSize: '28px', 
+                          fontWeight: 'bold',
+                          marginBottom: '8px'
+                        }}>
+                          {count}
+                        </div>
+                        <div style={{ 
+                          fontSize: '14px', 
+                          opacity: 0.9,
+                          marginBottom: '12px'
+                        }}>
+                          {percentage.toFixed(1)}% of total
+                        </div>
+                        <div style={{
+                          width: '100%',
+                          height: '6px',
+                          backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                          borderRadius: '3px',
+                          overflow: 'hidden'
+                        }}>
+                          <div style={{
+                            width: `${percentage}%`,
+                            height: '100%',
+                            backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                            borderRadius: '3px',
+                            transition: 'width 0.3s ease'
+                          }}></div>
+                        </div>
                       </div>
-                      <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#007bff' }}>
-                        {count}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Order Statuses */}
-              <div style={{ marginBottom: '24px' }}>
-                <h3 style={{ marginBottom: '16px', color: '#333' }}>Order Statuses</h3>
+              {/* Enhanced Order Statuses with Visual Indicators */}
+              <div style={{ marginBottom: '32px' }}>
+                <h3 style={{ 
+                  marginBottom: '20px', 
+                  color: '#333', 
+                  fontSize: '20px',
+                  fontWeight: '600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <Clock size={20} style={{ color: '#28a745' }} />
+                  Order Status Tracking
+                </h3>
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-                  gap: '12px'
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                  gap: '16px'
                 }}>
-                  {Object.entries(reportData.orderStatuses).map(([status, count]) => (
-                    <div key={status} style={{
-                      padding: '12px',
-                      backgroundColor: '#f8f9fa',
-                      borderRadius: '6px',
-                      border: '1px solid #e9ecef',
-                      textAlign: 'center'
-                    }}>
-                      <div style={{ fontWeight: '600', color: '#333', textTransform: 'capitalize' }}>
-                        {status}
+                  {Object.entries(reportData.orderStatuses).map(([status, count], index) => {
+                    const percentage = reportData.totalOrders > 0 ? (count / reportData.totalOrders) * 100 : 0;
+                    const statusColors = {
+                      'pending': 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
+                      'preparing': 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+                      'ready': 'linear-gradient(135deg, #d299c2 0%, #fef9d7 100%)',
+                      'delivered': 'linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)',
+                      'cancelled': 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)'
+                    };
+                    const statusIcons = {
+                      'pending': '⏳',
+                      'preparing': '👨‍🍳',
+                      'ready': '✅',
+                      'delivered': '🚚',
+                      'cancelled': '❌'
+                    };
+                    const color = statusColors[status.toLowerCase()] || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                    const icon = statusIcons[status.toLowerCase()] || '📊';
+                    
+                    return (
+                      <div key={status} style={{
+                        padding: '20px',
+                        background: color,
+                        borderRadius: '12px',
+                        color: '#333',
+                        boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        border: '2px solid rgba(255, 255, 255, 0.3)'
+                      }}>
+                        <div style={{ 
+                          position: 'absolute', 
+                          top: '-10px', 
+                          right: '-10px', 
+                          opacity: 0.2,
+                          fontSize: '40px'
+                        }}>
+                          {icon}
+                        </div>
+                        <div style={{ 
+                          fontWeight: '600', 
+                          fontSize: '16px', 
+                          textTransform: 'capitalize',
+                          marginBottom: '8px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}>
+                          <span style={{ fontSize: '20px' }}>{icon}</span>
+                          {status}
+                        </div>
+                        <div style={{ 
+                          fontSize: '28px', 
+                          fontWeight: 'bold',
+                          marginBottom: '8px',
+                          color: '#2c3e50'
+                        }}>
+                          {count}
+                        </div>
+                        <div style={{ 
+                          fontSize: '14px', 
+                          color: '#7f8c8d',
+                          marginBottom: '12px'
+                        }}>
+                          {percentage.toFixed(1)}% of total
+                        </div>
+                        <div style={{
+                          width: '100%',
+                          height: '6px',
+                          backgroundColor: 'rgba(0, 0, 0, 0.1)',
+                          borderRadius: '3px',
+                          overflow: 'hidden'
+                        }}>
+                          <div style={{
+                            width: `${percentage}%`,
+                            height: '100%',
+                            backgroundColor: '#2c3e50',
+                            borderRadius: '3px',
+                            transition: 'width 0.3s ease'
+                          }}></div>
+                        </div>
                       </div>
-                      <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#007bff' }}>
-                        {count}
-                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Enhanced Hourly Breakdown Chart */}
+              <div style={{ marginBottom: '32px' }}>
+                <h3 style={{ 
+                  marginBottom: '20px', 
+                  color: '#333', 
+                  fontSize: '20px',
+                  fontWeight: '600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <Clock size={20} style={{ color: '#e74c3c' }} />
+                  Hourly Sales Distribution
+                </h3>
+                <div style={{
+                  padding: '24px',
+                  backgroundColor: '#f8f9fa',
+                  borderRadius: '12px',
+                  border: '1px solid #e9ecef',
+                  boxShadow: '0 2px 10px rgba(0, 0, 0, 0.05)'
+                }}>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))',
+                    gap: '8px',
+                    marginBottom: '16px'
+                  }}>
+                    {Object.entries(reportData.hourlyData)
+                      .sort(([a], [b]) => parseInt(a) - parseInt(b))
+                      .map(([hour, count]) => {
+                        const maxCount = Math.max(...Object.values(reportData.hourlyData));
+                        const height = maxCount > 0 ? (count / maxCount) * 100 : 0;
+                        const isCurrentHour = new Date().getHours() === parseInt(hour);
+                        
+                        return (
+                          <div key={hour} style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '8px'
+                          }}>
+                            <div style={{
+                              width: '100%',
+                              height: '120px',
+                              display: 'flex',
+                              alignItems: 'end',
+                              justifyContent: 'center',
+                              position: 'relative'
+                            }}>
+                              <div style={{
+                                width: '20px',
+                                height: `${height}%`,
+                                background: isCurrentHour 
+                                  ? 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)'
+                                  : 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)',
+                                borderRadius: '10px 10px 0 0',
+                                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                                transition: 'all 0.3s ease',
+                                position: 'relative'
+                              }}>
+                                {count > 0 && (
+                                  <div style={{
+                                    position: 'absolute',
+                                    top: '-25px',
+                                    left: '50%',
+                                    transform: 'translateX(-50%)',
+                                    fontSize: '12px',
+                                    fontWeight: 'bold',
+                                    color: '#2c3e50',
+                                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                                    padding: '2px 6px',
+                                    borderRadius: '4px',
+                                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)'
+                                  }}>
+                                    {count}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <div style={{
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              color: isCurrentHour ? '#e74c3c' : '#7f8c8d',
+                              textAlign: 'center'
+                            }}>
+                              {hour}:00
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    fontSize: '12px',
+                    color: '#7f8c8d',
+                    marginTop: '16px',
+                    paddingTop: '16px',
+                    borderTop: '1px solid #e9ecef'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{
+                        width: '12px',
+                        height: '12px',
+                        background: 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)',
+                        borderRadius: '2px'
+                      }}></div>
+                      <span>Orders by Hour</span>
                     </div>
-                  ))}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{
+                        width: '12px',
+                        height: '12px',
+                        background: 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)',
+                        borderRadius: '2px'
+                      }}></div>
+                      <span>Current Hour</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
