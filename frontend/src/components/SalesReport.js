@@ -499,47 +499,6 @@ const SalesReport = ({ onClose }) => {
                 </div>
               </div>
 
-              {/* Recent Orders */}
-              <div>
-                <h3 style={{ marginBottom: '16px', color: '#333' }}>Recent Orders</h3>
-                <div style={{
-                  maxHeight: '300px',
-                  overflowY: 'auto',
-                  border: '1px solid #e9ecef',
-                  borderRadius: '6px'
-                }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead style={{ backgroundColor: '#f8f9fa', position: 'sticky', top: 0 }}>
-                      <tr>
-                        <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #e9ecef' }}>Order #</th>
-                        <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #e9ecef' }}>Customer</th>
-                        <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #e9ecef' }}>Type</th>
-                        <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #e9ecef' }}>Status</th>
-                        <th style={{ padding: '12px', textAlign: 'right', borderBottom: '1px solid #e9ecef' }}>Amount</th>
-                        <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #e9ecef' }}>Time</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {reportData.orders.slice(0, 10).map(order => (
-                        <tr key={order.id} style={{ borderBottom: '1px solid #f1f3f4' }}>
-                          <td style={{ padding: '12px', fontWeight: '500', color: '#007bff' }}>
-                            #{order.order_number || String(order.id).slice(-8)}
-                          </td>
-                          <td style={{ padding: '12px' }}>{order.customer_name || 'N/A'}</td>
-                          <td style={{ padding: '12px', textTransform: 'capitalize' }}>{order.order_type || 'N/A'}</td>
-                          <td style={{ padding: '12px', textTransform: 'capitalize' }}>{order.status || 'N/A'}</td>
-                          <td style={{ padding: '12px', textAlign: 'right', fontWeight: '600' }}>
-                            ₹{order.total_amount?.toFixed(2) || '0.00'}
-                          </td>
-                          <td style={{ padding: '12px', fontSize: '12px', color: '#666' }}>
-                            {new Date(order.created_at).toLocaleTimeString()}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
             </div>
           ) : (
             <div style={{
