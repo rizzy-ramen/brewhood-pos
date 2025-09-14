@@ -31,14 +31,8 @@ const SalesReport = ({ onClose }) => {
         return orderDate.toDateString() === selectedDateObj.toDateString();
       });
 
-      console.log('🔍 Fetched orders for date:', date);
-      console.log('🔍 Total orders fetched:', allOrders.length);
-      console.log('🔍 Filtered orders for date:', filteredOrders.length);
-      console.log('🔍 Sample filtered order:', filteredOrders[0]);
-
       // If no orders found for selected date, show all orders as fallback
       const ordersToUse = filteredOrders.length > 0 ? filteredOrders : allOrders;
-      console.log('🔍 Using orders:', ordersToUse.length, 'orders');
 
       setOrders(ordersToUse);
       generateReportData(ordersToUse);
@@ -51,9 +45,6 @@ const SalesReport = ({ onClose }) => {
 
   // Generate report data
   const generateReportData = (ordersData) => {
-    console.log('🔍 Generating report data for', ordersData.length, 'orders');
-    console.log('🔍 Sample order in generateReportData:', ordersData[0]);
-    
     const totalOrders = ordersData.length;
     const totalRevenue = ordersData.reduce((sum, order) => sum + (order.total_amount || 0), 0);
     const totalItems = ordersData.reduce((sum, order) => 
@@ -95,10 +86,6 @@ const SalesReport = ({ onClose }) => {
   // Export to Excel
   const exportToExcel = () => {
     if (!reportData) return;
-    
-    console.log('🔍 Exporting Excel report with data:', reportData);
-    console.log('🔍 Orders count:', reportData.orders?.length);
-    console.log('🔍 Sample order:', reportData.orders?.[0]);
 
     // Create workbook
     const workbook = XLSX.utils.book_new();
@@ -109,12 +96,13 @@ const SalesReport = ({ onClose }) => {
       [''],
       ['Report Date', selectedDate],
       ['Generated On', new Date().toLocaleString()],
+      ['Orders Included', reportData.totalOrders],
       [''],
       ['OVERVIEW'],
       ['Total Orders', reportData.totalOrders],
       ['Total Revenue', `₹${reportData.totalRevenue.toFixed(2)}`],
       ['Total Items Sold', reportData.totalItems],
-      ['Average Order Value', `₹${(reportData.totalRevenue / reportData.totalOrders).toFixed(2)}`],
+      ['Average Order Value', reportData.totalOrders > 0 ? `₹${(reportData.totalRevenue / reportData.totalOrders).toFixed(2)}` : '₹0.00'],
       [''],
       ['ORDER TYPES BREAKDOWN'],
       ['Type', 'Count', 'Percentage'],
@@ -170,12 +158,12 @@ const SalesReport = ({ onClose }) => {
     
     XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
 
-    // Detailed orders sheet
-    console.log('🔍 Creating orders sheet with', reportData.orders?.length, 'orders');
+    // Detailed orders sheet - Include ALL orders with complete details
     const ordersData = [
+      ['DETAILED ORDERS LIST'],
+      [''],
       ['Order ID', 'Order Number', 'Customer Name', 'Order Type', 'Status', 'Total Amount (₹)', 'Items Details', 'Created Time'],
       ...reportData.orders.map(order => {
-        console.log('🔍 Processing order:', order);
         // Handle missing items array
         const itemsText = order.items && Array.isArray(order.items) 
           ? order.items.map(item => `${item.product_name || 'Unknown'} x${item.quantity || 0}`).join(', ')
@@ -193,8 +181,6 @@ const SalesReport = ({ onClose }) => {
         ];
       })
     ];
-    
-    console.log('🔍 Orders data for Excel:', ordersData);
 
     const ordersSheet = XLSX.utils.aoa_to_sheet(ordersData);
     
@@ -215,11 +201,21 @@ const SalesReport = ({ onClose }) => {
     }
     ordersSheet['!cols'] = colWidths;
     
-    // Style header row
+    // Style header rows
     for (let col = 0; col <= ordersRange.e.c; col++) {
-      const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
-      if (ordersSheet[cellAddress]) {
-        ordersSheet[cellAddress].s = {
+      // Style main title (row 0)
+      const titleCell = XLSX.utils.encode_cell({ r: 0, c: col });
+      if (ordersSheet[titleCell]) {
+        ordersSheet[titleCell].s = {
+          font: { bold: true, size: 14 },
+          alignment: { horizontal: "center" }
+        };
+      }
+      
+      // Style column headers (row 2)
+      const headerCell = XLSX.utils.encode_cell({ r: 2, c: col });
+      if (ordersSheet[headerCell]) {
+        ordersSheet[headerCell].s = {
           font: { bold: true },
           fill: { fgColor: { rgb: "366092" } },
           alignment: { horizontal: "center" }
