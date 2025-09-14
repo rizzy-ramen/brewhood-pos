@@ -60,7 +60,7 @@ export const apiService = {
       let url;
       
       if (status && status !== 'all') {
-        url = `${API_BASE_URL}/orders/status/${status}?limit=${limit}&page=${page}`;
+        url = `${API_BASE_URL}/orders?status=${status}&limit=${limit}&page=${page}`;
         if (lastDocId) {
           url += `&lastDocId=${lastDocId}`;
         }
@@ -117,7 +117,7 @@ export const apiService = {
     try {
       const token = getAuthToken();
       const response = await fetch(`${API_BASE_URL}/orders/${orderId}/status`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
@@ -301,8 +301,8 @@ export const apiService = {
   updateItemPreparation: async (orderId, itemId, preparedQuantity) => {
     try {
       const token = getAuthToken();
-      const response = await fetch(`${API_BASE_URL}/orders/${orderId}/items/${itemId}/preparation`, {
-        method: 'PATCH',
+      const response = await fetch(`${API_BASE_URL}/orders/${orderId}/items/${itemId}/prepared`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`

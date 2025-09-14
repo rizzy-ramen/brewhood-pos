@@ -72,6 +72,17 @@ const DeliveryDashboard = ({ user, onLogout }) => {
   const markSectionAsViewed = useCallback((status) => {
     if (status !== 'all') {
       setViewedSections(prev => new Set([...prev, status]));
+      // Don't immediately clear notifications - let them persist until user interacts with orders
+      // setNotifications(prev => ({
+      //   ...prev,
+      //   [status]: 0
+      // }));
+    }
+  }, []);
+
+  // Clear notifications for a specific section when user interacts with orders
+  const clearSectionNotifications = useCallback((status) => {
+    if (status !== 'all') {
       setNotifications(prev => ({
         ...prev,
         [status]: 0
@@ -293,36 +304,40 @@ const DeliveryDashboard = ({ user, onLogout }) => {
 
   // Initialize data fetching with new backend API
   useEffect(() => {
-    // Initial data fetch
-    fetchOrders(filter);
-  
-    let statusInterval; // Declare in the right scope
+    // Set up WebSocket listeners FIRST (before connecting)
+    console.log('🔌 DeliveryDashboard: Setting up WebSocket listeners...');
     
-    // Set up WebSocket real-time updates instead of polling
-    const setupWebSocket = () => {
-      // Connect to WebSocket
-      websocketService.connect();
+    // Listen for WebSocket connection events
+    websocketService.on('statusChange', (status) => {
+      console.log('🔌 DeliveryDashboard: WebSocket status changed:', status);
+      if (status.isConnected) {
+        console.log('🔄 WebSocket connected, refreshing orders to catch any missed updates');
+        // Refresh orders when WebSocket connects to catch any missed updates
+        debouncedUpdate(() => fetchOrdersDynamic(filterRef.current), 500);
+      }
+    });
+    
+    
+    // Listen for real-time order updates
+    websocketService.on('orderPlaced', (order) => {
+      console.log('📦 DeliveryDashboard: Received orderPlaced event:', order);
       
-      // Listen for real-time order updates
-      websocketService.on('orderPlaced', (order) => {
-        console.log('📦 DeliveryDashboard: Received orderPlaced event:', order);
-        
-        // Update notification for pending section (new orders are always pending)
-        setNotifications(prev => ({
-          ...prev,
-          pending: (prev.pending || 0) + 1
-        }));
-        
-        // Only fetch orders if we're currently viewing the pending section
-        const currentFilter = filterRef.current;
-        if (currentFilter === 'pending') {
-          console.log('🔄 Currently viewing pending section, refreshing orders');
-          debouncedUpdate(() => fetchOrdersDynamic(currentFilter), 1000);
-        } else {
-          console.log('🔄 Not viewing pending section, notification badge updated');
-        }
-        // Removed toast notification for cleaner UI
-      });
+      // Update notification for pending section (new orders are always pending)
+      setNotifications(prev => ({
+        ...prev,
+        pending: (prev.pending || 0) + 1
+      }));
+      
+      // Only fetch orders if we're currently viewing the pending section
+      const currentFilter = filterRef.current;
+      if (currentFilter === 'pending') {
+        console.log('🔄 Currently viewing pending section, refreshing orders');
+        debouncedUpdate(() => fetchOrdersDynamic(currentFilter), 1000);
+      } else {
+        console.log('🔄 Not viewing pending section, notification badge updated');
+      }
+      // Removed toast notification for cleaner UI
+    });
       
       websocketService.on('orderStatusUpdated', (data) => {
         console.log('🔄 OrderStatusUpdated event received:', data);
@@ -379,33 +394,43 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         // Removed toast notification for cleaner UI
       });
       
-      websocketService.on('orderDeleted', (orderId) => {
-        console.log('🗑️ OrderDeleted event received:', orderId);
-        
-        // Always refresh orders when an order is deleted (affects all sections)
-        const currentFilter = filterRef.current;
-        console.log('🗑️ Order deleted, refreshing current section:', currentFilter);
-        debouncedUpdate(() => fetchOrdersDynamic(currentFilter), 1000);
-        // Removed toast notification for cleaner UI
-      });
+    websocketService.on('orderDeleted', (orderId) => {
+      console.log('🗑️ OrderDeleted event received:', orderId);
       
-      // Update WebSocket status
-      const updateWebSocketStatus = () => {
-        const status = websocketService.getConnectionStatus();
-        setWebsocketStatus(status.isConnected ? 'connected' : 'disconnected');
-      };
-      
-      // Check status every 10 seconds (reduced frequency)
-      statusInterval = setInterval(updateWebSocketStatus, 10000);
-      
-      // Initial status check
-      updateWebSocketStatus();
+      // Always refresh orders when an order is deleted (affects all sections)
+      const currentFilter = filterRef.current;
+      console.log('🗑️ Order deleted, refreshing current section:', currentFilter);
+      debouncedUpdate(() => fetchOrdersDynamic(currentFilter), 1000);
+      // Removed toast notification for cleaner UI
+    });
+    
+    // Update WebSocket status
+    const updateWebSocketStatus = () => {
+      const status = websocketService.getConnectionStatus();
+      setWebsocketStatus(status.isConnected ? 'connected' : 'disconnected');
     };
     
-    // Start WebSocket after initial load
-    const initialWebSocketTimer = setTimeout(() => {
-      setupWebSocket();
-    }, 2000); // Start WebSocket after 2 seconds
+    // Check status every 10 seconds (reduced frequency)
+    let statusInterval = setInterval(updateWebSocketStatus, 10000);
+    
+    // Initial status check
+    updateWebSocketStatus();
+    
+    // Connect to WebSocket and register as delivery dashboard
+    const connectWebSocket = async () => {
+      console.log('🔌 DeliveryDashboard: Connecting to WebSocket...');
+      try {
+        await websocketService.connect('delivery');
+        console.log('✅ DeliveryDashboard: WebSocket connected successfully');
+      } catch (error) {
+        console.error('❌ DeliveryDashboard: WebSocket connection failed:', error);
+      }
+    };
+    
+    connectWebSocket();
+    
+    // Initial data fetch
+    fetchOrders(filter);
     
     // Listen for immediate order updates from counter app
     const handleOrderUpdate = (event) => {
@@ -460,9 +485,8 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     window.addEventListener('storage', handleStorageChange);
     
     return () => {
-      clearTimeout(initialWebSocketTimer);
-      
       // Clean up WebSocket listeners
+      websocketService.off('statusChange');
       websocketService.off('orderPlaced');
       websocketService.off('orderStatusUpdated');
       websocketService.off('itemPreparationUpdated');
@@ -472,6 +496,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       if (statusInterval) {
         clearInterval(statusInterval);
       }
+      
       
       window.removeEventListener('message', handleOrderUpdate);
       window.removeEventListener('storage', handleStorageChange);
@@ -489,6 +514,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
 
 
 
+
   const updateOrderStatus = async (orderId, status) => {
     try {
       // Set loading state for this order
@@ -499,19 +525,21 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       // Immediately remove the order from the current section since its status changed
       setOrders(prevOrders => prevOrders.filter(order => order.id !== orderId));
       
+      // Clear notifications for the current section since user is actively working on it
+      clearSectionNotifications(filter);
+      
       // Removed toast notifications for cleaner UI
       // Real-time updates will handle the UI refresh via socket
-      // Loading state will be cleared when orders list is refreshed via WebSocket
     } catch (error) {
       toast.error('Failed to update order status');
-      // Clear loading state on error
+    } finally {
+      // Always clear loading state after API call completes
       setUpdatingOrders(prev => {
         const newSet = new Set(prev);
         newSet.delete(orderId);
         return newSet;
       });
     }
-    // Removed finally block - loading state persists until list refresh
   };
 
   const markOrderDelivered = async (orderId) => {
@@ -554,6 +582,9 @@ const DeliveryDashboard = ({ user, onLogout }) => {
           : order
       )
     );
+
+    // Clear notifications for the current section since user is actively working on it
+    clearSectionNotifications(filter);
 
     // Update Firestore in background - no await to block UI
     apiService.updateItemPreparation(orderId, itemId, newQuantity)

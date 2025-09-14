@@ -174,11 +174,11 @@ const OrdersTable = ({
                             fontStyle: 'italic',
                             marginTop: '2px'
                           }}>
-                            ID: {order.id.slice(-8)}
+                            ID: {String(order.id).slice(-8)}
                           </div>
                         </div>
                       ) : (
-                        `#${order.id.slice(-8)}`
+                        `#${String(order.id).slice(-8)}`
                       )}
                     </td>
                     <td style={{ padding: '12px' }}>{order.customer_name}</td>

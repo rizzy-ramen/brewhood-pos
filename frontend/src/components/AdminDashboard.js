@@ -140,6 +140,18 @@ const AdminDashboard = ({ user, onLogout }) => {
   useEffect(() => {
     fetchProducts();
     
+    // Register as admin dashboard (connect if needed)
+    const registerDashboard = async () => {
+      try {
+        await websocketService.registerDashboard('admin');
+        console.log('✅ AdminDashboard: Registered successfully');
+      } catch (error) {
+        console.error('❌ AdminDashboard: Registration failed:', error);
+      }
+    };
+    
+    registerDashboard();
+    
     // WebSocket integration for real-time product updates
     const handleProductUpdated = (product) => {
       console.log('🔄 Admin Dashboard received productUpdated event:', product);
@@ -294,6 +306,13 @@ const AdminDashboard = ({ user, onLogout }) => {
       
       const newStatus = !(currentProduct.is_available === 1 || currentProduct.is_available === true);
       console.log('🔄 New status will be:', newStatus);
+      
+      // Debug: Check current user and token
+      const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+      const token = localStorage.getItem('token');
+      console.log('🔍 Current user:', currentUser);
+      console.log('🔍 Token exists:', !!token);
+      console.log('🔍 Token preview:', token ? token.substring(0, 20) + '...' : 'No token');
       
       // Use the dedicated availability toggle endpoint
       await apiService.toggleProductAvailability(product.id, newStatus);

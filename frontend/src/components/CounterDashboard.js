@@ -132,7 +132,7 @@ const CounterDashboard = ({ user, onLogout }) => {
   useEffect(() => {
     console.log('🔌 Setting up WebSocket connection for CounterDashboard...');
     
-    // Connect to WebSocket
+    // Connect to WebSocket immediately
     websocketService.connect();
     
     // Check connection status
@@ -432,25 +432,16 @@ const CounterDashboard = ({ user, onLogout }) => {
       // Extract the actual order data from the response
       const createdOrder = backendResponse.order || backendResponse;
       
-      // Wait a moment for the order to be saved in the database
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Fetch the specific order by ID to get the actual order number
-      let actualOrderNumber = null;
-      try {
-        if (createdOrder.id) {
-          const orderDetails = await apiService.getOrderById(createdOrder.id);
-          
-          if (orderDetails && orderDetails.order_number) {
-            actualOrderNumber = orderDetails.order_number;
-          }
-        }
-      } catch (error) {
-        // Silent fallback
+      // Emit orderPlaced event via WebSocket immediately (no waiting)
+      if (websocketService.socket && websocketService.socket.connected) {
+        websocketService.socket.emit('orderPlaced', createdOrder);
+        console.log('📦 CounterDashboard: Emitted orderPlaced event via WebSocket:', createdOrder);
+      } else {
+        console.warn('⚠️ WebSocket not connected, cannot emit orderPlaced event');
       }
       
-      // Use the order number from the specific order, or fallback to backend response
-      const orderNumber = actualOrderNumber || createdOrder.order_number || orderCounter;
+      // Use the order number from the backend response directly
+      const orderNumber = createdOrder.order_number || orderCounter;
       
       // Set the order number for WhatsApp message
       orderData.order_number = orderNumber;
@@ -461,10 +452,7 @@ const CounterDashboard = ({ user, onLogout }) => {
       // Send WhatsApp bill if contact number is provided (check BEFORE resetting form)
       if (customerInfo.contact_number.trim()) {
         setOrderStatus('Sending bill to WhatsApp...');
-        await sendWhatsAppBill(orderData);
-        
-        // Small delay to show the WhatsApp status
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        sendWhatsAppBill(orderData); // Remove await to make it non-blocking
       }
       
       // Reset form AFTER sending WhatsApp bill
@@ -503,7 +491,7 @@ const CounterDashboard = ({ user, onLogout }) => {
         // Silent fallback
       }
       
-      // Reset loading state
+      // Reset loading state immediately
       setIsPlacingOrder(false);
       setOrderStatus('');
       

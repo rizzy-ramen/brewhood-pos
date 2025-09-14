@@ -14,6 +14,7 @@ class WebSocketService {
   // Connect to the backend WebSocket
   connect() {
     if (this.socket && this.isConnected) {
+      console.log('🔌 WebSocket already connected');
       return;
     }
 
@@ -30,6 +31,7 @@ class WebSocketService {
       });
 
       this.setupEventHandlers();
+
     } catch (error) {
       console.error('❌ WebSocket connection failed:', error);
     }
@@ -43,6 +45,13 @@ class WebSocketService {
       console.log('🔌 WebSocket connected successfully with ID:', this.socket.id);
       this.isConnected = true;
       this.reconnectAttempts = 0;
+      
+      // Emit status change event
+      this.emit('statusChange', {
+        isConnected: true,
+        socketId: this.socket.id,
+        reconnectAttempts: 0
+      });
       
       // Join the delivery room for real-time updates
       this.socket.emit('joinRoom', 'delivery');
@@ -62,6 +71,13 @@ class WebSocketService {
 
     this.socket.on('disconnect', (reason) => {
       this.isConnected = false;
+      
+      // Emit status change event
+      this.emit('statusChange', {
+        isConnected: false,
+        socketId: null,
+        reconnectAttempts: this.reconnectAttempts
+      });
       
       if (reason === 'io server disconnect') {
         // Server disconnected, try to reconnect
