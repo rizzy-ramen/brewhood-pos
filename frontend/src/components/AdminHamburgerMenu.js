@@ -80,7 +80,7 @@ const AdminHamburgerMenu = ({
           height: '100vh',
           backgroundColor: 'white',
           boxShadow: '2px 0 10px rgba(0, 0, 0, 0.1)',
-          zIndex: 1001,
+          zIndex: 999999,
           transition: 'left 0.3s ease',
           overflowY: 'auto'
         }}

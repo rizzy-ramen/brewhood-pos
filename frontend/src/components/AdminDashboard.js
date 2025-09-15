@@ -381,7 +381,7 @@ const AdminDashboard = ({ user, onLogout }) => {
   }
 
   return (
-    <div className="container" style={{
+    <div className="container admin-dashboard-container" style={{
       minHeight: '100vh',
       background: 'linear-gradient(135deg, #7abbca 0%, #5a9bb8 25%, #4a8ba8 50%, #3a7b98 75%, #2a6b88 100%)',
       position: 'relative',
