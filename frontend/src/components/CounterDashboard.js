@@ -38,6 +38,7 @@ const CounterDashboard = ({ user, onLogout }) => {
   // Contact number validation state
   const [contactNumberError, setContactNumberError] = useState('');
   const [isContactNumberValid, setIsContactNumberValid] = useState(false);
+  const [hasContactNumberBeenTouched, setHasContactNumberBeenTouched] = useState(false);
 
   // Set minimum loading time for better UX
   useEffect(() => {
@@ -93,13 +94,17 @@ const CounterDashboard = ({ user, onLogout }) => {
   }, []);
 
   // Contact number validation function
-  const validateContactNumber = (phoneNumber) => {
+  const validateContactNumber = (phoneNumber, showRequiredError = false) => {
     // Remove all non-digit characters
     const cleanNumber = phoneNumber.replace(/\D/g, '');
     
     // Check if empty
     if (!cleanNumber) {
-      setContactNumberError('Contact number is required');
+      if (showRequiredError) {
+        setContactNumberError('Contact number is required');
+      } else {
+        setContactNumberError('');
+      }
       setIsContactNumberValid(false);
       return false;
     }
@@ -135,13 +140,22 @@ const CounterDashboard = ({ user, onLogout }) => {
   const handleContactNumberChange = (e) => {
     const value = e.target.value;
     
+    // Mark field as touched
+    setHasContactNumberBeenTouched(true);
+    
     // Only allow digits and limit to 10 characters
     const cleanValue = value.replace(/\D/g, '').slice(0, 10);
     
     setCustomerInfo({ ...customerInfo, contact_number: cleanValue });
     
-    // Validate the number
-    validateContactNumber(cleanValue);
+    // Validate the number (show required error only if field has been touched)
+    validateContactNumber(cleanValue, hasContactNumberBeenTouched);
+  };
+
+  // Handle contact number input blur (when user leaves the field)
+  const handleContactNumberBlur = () => {
+    setHasContactNumberBeenTouched(true);
+    validateContactNumber(customerInfo.contact_number, true);
   };
 
   // Notification system functions
@@ -444,6 +458,7 @@ const CounterDashboard = ({ user, onLogout }) => {
       setCart([]);
       setContactNumberError('');
       setIsContactNumberValid(false);
+      setHasContactNumberBeenTouched(false);
       
       // Increment order counter
       setOrderCounter(prev => prev + 1);
@@ -526,12 +541,13 @@ const CounterDashboard = ({ user, onLogout }) => {
                     type="tel"
                     value={customerInfo.contact_number}
                     onChange={handleContactNumberChange}
+                    onBlur={handleContactNumberBlur}
                     className={`form-input ${contactNumberError ? 'error' : isContactNumberValid ? 'success' : ''}`}
                     placeholder="Enter 10-digit contact number"
                     maxLength="10"
                     required
                   />
-                  {contactNumberError && (
+                  {contactNumberError && hasContactNumberBeenTouched && (
                     <div className="error-message" style={{ 
                       color: '#dc3545', 
                       fontSize: '12px', 
@@ -543,7 +559,7 @@ const CounterDashboard = ({ user, onLogout }) => {
                       ❌ {contactNumberError}
                     </div>
                   )}
-                  {isContactNumberValid && !contactNumberError && (
+                  {isContactNumberValid && !contactNumberError && hasContactNumberBeenTouched && (
                     <div className="success-message" style={{ 
                       color: '#28a745', 
                       fontSize: '12px', 
