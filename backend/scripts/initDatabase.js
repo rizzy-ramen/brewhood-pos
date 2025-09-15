@@ -73,6 +73,15 @@ db.serialize(() => {
     FOREIGN KEY (product_id) REFERENCES products (id)
   )`);
 
+  // Transactions table
+  db.run(`CREATE TABLE transactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id INTEGER NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE CASCADE
+  )`);
+
   // Insert sample users
   const bcrypt = require('bcryptjs');
   const hashedPassword = bcrypt.hashSync('admin123', 10);
