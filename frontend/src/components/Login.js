@@ -162,6 +162,25 @@ const Login = ({ onLogin }) => {
             </button>
           </form>
 
+          {/* Login Credentials */}
+          <div className="mt-6 p-4 bg-white/10 rounded-xl border border-white/20 backdrop-blur-sm">
+            <h3 className="text-white font-semibold text-sm mb-3 text-center">Login Credentials</h3>
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between items-center">
+                <span className="text-white/80">Admin:</span>
+                <span className="text-white font-mono">admin / admin123</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-white/80">Counter:</span>
+                <span className="text-white font-mono">counter / admin123</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-white/80">Delivery:</span>
+                <span className="text-white font-mono">delivery / admin123</span>
+              </div>
+            </div>
+          </div>
+
           {/* Footer */}
           <div className="mt-6 text-center">
             <p className="text-white/60 text-sm">
