@@ -162,7 +162,7 @@ const SalesReport = ({ onClose }) => {
     const ordersData = [
       ['DETAILED ORDERS LIST'],
       [''],
-      ['Order ID', 'Order Number', 'Customer Name', 'Order Type', 'Status', 'Total Amount (₹)', 'Items Details', 'Created Time'],
+      ['Order ID', 'Order Number', 'Customer Name', 'Contact Number', 'Order Type', 'Status', 'Total Amount (₹)', 'Items Details', 'Created Time'],
       ...reportData.orders.map(order => {
         // Handle missing items array
         const itemsText = order.items && Array.isArray(order.items) 
@@ -173,6 +173,7 @@ const SalesReport = ({ onClose }) => {
           String(order.id || 'N/A'),
           order.order_number || 'N/A',
           order.customer_name || 'N/A',
+          order.contact_number || 'N/A',
           order.order_type || 'N/A',
           order.status || 'N/A',
           order.total_amount || 0,
