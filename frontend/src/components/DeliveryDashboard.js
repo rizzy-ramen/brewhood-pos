@@ -98,16 +98,10 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     const smartCounts = { ...counts };
     
     // Clear notifications for current filter (user is already viewing this section)
-    if (filter !== 'all') {
-      smartCounts[filter] = 0;
+    if (filterRef.current !== 'all') {
+      smartCounts[filterRef.current] = 0;
     }
     
-    // Don't clear notifications for other sections - let them persist until user switches to them
-    // viewedSections.forEach(viewedSection => {
-    //   smartCounts[viewedSection] = 0;
-    // });
-    
-    // Only update notifications if they've actually changed to prevent flickering
     setNotifications(prev => {
       const hasChanged = JSON.stringify(prev) !== JSON.stringify(smartCounts);
       if (hasChanged) {
@@ -115,153 +109,52 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       }
       return prev;
     });
-  }, [filter]); // Add filter as dependency since we use it
+  }, [filter]);
 
-  // Fetch orders function with stable state management
   const fetchOrders = useCallback(async (currentFilter = filter) => {
     try {
       console.log('🔄 fetchOrders called with filter:', currentFilter);
-      console.log('🔄 Original filter value:', filter);
-      console.log('🔄 Current filter parameter:', currentFilter);
-      console.log('🔄 Filter values match?', filter === currentFilter);
-      
-      // Always show loading when fetching orders (this indicates a section change or refresh)
       setIsSectionLoading(true);
       
-      // Use pagination for delivered orders, regular fetch for others
-      let response;
-      if (currentFilter === 'delivered') {
-        // For delivered orders, use fetchOrdersWithPage to ensure cursor storage
-        // But only if we're not already in fetchOrdersWithPage to prevent recursion
-        if (currentPage === 1) {
-          // For page 1, fetch directly and store cursor
-          response = await apiService.getOrders(currentFilter, ordersPerPage, currentPage);
-          
-          // Store cursor for page 2 if we have a response
-          if (response && response.lastDocumentId) {
-            const newCursors = {
-              ...pageCursorsRef.current,
-              1: response.lastDocumentId
-            };
-            setPageCursors(newCursors);
-            pageCursorsRef.current = newCursors;
-            console.log(`💾 fetchOrders: Stored cursor for page 2:`, response.lastDocumentId);
-          }
-        } else {
-          // For other pages, use fetchOrdersWithPage
-          await fetchOrdersWithPage(currentFilter, currentPage);
-          return; // Exit early since fetchOrdersWithPage handles everything
-        }
-      } else {
-        response = await apiService.getOrders(currentFilter);
-      }
+      const response = await apiService.getOrders(currentFilter, 1);
       
-      console.log('📡 API response received:', response);
-      
-      // Extract orders from the response structure
-      let orders;
       if (response && response.orders) {
-        // Backend returns {success: true, orders: [...], count: X}
-        orders = response.orders;
-        console.log('📦 Extracted orders from response.orders:', orders?.length || 0, 'orders');
-      } else if (Array.isArray(response)) {
-        // Direct array response
-        orders = response;
-        console.log('📦 Direct array response:', orders?.length || 0, 'orders');
-      } else {
-        // Fallback
-        orders = [];
-        console.log('⚠️ No orders found in response, using empty array');
-      }
-      
-      console.log('📡 Final orders data:', orders);
-      
-      // Only update if we actually got orders (prevent clearing on error)
-      if (orders && orders.length >= 0) {
-        // For delivered orders, backend handles ordering via cursor-based pagination
-        // For other sections, sort by creation time (oldest first for FIFO)
-        let sortedOrders;
+        console.log(`✅ Fetched ${response.orders.length} orders for filter: ${currentFilter}`);
+        setOrders(response.orders);
+        
+        // Calculate notifications for all orders
+        calculateNotifications(response.orders);
+        
+        // For delivered orders, also set up pagination
         if (currentFilter === 'delivered') {
-          // Backend already returns orders in correct order for pagination
-          sortedOrders = orders;
-        } else {
-          // Sort other sections by creation time (oldest first for FIFO)
-          sortedOrders = orders.sort((a, b) => {
-            let timeA, timeB;
-            
-            try {
-              // Handle Firestore Timestamp objects
-              if (a.created_at?.toDate) {
-                timeA = a.created_at.toDate().getTime();
-              } else if (a.created_at?.seconds) {
-                timeA = a.created_at.seconds * 1000;
-              } else if (a.created_at) {
-                timeA = new Date(a.created_at).getTime();
-              } else {
-                timeA = 0; // Fallback for orders without timestamp
-              }
-              
-              if (b.created_at?.toDate) {
-                timeB = b.created_at.toDate().getTime();
-              } else if (b.created_at?.seconds) {
-                timeB = b.created_at.seconds * 1000;
-              } else if (b.created_at) {
-                timeB = new Date(b.created_at).getTime();
-              } else {
-                timeB = 0; // Fallback for orders without timestamp
-              }
-            } catch (error) {
-              console.warn('⚠️ Error parsing timestamps, using fallback sorting');
-              timeA = a.created_at || 0;
-              timeB = b.created_at || 0;
-            }
-            
-            // Ascending order: oldest first (FIFO - First In, First Out)
-            return timeA - timeB;
-          });
-        }
-        
-        // Calculate notifications for fetched orders (smart calculation)
-        calculateNotifications(sortedOrders);
-        
-        // Mark current section as viewed and clear its notifications
-        if (currentFilter !== 'all') {
-          markSectionAsViewed(currentFilter);
-        }
-        
-        // Update orders without clearing them first
-        console.log('📋 Setting orders state:', sortedOrders.length, 'orders');
-        console.log('📋 Orders data:', sortedOrders);
-        setOrders(sortedOrders);
-        
-        // Update pagination info for delivered orders
-        if (currentFilter === 'delivered' && response.total !== undefined) {
+          setFilteredOrders([]); // Clear search results
           setPaginationInfo({
-            total: response.total,
-            totalPages: response.totalPages || Math.ceil(response.total / ordersPerPage),
-            currentPage: response.page || currentPage
+            total: response.orders.length,
+            totalPages: Math.ceil(response.orders.length / ordersPerPage),
+            currentPage: 1
           });
         }
+      } else {
+        console.log(`❌ No orders found for filter: ${currentFilter}`);
+        setOrders([]);
+        calculateNotifications([]);
       }
     } catch (error) {
       console.error('❌ Error fetching orders:', error);
-      console.error('❌ Error details:', {
-        message: error.message,
-        stack: error.stack,
-        filter: currentFilter
-      });
-      // Don't show error toast on every poll - only on user-initiated actions
-      // toast.error(`Failed to fetch orders: ${error.message}`);
+      toast.error('Failed to fetch orders');
+      setOrders([]);
+      calculateNotifications([]);
     } finally {
-      setLoading(false);
-      // Clear section loading state
       setIsSectionLoading(false);
     }
-  }, [filter, calculateNotifications, markSectionAsViewed]); // Include necessary dependencies
+  }, [filter, calculateNotifications, ordersPerPage]);
 
+  // Initialize orders on component mount
+  useEffect(() => {
+    fetchOrders(filter);
+  }, [fetchOrders, filter]);
 
-
-  // Handle product updates from admin
+  // WebSocket event handlers
   const handleProductUpdated = useCallback(() => {
     setShowRefreshNotification(true);
     toast('🔄 Menu has been updated by admin. Please refresh to see changes.', { duration: 4000 });
@@ -277,7 +170,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     toast('🗑️ Product removed by admin. Please refresh to see changes.', { duration: 4000 });
   }, []);
 
-  // Debounced update function to prevent rapid state changes
+  // Debounced update function to prevent too many rapid updates
   const debouncedUpdate = useCallback((updateFn, delay = 100) => {
     if (updateTimeout) {
       clearTimeout(updateTimeout);
@@ -291,236 +184,124 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     setUpdateTimeout(timeout);
   }, [updateTimeout]);
 
-  // Initialize data fetching with new backend API
+  // WebSocket connection and event handling
   useEffect(() => {
-    // Set up WebSocket listeners FIRST (before connecting)
-    console.log('🔌 DeliveryDashboard: Setting up WebSocket listeners...');
-    
-    // Listen for WebSocket connection events
-    websocketService.on('statusChange', (status) => {
-      console.log('🔌 DeliveryDashboard: WebSocket status changed:', status);
-      if (status.isConnected) {
-        console.log('🔄 WebSocket connected, refreshing orders to catch any missed updates');
-        // Refresh orders when WebSocket connects to catch any missed updates
-        debouncedUpdate(() => fetchOrdersDynamic(filterRef.current), 500);
-      }
-    });
-    
-    
-    // Listen for real-time order updates
-    websocketService.on('orderPlaced', (order) => {
-      console.log('📦 DeliveryDashboard: Received orderPlaced event:', order);
-      
-      // Update notification for pending section (new orders are always pending)
-      setNotifications(prev => ({
-        ...prev,
-        pending: (prev.pending || 0) + 1
-      }));
-      
-      // Only fetch orders if we're currently viewing the pending section
-      const currentFilter = filterRef.current;
-      if (currentFilter === 'pending') {
-        console.log('🔄 Currently viewing pending section, refreshing orders');
-        debouncedUpdate(() => fetchOrdersDynamic(currentFilter), 1000);
-      } else {
-        console.log('🔄 Not viewing pending section, notification badge updated');
-      }
-      // Removed toast notification for cleaner UI
-    });
-      
-      websocketService.on('orderStatusUpdated', (data) => {
-        console.log('🔄 OrderStatusUpdated event received:', data);
+    const connectWebSocket = async () => {
+      console.log('🔌 DeliveryDashboard: Connecting to WebSocket...');
+      try {
+        await websocketService.connect();
+        console.log('✅ DeliveryDashboard: WebSocket connected');
         
-        // Update notifications based on status change
-        setNotifications(prev => {
-          const newNotifications = { ...prev };
-          
-          // Determine which section should get the notification
-          if (data.status === 'preparing') {
-            newNotifications.preparing = (newNotifications.preparing || 0) + 1;
-          } else if (data.status === 'ready') {
-            newNotifications.ready = (newNotifications.ready || 0) + 1;
-          } else if (data.status === 'delivered') {
-            newNotifications.delivered = (newNotifications.delivered || 0) + 1;
-          }
-          
-          return newNotifications;
+        // Register as delivery dashboard
+        await websocketService.registerDashboard('delivery');
+        console.log('✅ DeliveryDashboard: Registered as delivery dashboard');
+        
+        // Set up event listeners
+        websocketService.on('orderPlaced', (order) => {
+          console.log('🚨 New order placed:', order);
+          // Immediately fetch latest orders for the current filter
+          fetchOrders(filter);
         });
         
-        // Remove the order from the current section if we're viewing it
-        // This prevents duplicate display until refresh
-        setOrders(prevOrders => prevOrders.filter(order => order.id !== data.orderId));
-        
-        // Clear loading state for this order
-        setUpdatingOrders(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(data.orderId);
-          return newSet;
-        });
-        
-        // Only fetch orders if we're currently viewing the affected section
-        const currentFilter = filterRef.current;
-        if (currentFilter === data.status) {
-          console.log(`🔄 Currently viewing ${data.status} section, refreshing orders`);
-          debouncedUpdate(() => fetchOrdersDynamic(currentFilter), 1000);
-        } else {
-          console.log(`🔄 Not viewing ${data.status} section, notification badge updated`);
+        websocketService.on('orderStatusUpdated', (data) => {
+          console.log('🔄 Order status updated:', data);
           // Don't call calculateNotifications here as it would overwrite the WebSocket increment
-        }
-        // Removed toast notification for cleaner UI
-      });
-      
-      websocketService.on('itemPreparationUpdated', (data) => {
-        console.log('🍽️ ItemPreparationUpdated event received:', data);
+          // Just update the orders list
+          fetchOrders(filter);
+        });
         
-        // Only fetch orders if we're currently viewing the preparing section
-        const currentFilter = filterRef.current;
-        if (currentFilter === 'preparing') {
-          console.log('🍽️ Currently viewing preparing section, refreshing orders');
-          debouncedUpdate(() => fetchOrdersDynamic(currentFilter), 1000);
-        } else {
-          console.log('🍽️ Not viewing preparing section, no refresh needed');
-        }
-        // Removed toast notification for cleaner UI
-      });
-      
-    websocketService.on('orderDeleted', (orderId) => {
-      console.log('🗑️ OrderDeleted event received:', orderId);
-      
-      // Always refresh orders when an order is deleted (affects all sections)
-      const currentFilter = filterRef.current;
-      console.log('🗑️ Order deleted, refreshing current section:', currentFilter);
-      debouncedUpdate(() => fetchOrdersDynamic(currentFilter), 1000);
-      // Removed toast notification for cleaner UI
-    });
-    
-    // Update WebSocket status
+        websocketService.on('productUpdated', handleProductUpdated);
+        websocketService.on('productCreated', handleProductCreated);
+        websocketService.on('productDeleted', handleProductDeleted);
+        
+        // Listen for order updates via BroadcastChannel
+        const channel = new BroadcastChannel('orderUpdates');
+        const handleOrderUpdate = (event) => {
+          if (event.data && event.data.type === 'ORDER_PLACED') {
+            console.log('🚨 Immediate order update received:', event.data.order);
+            // Immediately fetch latest orders
+            fetchOrders(filter);
+          }
+        };
+        
+        channel.addEventListener('message', handleOrderUpdate);
+        
+        // Listen for storage changes (fallback)
+        const handleStorageChange = (event) => {
+          if (event.key === 'orderUpdate' && event.newValue) {
+            console.log('🚨 Order update via storage detected');
+            const orderData = JSON.parse(event.newValue);
+            // Immediately fetch latest orders
+            fetchOrders(filter);
+          }
+        };
+        
+        window.addEventListener('storage', handleStorageChange);
+        
+        // Cleanup function
+        return () => {
+          console.log('🔌 Cleaning up WebSocket listeners for DeliveryDashboard...');
+          websocketService.off('orderPlaced');
+          websocketService.off('orderStatusUpdated');
+          websocketService.off('productUpdated', handleProductUpdated);
+          websocketService.off('productCreated', handleProductCreated);
+          websocketService.off('productDeleted', handleProductDeleted);
+          channel.removeEventListener('message', handleOrderUpdate);
+          window.removeEventListener('storage', handleStorageChange);
+        };
+      } catch (error) {
+        console.error('❌ WebSocket connection failed:', error);
+        setWebsocketStatus('disconnected');
+      }
+    };
+
+    connectWebSocket();
+  }, [filter, fetchOrders, handleProductUpdated, handleProductCreated, handleProductDeleted]);
+
+  // Update WebSocket status
+  useEffect(() => {
     const updateWebSocketStatus = () => {
       const status = websocketService.getConnectionStatus();
       setWebsocketStatus(status.isConnected ? 'connected' : 'disconnected');
     };
-    
-    // Check status every 10 seconds (reduced frequency)
-    let statusInterval = setInterval(updateWebSocketStatus, 10000);
-    
-    // Initial status check
+
     updateWebSocketStatus();
-    
-    // Connect to WebSocket and register as delivery dashboard
-    const connectWebSocket = async () => {
-      console.log('🔌 DeliveryDashboard: Connecting to WebSocket...');
-      try {
-        await websocketService.connect('delivery');
-        console.log('✅ DeliveryDashboard: WebSocket connected successfully');
-      } catch (error) {
-        console.error('❌ DeliveryDashboard: WebSocket connection failed:', error);
-      }
-    };
-    
-    connectWebSocket();
-    
-    // Initial data fetch
-    fetchOrders(filter);
-    
-    // Listen for immediate order updates from counter app
-    const handleOrderUpdate = (event) => {
-      if (event.data && event.data.type === 'ORDER_PLACED') {
-        console.log('🚨 Immediate order update received:', event.data.order);
-        // Immediately fetch latest orders
-        fetchOrders(filter);
-        // Update last update timestamp
-        localStorage.setItem('lastOrderUpdate', Date.now().toString());
-        
-        // No additional polling needed - WebSocket will handle real-time updates
-      }
-    };
-    
-    // Listen for storage changes (when counter app updates localStorage)
-    const handleStorageChange = (event) => {
-      if (event.key === 'orderUpdate' && event.newValue) {
-        console.log('🚨 Order update via storage detected');
-        const orderData = JSON.parse(event.newValue);
-        // Immediately fetch latest orders
-        fetchOrders(filter);
-        // Update last update timestamp
-        localStorage.setItem('lastOrderUpdate', Date.now().toString());
-        
-        // No additional polling needed - WebSocket will handle real-time updates
-      }
-    };
-    
-    // Listen for BroadcastChannel updates (modern browsers)
-    let broadcastChannel;
-    if (window.BroadcastChannel) {
-      try {
-        broadcastChannel = new BroadcastChannel('orderUpdates');
-        broadcastChannel.onmessage = (event) => {
-          if (event.data && event.data.type === 'ORDER_PLACED') {
-            console.log('🚨 Order update via BroadcastChannel detected');
-            // Immediately fetch latest orders
-            fetchOrders(filter);
-            // Update last update timestamp
-            localStorage.setItem('lastOrderUpdate', Date.now().toString());
-            
-            // No additional polling needed - WebSocket will handle real-time updates
-          }
-        };
-      } catch (error) {
-        console.log('⚠️ BroadcastChannel not available');
-      }
-    }
-    
-    // Set up event listeners
-    window.addEventListener('message', handleOrderUpdate);
-    window.addEventListener('storage', handleStorageChange);
-    
-    return () => {
-      // Clean up WebSocket listeners
-      websocketService.off('statusChange');
-      websocketService.off('orderPlaced');
-      websocketService.off('orderStatusUpdated');
-      websocketService.off('itemPreparationUpdated');
-      websocketService.off('orderDeleted');
-      
-      // Clean up status interval
-      if (statusInterval) {
-        clearInterval(statusInterval);
-      }
-      
-      
-      window.removeEventListener('message', handleOrderUpdate);
-      window.removeEventListener('storage', handleStorageChange);
-      if (broadcastChannel) {
-        broadcastChannel.close();
-      }
-    };
-  }, []); // Empty dependency array - only set up once on mount
-
-  // Handle filter changes
-  useEffect(() => {
-    // When filter changes, refetch data for the new filter
-    fetchOrders(filter);
-  }, [filter, fetchOrders]); // Include fetchOrders in dependencies
-
-
-
+    const interval = setInterval(updateWebSocketStatus, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   const updateOrderStatus = async (orderId, status) => {
     try {
       // Set loading state for this order
       setUpdatingOrders(prev => new Set([...prev, orderId]));
       
-      await apiService.updateOrderStatus(orderId, status);
+      console.log(`🔄 Updating order ${orderId} to status: ${status}`);
       
-      // Immediately remove the order from the current section since its status changed
-      setOrders(prevOrders => prevOrders.filter(order => order.id !== orderId));
+      const response = await apiService.updateOrderStatus(orderId, status);
       
-      // Removed toast notifications for cleaner UI
-      // Real-time updates will handle the UI refresh via socket
+      if (response && response.success) {
+        console.log(`✅ Order ${orderId} updated to ${status}`);
+        toast.success(`Order ${orderId} marked as ${status}`);
+        
+        // Update local state immediately
+        setOrders(prevOrders => 
+          prevOrders.map(order => 
+            order.id === orderId 
+              ? { ...order, status, updated_at: new Date().toISOString() }
+              : order
+          )
+        );
+        
+        // Clear notifications for the section that was updated
+        clearSectionNotifications(filter);
+      } else {
+        throw new Error(response?.error || 'Failed to update order status');
+      }
     } catch (error) {
-      toast.error('Failed to update order status');
+      console.error('❌ Error updating order status:', error);
+      toast.error(`Failed to update order: ${error.message}`);
     } finally {
-      // Always clear loading state after API call completes
+      // Remove loading state for this order
       setUpdatingOrders(prev => {
         const newSet = new Set(prev);
         newSet.delete(orderId);
@@ -533,62 +314,53 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     await updateOrderStatus(orderId, 'delivered');
   };
 
-  // Clear notifications when switching filters
   const handleFilterChange = (newFilter) => {
     // Mark the previous filter as viewed
     if (filter !== 'all') {
-      setViewedSections(prev => new Set([...prev, filter]));
+      markSectionAsViewed(filter);
     }
     
+    console.log(`🔄 Filter changed from ${filter} to ${newFilter}`);
     setFilter(newFilter);
+    setCurrentPage(1); // Reset to first page when changing filters
     
-    // Clear notifications for the current section being viewed
-    setNotifications(prev => ({
-      ...prev,
-      [newFilter]: 0
-    }));
+    // Clear search when switching away from delivered
+    if (newFilter !== 'delivered') {
+      setSearchTerm('');
+      setFilteredOrders([]);
+    }
     
-    // Mark the current section as viewed
-    setViewedSections(prev => new Set([...prev, newFilter]));
+    // Fetch orders for the new filter
+    fetchOrders(newFilter);
   };
 
-  // Simple and fast item preparation update
   const updateItemPreparedCount = (orderId, itemId, newQuantity) => {
     // Immediate UI update - no delays, no flags
     setOrders(prevOrders => 
-      prevOrders.map(order => 
-        order.id === orderId 
-          ? {
-              ...order,
-              items: order.items.map(item => 
-                item.id === itemId 
-                  ? { ...item, prepared_quantity: newQuantity }
-                  : item
-              )
-            }
-          : order
-      )
+      prevOrders.map(order => {
+        if (order.id === orderId) {
+          return {
+            ...order,
+            items: order.items.map(item => 
+              item.id === itemId 
+                ? { ...item, prepared_count: newQuantity }
+                : item
+            )
+          };
+        }
+        return order;
+      })
     );
-
-    // Update Firestore in background - no await to block UI
-    apiService.updateItemPreparation(orderId, itemId, newQuantity)
-      .catch(error => {
-        toast.error('Failed to save changes');
-        // Note: Real-time listener will restore correct values
-      });
+    
+    // Clear notifications for the section that was updated
+    clearSectionNotifications(filter);
   };
 
-  // Calculate overall preparation progress for an order
   const calculatePreparationProgress = (items) => {
     if (!items || items.length === 0) return 0;
     
-    let totalItems = 0;
-    let preparedItems = 0;
-    
-    items.forEach(item => {
-      totalItems += item.quantity;
-      preparedItems += item.prepared_quantity || 0;
-    });
+    const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
+    const preparedItems = items.reduce((sum, item) => sum + (item.prepared_count || 0), 0);
     
     return totalItems === 0 ? 0 : Math.round((preparedItems / totalItems) * 100);
   };
@@ -791,299 +563,118 @@ const DeliveryDashboard = ({ user, onLogout }) => {
   const fetchOrdersWithPage = useCallback(async (currentFilter, pageNumber) => {
     try {
       console.log('🔄 fetchOrdersWithPage called with filter:', currentFilter, 'page:', pageNumber);
-      
-      // Always show loading when fetching orders (this indicates a section change or refresh)
       setIsSectionLoading(true);
       
-      // Use pagination for delivered orders, regular fetch for others
-      let response;
-      if (currentFilter === 'delivered') {
-        // For cursor-based pagination, we need the last document ID from the previous page
-        // Use the ref to get the current cursors state immediately
-        const currentCursors = pageCursorsRef.current;
-        const lastDocId = pageNumber > 1 ? currentCursors[pageNumber - 1] : null;
-        console.log(`🔄 Fetching page ${pageNumber} with cursor:`, lastDocId);
-        console.log(`🔍 Available cursors:`, currentCursors);
-        console.log(`🔍 Looking for cursor at key:`, pageNumber - 1);
-        response = await apiService.getOrders(currentFilter, ordersPerPage, pageNumber, lastDocId);
-      } else {
-        response = await apiService.getOrders(currentFilter);
-      }
+      const response = await apiService.getOrders(currentFilter, pageNumber);
       
-      console.log('📡 API response received:', response);
-      
-      // Extract orders from the response structure
-      let orders;
       if (response && response.orders) {
-        orders = response.orders;
-        console.log('📦 Extracted orders from response.orders:', orders?.length || 0, 'orders');
-      } else if (Array.isArray(response)) {
-        orders = response;
-        console.log('📦 Direct array response:', orders?.length || 0, 'orders');
+        console.log(`✅ Fetched ${response.orders.length} orders for filter: ${currentFilter}, page: ${pageNumber}`);
+        setOrders(response.orders);
+        
+        // Update pagination info
+        setPaginationInfo({
+          total: response.total || response.orders.length,
+          totalPages: response.totalPages || Math.ceil((response.total || response.orders.length) / ordersPerPage),
+          currentPage: pageNumber
+        });
+        
+        // Store cursor for this page
+        if (response.cursor) {
+          setPageCursors(prev => ({
+            ...prev,
+            [pageNumber]: response.cursor
+          }));
+          pageCursorsRef.current[pageNumber] = response.cursor;
+        }
+        
+        // Calculate notifications for all orders
+        calculateNotifications(response.orders);
       } else {
-        orders = [];
-        console.log('⚠️ No orders found in response, using empty array');
-      }
-      
-      console.log('📡 Final orders data:', orders);
-      
-      // Only update if we actually got orders
-      if (orders && orders.length >= 0) {
-        // For delivered orders, backend handles ordering via cursor-based pagination
-        // For other sections, sort by creation time (oldest first for FIFO)
-        let sortedOrders;
-        if (currentFilter === 'delivered') {
-          // Backend already returns orders in correct order for pagination
-          sortedOrders = orders;
-        } else {
-          // Sort other sections by creation time (oldest first for FIFO)
-          sortedOrders = orders.sort((a, b) => {
-            let timeA, timeB;
-            
-            try {
-              if (a.created_at?.toDate) {
-                timeA = a.created_at.toDate().getTime();
-              } else if (a.created_at?.seconds) {
-                timeA = a.created_at.seconds * 1000;
-              } else if (a.created_at) {
-                timeA = new Date(a.created_at).getTime();
-              } else {
-                timeA = 0;
-              }
-              
-              if (b.created_at?.toDate) {
-                timeB = b.created_at.toDate().getTime();
-              } else if (b.created_at?.seconds) {
-                timeB = b.created_at.seconds * 1000;
-              } else if (b.created_at) {
-                timeB = new Date(b.created_at).getTime();
-              } else {
-                timeB = 0;
-              }
-            } catch (error) {
-              console.warn('⚠️ Error parsing timestamps, using fallback sorting');
-              timeA = a.created_at || 0;
-              timeB = b.created_at || 0;
-            }
-            
-            return timeA - timeB;
-          });
-        }
-        
-        // Calculate notifications for fetched orders
-        calculateNotifications(sortedOrders);
-        
-        // Mark current section as viewed and clear its notifications
-        if (currentFilter !== 'all') {
-          markSectionAsViewed(currentFilter);
-        }
-        
-        // Update orders
-        setOrders(sortedOrders);
-        
-        // Update pagination info for delivered orders
-        if (currentFilter === 'delivered' && response.total !== undefined) {
-          setPaginationInfo({
-            total: response.total,
-            totalPages: response.totalPages || Math.ceil(response.total / ordersPerPage),
-            currentPage: response.page || pageNumber
-          });
-          
-          // Store the cursor for this page to use for next page
-          if (response.lastDocumentId) {
-            // Update both state and ref for immediate access
-            const newCursors = {
-              ...pageCursorsRef.current,
-              [pageNumber]: response.lastDocumentId
-            };
-            
-            setPageCursors(newCursors);
-            pageCursorsRef.current = newCursors;
-            
-            console.log(`💾 Updated cursors object:`, newCursors);
-            console.log(`💾 Stored cursor for page ${pageNumber}:`, response.lastDocumentId);
-          }
-        }
+        console.log(`❌ No orders found for filter: ${currentFilter}, page: ${pageNumber}`);
+        setOrders([]);
+        calculateNotifications([]);
       }
     } catch (error) {
       console.error('❌ Error fetching orders with page:', error);
-      console.error('❌ Error details:', {
-        message: error.message,
-        stack: error.stack,
-        filter: currentFilter,
-        page: pageNumber
-      });
+      toast.error('Failed to fetch orders');
+      setOrders([]);
+      calculateNotifications([]);
     } finally {
-      setLoading(false);
       setIsSectionLoading(false);
     }
-  }, [ordersPerPage, calculateNotifications, markSectionAsViewed]);
+  }, [calculateNotifications, ordersPerPage]);
 
-  // Function for dynamic updates without loading state (used by WebSocket events)
+  // Dynamic fetch function that handles both regular and paginated requests
   const fetchOrdersDynamic = useCallback(async (currentFilter = filter) => {
     try {
       console.log('🔄 fetchOrdersDynamic called with filter:', currentFilter);
+      setIsSectionLoading(true);
       
-      // Use pagination for delivered orders, regular fetch for others
-      let response;
+      // For delivered orders, use pagination
       if (currentFilter === 'delivered') {
-        // For delivered orders, use fetchOrdersWithPage to ensure cursor storage
-        if (currentPage === 1) {
-          response = await apiService.getOrders(currentFilter, ordersPerPage, currentPage);
-          
-          // Store cursor for page 2 if we have a response
-          if (response && response.lastDocumentId) {
-            const newCursors = {
-              ...pageCursorsRef.current,
-              1: response.lastDocumentId
-            };
-            setPageCursors(newCursors);
-            pageCursorsRef.current = newCursors;
-          }
-        } else {
-          // For other pages, use fetchOrdersWithPage
-          await fetchOrdersWithPage(currentFilter, currentPage);
-          return;
-        }
+        await fetchOrdersWithPage(currentFilter, currentPage);
       } else {
-        response = await apiService.getOrders(currentFilter);
-      }
-      
-      // Extract orders from the response structure
-      let orders;
-      if (response && response.orders) {
-        orders = response.orders;
-      } else if (Array.isArray(response)) {
-        orders = response;
-      } else {
-        orders = [];
-      }
-      
-      // Only update if we actually got orders
-      if (orders && orders.length >= 0) {
-        // For delivered orders, backend handles ordering via cursor-based pagination
-        // For other sections, sort by creation time (oldest first for FIFO)
-        let sortedOrders;
-        if (currentFilter === 'delivered') {
-          // Backend already returns orders in correct order for pagination
-          sortedOrders = orders;
-        } else {
-          // Sort other sections by creation time (oldest first for FIFO)
-          sortedOrders = orders.sort((a, b) => {
-            let timeA, timeB;
-            
-            try {
-              if (a.created_at?.toDate) {
-                timeA = a.created_at.toDate().getTime();
-              } else if (a.created_at?.seconds) {
-                timeA = a.created_at.seconds * 1000;
-              } else if (a.created_at) {
-                timeA = new Date(a.created_at).getTime();
-              } else {
-                timeA = 0;
-              }
-              
-              if (b.created_at?.toDate) {
-                timeB = b.created_at.toDate().getTime();
-              } else if (b.created_at?.seconds) {
-                timeB = b.created_at.seconds * 1000;
-              } else if (b.created_at) {
-                timeB = new Date(b.created_at).getTime();
-              } else {
-                timeB = 0;
-              }
-            } catch (error) {
-              timeA = a.created_at || 0;
-              timeB = b.created_at || 0;
-            }
-            
-            return timeA - timeB;
-          });
-        }
-        
-        // Calculate notifications for fetched orders
-        calculateNotifications(sortedOrders);
-        
-        // Mark current section as viewed and clear its notifications
-        if (currentFilter !== 'all') {
-          markSectionAsViewed(currentFilter);
-        }
-        
-        // Update orders
-        setOrders(sortedOrders);
-        
-        // Update pagination info for delivered orders
-        if (currentFilter === 'delivered' && response.total !== undefined) {
-          setPaginationInfo({
-            total: response.total,
-            totalPages: response.totalPages || Math.ceil(response.total / ordersPerPage),
-            currentPage: response.page || currentPage
-          });
-        }
+        // For other filters, use regular fetch
+        await fetchOrders(currentFilter);
       }
     } catch (error) {
       console.error('❌ Error in fetchOrdersDynamic:', error);
+      toast.error('Failed to fetch orders');
+    } finally {
+      setIsSectionLoading(false);
     }
-  }, [filter, calculateNotifications, markSectionAsViewed, currentPage, ordersPerPage, fetchOrdersWithPage]);
+  }, [filter, currentPage, fetchOrders, fetchOrdersWithPage]);
 
-  // Handle page change for pagination
+  // Handle page changes for delivered orders
   const handlePageChange = useCallback((pageNumber) => {
     setCurrentPage(pageNumber);
     // Fetch orders for the new page
     if (filter === 'delivered') {
-      // Call fetchOrders with the new page number directly
-      fetchOrdersWithPage('delivered', pageNumber);
+      fetchOrdersWithPage(filter, pageNumber);
     }
   }, [filter, fetchOrdersWithPage]);
 
-  // Calculate pagination for delivered orders
+  // Get paginated orders for display
   const getPaginatedOrders = useCallback(() => {
     if (filter !== 'delivered') return orders;
     
-    // For delivered orders, the backend already returns the correct page
-    // No need to slice since we're getting exactly what we need
+    // If we have search results, use those
     if (searchTerm && filteredOrders.length > 0) {
-      console.log('🔍 getPaginatedOrders: Returning filtered orders:', filteredOrders.length);
-      console.log('🔍 Filtered orders data:', filteredOrders);
-      
-      // Validate search results before returning
+      const startIndex = (currentPage - 1) * ordersPerPage;
+      const endIndex = startIndex + ordersPerPage;
       const validResults = filteredOrders.filter(order => 
         order && 
-        order.id && 
-        order.customer_name && 
-        order.items && 
+        order.id &&
+        order.customer_name &&
+        order.items &&
         Array.isArray(order.items)
       );
-      
-      if (validResults.length !== filteredOrders.length) {
-        console.warn(`⚠️ Filtered ${filteredOrders.length - validResults.length} invalid orders from search results`);
-      }
-      
-      return validResults;
+      return validResults.slice(startIndex, endIndex);
     }
     
-    console.log('🔍 getPaginatedOrders: Returning orders from backend:', orders.length, 'currentPage:', currentPage);
-    return orders;
-  }, [filter, orders, searchTerm, filteredOrders, currentPage]);
-
-  // Reset pagination when filter changes
-  useEffect(() => {
-    setCurrentPage(1);
-    setSearchTerm('');
-    setFilteredOrders([]);
-  }, [filter]);
-
-  // Keep ref in sync with state
-  useEffect(() => {
-    pageCursorsRef.current = pageCursors;
-  }, [pageCursors]);
+    // Otherwise, use regular orders
+    const startIndex = (currentPage - 1) * ordersPerPage;
+    const endIndex = startIndex + ordersPerPage;
+    const validResults = orders.filter(order => 
+      order && 
+      order.id &&
+      order.customer_name &&
+      order.items &&
+      Array.isArray(order.items)
+    );
+    return validResults.slice(startIndex, endIndex);
+  }, [filter, orders, searchTerm, filteredOrders, currentPage, ordersPerPage]);
 
   if (loading || !minLoadingComplete) {
     return <LoadingScreen />;
   }
 
   return (
-    <div className="container">
+    <div className="container" style={{
+      background: 'linear-gradient(135deg, #7abbca 0%, #5a9bb8 25%, #4a8ba8 50%, #3a7b98 75%, #2a6b88 100%)',
+      minHeight: '100vh',
+      position: 'relative'
+    }}>
       <style>
         {`
           @keyframes bounce {
@@ -1096,33 +687,114 @@ const DeliveryDashboard = ({ user, onLogout }) => {
               opacity: 1;
             }
           }
+          
+          @keyframes float {
+            0%, 100% { 
+              transform: translateY(0px) rotate(0deg);
+              opacity: 0.7;
+            }
+            50% { 
+              transform: translateY(-20px) rotate(180deg);
+              opacity: 1;
+            }
+          }
+          
+          .floating-element {
+            position: absolute;
+            border-radius: 50%;
+            animation: float 6s ease-in-out infinite;
+            pointer-events: none;
+            z-index: 1;
+          }
+          
+          .floating-element:nth-child(1) {
+            width: 80px;
+            height: 80px;
+            background: rgba(122, 187, 202, 0.3);
+            top: 10%;
+            left: 10%;
+            animation-delay: 0s;
+          }
+          
+          .floating-element:nth-child(2) {
+            width: 120px;
+            height: 120px;
+            background: rgba(90, 155, 184, 0.2);
+            top: 20%;
+            right: 15%;
+            animation-delay: 2s;
+          }
+          
+          .floating-element:nth-child(3) {
+            width: 60px;
+            height: 60px;
+            background: rgba(74, 139, 168, 0.4);
+            bottom: 20%;
+            left: 20%;
+            animation-delay: 4s;
+          }
+          
+          .floating-element:nth-child(4) {
+            width: 100px;
+            height: 100px;
+            background: rgba(58, 123, 152, 0.3);
+            bottom: 30%;
+            right: 25%;
+            animation-delay: 1s;
+          }
         `}
       </style>
-      <div className="header">
-        <h1 className="header-title">Delivery Dashboard</h1>
+      
+      {/* Animated Background Elements */}
+      <div className="floating-element"></div>
+      <div className="floating-element"></div>
+      <div className="floating-element"></div>
+      <div className="floating-element"></div>
+      
+      <div className="header" style={{
+        background: 'rgba(255, 255, 255, 0.1)',
+        backdropFilter: 'blur(10px)',
+        border: '1px solid rgba(255, 255, 255, 0.2)',
+        borderRadius: '12px',
+        marginBottom: '20px',
+        position: 'relative',
+        zIndex: 10
+      }}>
+        <h1 className="header-title" style={{ color: 'white', textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>Delivery Dashboard</h1>
         <div className="user-info">
-          <div className="role-badge">Delivery</div>
+          <div className="role-badge" style={{
+            background: 'rgba(255, 255, 255, 0.2)',
+            color: 'white',
+            border: '1px solid rgba(255, 255, 255, 0.3)'
+          }}>Delivery</div>
           
           {/* WebSocket Status Indicator */}
-          <div className="flex items-center space-x-2 px-3 py-1 rounded-lg text-sm mr-3">
+          <div className="flex items-center space-x-2 px-3 py-1 rounded-lg text-sm mr-3" style={{
+            background: 'rgba(255, 255, 255, 0.1)',
+            border: '1px solid rgba(255, 255, 255, 0.2)'
+          }}>
             <div className={`w-2 h-2 rounded-full ${
               websocketStatus === 'connected' ? 'bg-green-500' : 
               websocketStatus === 'connecting' ? 'bg-yellow-500' : 'bg-red-500'
             }`}></div>
             <span className={`${
-              websocketStatus === 'connected' ? 'text-green-700' : 
-              websocketStatus === 'connecting' ? 'text-yellow-700' : 'text-red-700'
+              websocketStatus === 'connected' ? 'text-green-200' : 
+              websocketStatus === 'connecting' ? 'text-yellow-200' : 'text-red-200'
             }`}>
               {websocketStatus === 'connected' ? 'Real-time' : 
                websocketStatus === 'connecting' ? 'Connecting' : 'Disconnected'}
             </span>
           </div>
           
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'white' }}>
             <User size={18} />
             <span>{user.username}</span>
           </div>
-          <button className="btn btn-secondary" onClick={onLogout}>
+          <button className="btn btn-secondary" onClick={onLogout} style={{
+            background: 'rgba(255, 255, 255, 0.2)',
+            color: 'white',
+            border: '1px solid rgba(255, 255, 255, 0.3)'
+          }}>
             <LogOut size={18} />
             Logout
           </button>
@@ -1134,16 +806,19 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         padding: '12px', 
         marginBottom: '20px', 
         borderRadius: '8px', 
-        backgroundColor: '#e3f2fd',
-        border: '1px solid #90caf9',
-        color: '#1565c0',
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        backdropFilter: 'blur(10px)',
+        border: '1px solid rgba(255, 255, 255, 0.2)',
+        color: 'white',
         fontSize: '14px',
-        textAlign: 'center'
+        textAlign: 'center',
+        position: 'relative',
+        zIndex: 10
       }}>
         <span>🌐 Backend Status: Check the indicator in the top-right corner</span>
       </div>
 
-      <div className="delivery-main-layout" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}>
+      <div className="delivery-main-layout" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px', position: 'relative', zIndex: 10 }}>
         <div>
           {/* Filter Tabs - Now using the new component */}
           <FilterTabs 
@@ -1154,9 +829,15 @@ const DeliveryDashboard = ({ user, onLogout }) => {
           />
 
           {/* Orders List */}
-          <div className="card">
+          <div className="card" style={{
+            background: 'rgba(255, 255, 255, 0.1)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            borderRadius: '12px',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+          }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ margin: 0 }}>
+              <h3 style={{ margin: 0, color: 'white', textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
                 Orders ({filter === 'delivered' ? (searchTerm ? filteredOrders.length : orders.length) : orders.length})
               </h3>
               <button 
@@ -1164,6 +845,11 @@ const DeliveryDashboard = ({ user, onLogout }) => {
                 onClick={() => fetchOrders(filter)}
                 disabled={isSectionLoading}
                 title="Refresh orders"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  color: 'white',
+                  border: '1px solid rgba(255, 255, 255, 0.3)'
+                }}
               >
                 <RefreshCw size={16} className={isSectionLoading ? 'animate-spin' : ''} />
                 Refresh
@@ -1195,7 +881,6 @@ const DeliveryDashboard = ({ user, onLogout }) => {
                     paginationInfo={paginationInfo}
                     ordersPerPage={ordersPerPage}
                     handlePageChange={handlePageChange}
-
                   />
                 </div>
               ) : (
@@ -1206,13 +891,14 @@ const DeliveryDashboard = ({ user, onLogout }) => {
                     <div style={{ 
                       padding: '60px 20px',
                       textAlign: 'center',
-                      color: '#666'
+                      color: 'rgba(255, 255, 255, 0.8)'
                     }}>
                       <div style={{
                         fontSize: '18px',
                         fontWeight: '500',
                         marginBottom: '16px',
-                        color: '#333'
+                        color: 'white',
+                        textShadow: '0 2px 4px rgba(0,0,0,0.3)'
                       }}>
                         Loading {filter} orders
                       </div>
@@ -1226,14 +912,14 @@ const DeliveryDashboard = ({ user, onLogout }) => {
                           width: '12px',
                           height: '12px',
                           borderRadius: '50%',
-                          backgroundColor: '#007bff',
+                          backgroundColor: 'rgba(255, 255, 255, 0.8)',
                           animation: 'bounce 1.4s infinite ease-in-out'
                         }}></div>
                         <div style={{
                           width: '12px',
                           height: '12px',
                           borderRadius: '50%',
-                          backgroundColor: '#007bff',
+                          backgroundColor: 'rgba(255, 255, 255, 0.8)',
                           animation: 'bounce 1.4s infinite ease-in-out',
                           animationDelay: '0.2s'
                         }}></div>
@@ -1241,7 +927,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
                           width: '12px',
                           height: '12px',
                           borderRadius: '50%',
-                          backgroundColor: '#007bff',
+                          backgroundColor: 'rgba(255, 255, 255, 0.8)',
                           animation: 'bounce 1.4s infinite ease-in-out',
                           animationDelay: '0.4s'
                         }}></div>
@@ -1252,10 +938,10 @@ const DeliveryDashboard = ({ user, onLogout }) => {
                     <div style={{ 
                       padding: '40px', 
                       textAlign: 'center', 
-                      color: '#666' 
+                      color: 'rgba(255, 255, 255, 0.8)' 
                     }}>
-                      <Package size={48} style={{ opacity: 0.3, marginBottom: '16px' }} />
-                      <p>No {filter} orders found</p>
+                      <Package size={48} style={{ opacity: 0.6, marginBottom: '16px', color: 'white' }} />
+                      <p style={{ color: 'white', textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>No {filter} orders found</p>
                     </div>
                   ) : (
                     // Actual orders
@@ -1263,7 +949,6 @@ const DeliveryDashboard = ({ user, onLogout }) => {
                       <OrderCard 
                         key={order.id}
                         order={order}
-
                         updateOrderStatus={updateOrderStatus}
                         markOrderDelivered={markOrderDelivered}
                         updateItemPreparedCount={updateItemPreparedCount}
@@ -1277,22 +962,41 @@ const DeliveryDashboard = ({ user, onLogout }) => {
             </div>
           </div>
         </div>
-
-
       </div>
 
       {/* Refresh Notification Popup */}
       {showRefreshNotification && (
-        <div className="refresh-notification">
-          <div className="refresh-notification-content">
-            <RefreshCw size={20} className="refresh-icon" />
-            <div className="refresh-text">
-              <h4>🔄 Menu Updated</h4>
-              <p>Admin has made changes to the menu. Please refresh to see the latest items.</p>
-              <div className="refresh-actions">
+        <div className="refresh-notification" style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          background: 'rgba(255, 255, 255, 0.1)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          borderRadius: '12px',
+          padding: '20px',
+          zIndex: 1000,
+          maxWidth: '400px',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)'
+        }}>
+          <div className="refresh-notification-content" style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+            <RefreshCw size={20} className="refresh-icon" style={{ color: 'white', marginTop: '2px' }} />
+            <div className="refresh-text" style={{ flex: 1 }}>
+              <h4 style={{ margin: '0 0 8px 0', color: 'white', textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>🔄 Menu Updated</h4>
+              <p style={{ margin: '0 0 16px 0', color: 'rgba(255, 255, 255, 0.9)', fontSize: '14px' }}>Admin has made changes to the menu. Please refresh to see the latest items.</p>
+              <div className="refresh-actions" style={{ display: 'flex', gap: '8px' }}>
                 <button 
                   className="btn btn-primary refresh-page-btn"
                   onClick={() => window.location.reload()}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.2)',
+                    color: 'white',
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    cursor: 'pointer'
+                  }}
                 >
                   <RefreshCw size={16} />
                   Refresh Page
@@ -1300,6 +1004,15 @@ const DeliveryDashboard = ({ user, onLogout }) => {
                 <button 
                   className="btn btn-secondary dismiss-btn"
                   onClick={() => setShowRefreshNotification(false)}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    color: 'white',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    cursor: 'pointer'
+                  }}
                 >
                   Dismiss
                 </button>
@@ -1308,6 +1021,13 @@ const DeliveryDashboard = ({ user, onLogout }) => {
             <button 
               className="refresh-close-btn"
               onClick={() => setShowRefreshNotification(false)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'rgba(255, 255, 255, 0.7)',
+                cursor: 'pointer',
+                padding: '4px'
+              }}
             >
               <X size={18} />
             </button>
