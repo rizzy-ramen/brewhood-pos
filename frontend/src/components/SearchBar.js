@@ -111,22 +111,6 @@ const SearchBar = ({
               : `No orders found matching "${searchTerm}"`
             }
           </span>
-          {filteredOrders.length > 0 && (
-            <button
-              onClick={() => handleSearch('')}
-              style={{
-                padding: '4px 8px',
-                border: '1px solid #ced4da',
-                borderRadius: '4px',
-                background: 'white',
-                cursor: 'pointer',
-                color: '#6c757d',
-                fontSize: '11px'
-              }}
-            >
-              Clear search
-            </button>
-          )}
         </div>
       )}
     </div>
