@@ -70,6 +70,8 @@ db.serialize(() => {
     unit_price DECIMAL(10,2) NOT NULL,
     total_price DECIMAL(10,2) NOT NULL,
     prepared_quantity INTEGER DEFAULT 0,
+    is_prepared BOOLEAN DEFAULT 0,
+    prepared_at DATETIME,
     FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE CASCADE,
     FOREIGN KEY (product_id) REFERENCES products (id)
   )`);
