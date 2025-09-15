@@ -91,6 +91,9 @@ const DeliveryDashboard = ({ user, onLogout }) => {
 
   // Calculate notifications based on current orders
   const calculateNotifications = useCallback((orders) => {
+    console.log('🔄 calculateNotifications called with orders:', orders.length);
+    console.log('🔄 Current viewedSections:', Array.from(viewedSections));
+    
     const counts = {
       pending: 0,
       preparing: 0,
@@ -104,28 +107,24 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       }
     });
     
-    // Only show notifications for sections that haven't been viewed yet
-    const smartCounts = { ...counts };
+    console.log('🔄 Calculated counts:', counts);
     
-    // Clear notifications for current filter (user is already viewing this section)
-    if (filter !== 'all') {
-      smartCounts[filter] = 0;
-    }
-    
-    // Don't clear notifications for other sections - let them persist until user switches to them
-    // viewedSections.forEach(viewedSection => {
-    //   smartCounts[viewedSection] = 0;
-    // });
-    
-    // Only update notifications if they've actually changed to prevent flickering
+    // Only update notifications for sections that haven't been viewed yet
     setNotifications(prev => {
-      const hasChanged = JSON.stringify(prev) !== JSON.stringify(smartCounts);
-      if (hasChanged) {
-        return smartCounts;
-      }
-      return prev;
+      const newNotifications = { ...prev };
+      
+      // Only update counts for sections that haven't been viewed
+      // Don't clear notifications for the current filter - let handleFilterChange do that
+      Object.keys(counts).forEach(status => {
+        if (!viewedSections.has(status)) {
+          newNotifications[status] = counts[status];
+        }
+      });
+      
+      console.log('🔄 New notifications:', newNotifications);
+      return newNotifications;
     });
-  }, [filter]); // Add filter as dependency since we use it
+  }, [viewedSections]); // Use viewedSections instead of filter
 
   // Fetch orders function with stable state management
   const fetchOrders = useCallback(async (currentFilter = filter) => {
@@ -542,6 +541,9 @@ const DeliveryDashboard = ({ user, onLogout }) => {
 
   // Clear notifications when switching filters
   const handleFilterChange = (newFilter) => {
+    console.log('🔄 Tab clicked:', newFilter, 'Previous filter:', filter);
+    console.log('🔄 Notifications before clear:', notifications);
+    
     // Mark the previous filter as viewed
     if (filter !== 'all') {
       setViewedSections(prev => new Set([...prev, filter]));
@@ -550,10 +552,12 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     setFilter(newFilter);
     
     // Clear notifications for the current section being viewed
-    setNotifications(prev => ({
-      ...prev,
-      [newFilter]: 0
-    }));
+    setNotifications(prev => {
+      const newNotifications = { ...prev };
+      newNotifications[newFilter] = 0;
+      console.log('🔄 Notifications after clear:', newNotifications);
+      return newNotifications;
+    });
     
     // Mark the current section as viewed
     setViewedSections(prev => new Set([...prev, newFilter]));
