@@ -690,7 +690,7 @@ const CounterDashboard = ({ user, onLogout }) => {
                     className="btn btn-success"
                     onClick={handlePlaceOrder}
                     style={{ width: '100%' }}
-                    disabled={isPlacingOrder || !customerInfo.name.trim() || !isContactNumberValid}
+                    disabled={isPlacingOrder || !customerInfo.name.trim() || contactNumberError || !contactNumberTouched}
                   >
                     {isPlacingOrder ? (
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
