@@ -275,9 +275,13 @@ app.get('/api/products/:id', (req, res) => {
 
 // Order Routes
 app.post('/api/orders', authenticateToken, (req, res) => {
+  console.log('📝 Order creation request received');
+  console.log('📋 Request body:', JSON.stringify(req.body, null, 2));
+  
   const { customer_name, contact_number, items, order_type = 'dine-in' } = req.body;
 
   const created_by = req.user.id;
+  console.log('👤 Created by user ID:', created_by);
   
   // Calculate total amount
   let total_amount = 0;
@@ -287,11 +291,14 @@ app.post('/api/orders', authenticateToken, (req, res) => {
   const productIds = items.map(item => item.product_id);
   const placeholders = productIds.map(() => '?').join(',');
   
+  console.log('🔍 Getting product prices for IDs:', productIds);
   db.all(`SELECT id, price FROM products WHERE id IN (${placeholders})`, productIds, (err, products) => {
     if (err) {
+      console.error('❌ Error getting products:', err.message);
       res.status(500).json({ error: err.message });
       return;
     }
+    console.log('📦 Products found:', products);
     
     const productPrices = {};
     products.forEach(product => {
@@ -313,14 +320,18 @@ app.post('/api/orders', authenticateToken, (req, res) => {
     });
     
     // Insert order
+    console.log('💾 Inserting order with data:', { customer_name, contact_number, total_amount, order_type, created_by });
     db.run(
       'INSERT INTO orders (customer_name, contact_number, total_amount, order_type, created_by) VALUES (?, ?, ?, ?, ?)',
       [customer_name, contact_number, total_amount, order_type, created_by],
       function(err) {
         if (err) {
+          console.error('❌ Error inserting order:', err.message);
+          console.error('❌ Error code:', err.code);
           res.status(500).json({ error: err.message });
           return;
         }
+        console.log('✅ Order inserted successfully! Order ID:', this.lastID);
         
         const order_id = this.lastID;
         
