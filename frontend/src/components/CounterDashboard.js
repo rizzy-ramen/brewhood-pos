@@ -40,6 +40,7 @@ const CounterDashboard = ({ user, onLogout }) => {
   const [isContactNumberValid, setIsContactNumberValid] = useState(false);
   const [hasContactNumberBeenTouched, setHasContactNumberBeenTouched] = useState(false);
 
+
   // Set minimum loading time for better UX
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -48,6 +49,7 @@ const CounterDashboard = ({ user, onLogout }) => {
 
     return () => clearTimeout(timer);
   }, []);
+
 
   // Sync order counter with backend
   useEffect(() => {
@@ -632,8 +634,7 @@ const CounterDashboard = ({ user, onLogout }) => {
             </div>
 
             {/* Cart */}
-            {cart.length > 0 && (
-              <div className="cart">
+            <div className="cart">
                 <div className="cart-header">
                   <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <ShoppingCart size={20} />
@@ -648,7 +649,17 @@ const CounterDashboard = ({ user, onLogout }) => {
                   </button>
                 </div>
                 <div className="cart-items">
-                  {cart.map(item => (
+                  {cart.length === 0 ? (
+                    <div style={{ 
+                      textAlign: 'center', 
+                      padding: '20px', 
+                      color: '#666',
+                      fontStyle: 'italic'
+                    }}>
+                      Your cart is empty. Add items to get started!
+                    </div>
+                  ) : (
+                    cart.map(item => (
                     <div key={item.product_id} className="cart-item">
                       <div className="cart-item-info">
                         <div className="cart-item-name">{item.name}</div>
@@ -679,7 +690,8 @@ const CounterDashboard = ({ user, onLogout }) => {
                         </button>
                       </div>
                     </div>
-                  ))}
+                    ))
+                  )}
                 </div>
                 <div className="cart-footer">
                   <div className="cart-total">
@@ -710,7 +722,6 @@ const CounterDashboard = ({ user, onLogout }) => {
                   </button>
                 </div>
               </div>
-            )}
           </div>
         </div>
       ) : (
