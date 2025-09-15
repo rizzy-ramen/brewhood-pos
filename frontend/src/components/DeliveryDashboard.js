@@ -595,6 +595,10 @@ const DeliveryDashboard = ({ user, onLogout }) => {
 
   // Pagination and search functions for delivered orders
   const handleSearch = useCallback((searchValue) => {
+    console.log(`🔍 handleSearch called with: "${searchValue}"`);
+    console.log(`🔍 Current filter: "${filter}"`);
+    console.log(`🔍 Total orders available: ${orders.length}`);
+    
     setSearchTerm(searchValue);
     setCurrentPage(1); // Reset to first page when searching
     
@@ -602,22 +606,65 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       console.log(`🔍 Client-side search for: "${searchValue}" in delivered orders`);
       
       if (searchValue.trim() === '') {
+        console.log(`🔍 Empty search - clearing filtered results`);
         // If search is empty, clear filtered results and show normal pagination
         setFilteredOrders([]);
         return;
       }
       
+      console.log(`🔍 Starting client-side filtering...`);
+      console.log(`🔍 Orders to search through:`, orders.map(o => ({
+        id: o.id,
+        customer_name: o.customer_name,
+        order_number: o.order_number,
+        contact_number: o.contact_number,
+        order_type: o.order_type,
+        status: o.status
+      })));
+      
       // Use client-side filtering (same logic as OrdersStatusTable)
-      const filtered = orders.filter(order => 
-        order.customer_name && order.customer_name.toLowerCase().includes(searchValue.toLowerCase()) ||
-        order.id && String(order.id).toLowerCase().includes(searchValue.toLowerCase()) ||
-        order.order_number && order.order_number.toString().includes(searchValue) ||
-        order.contact_number && order.contact_number.includes(searchValue) ||
-        order.order_type && order.order_type.toLowerCase().includes(searchValue.toLowerCase()) ||
-        order.status && order.status.toLowerCase().includes(searchValue.toLowerCase())
-      );
+      const filtered = orders.filter(order => {
+        const searchLower = searchValue.toLowerCase();
+        const customerMatch = order.customer_name && order.customer_name.toLowerCase().includes(searchLower);
+        const idMatch = order.id && String(order.id).toLowerCase().includes(searchLower);
+        const orderNumberMatch = order.order_number && order.order_number.toString().includes(searchValue);
+        const contactMatch = order.contact_number && order.contact_number.includes(searchValue);
+        const typeMatch = order.order_type && order.order_type.toLowerCase().includes(searchLower);
+        const statusMatch = order.status && order.status.toLowerCase().includes(searchLower);
+        
+        const isMatch = customerMatch || idMatch || orderNumberMatch || contactMatch || typeMatch || statusMatch;
+        
+        if (isMatch) {
+          console.log(`🔍 MATCH FOUND:`, {
+            id: order.id,
+            customer_name: order.customer_name,
+            order_number: order.order_number,
+            contact_number: order.contact_number,
+            order_type: order.order_type,
+            status: order.status,
+            matches: {
+              customer: customerMatch,
+              id: idMatch,
+              orderNumber: orderNumberMatch,
+              contact: contactMatch,
+              type: typeMatch,
+              status: statusMatch
+            }
+          });
+        }
+        
+        return isMatch;
+      });
       
       console.log(`🔍 Client-side search results: ${filtered.length} orders found`);
+      console.log(`🔍 Filtered orders:`, filtered.map(o => ({
+        id: o.id,
+        customer_name: o.customer_name,
+        order_number: o.order_number,
+        contact_number: o.contact_number,
+        order_type: o.order_type,
+        status: o.status
+      })));
       
       // Update filtered orders with search results
       setFilteredOrders(filtered);
@@ -628,75 +675,109 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         totalPages: Math.ceil(filtered.length / ordersPerPage),
         currentPage: 1
       });
+      
+      console.log(`🔍 Updated pagination info:`, {
+        total: filtered.length,
+        totalPages: Math.ceil(filtered.length / ordersPerPage),
+        currentPage: 1
+      });
+    } else {
+      console.log(`🔍 Not in delivered filter, skipping search`);
     }
   }, [filter, orders, ordersPerPage]);
 
   // Google-style real-time search with debouncing
-  const handleRealTimeSearch = useCallback(async (searchValue) => {
+  const handleRealTimeSearch = useCallback((searchValue) => {
+    console.log(`🔍 handleRealTimeSearch called with: "${searchValue}"`);
+    console.log(`🔍 Current filter: "${filter}"`);
+    console.log(`🔍 Total orders available: ${orders.length}`);
+    
     setSearchTerm(searchValue);
     setCurrentPage(1); // Reset to first page when searching
     
     if (filter === 'delivered') {
+      console.log(`🔍 Real-time client-side search for: "${searchValue}" in delivered orders`);
+      
       if (searchValue.trim() === '') {
+        console.log(`🔍 Empty real-time search - clearing filtered results`);
         // If search is empty, clear filtered results and show normal pagination
         setFilteredOrders([]);
-        setTimeout(() => {
-          if (filter === 'delivered') {
-            fetchOrdersWithPage('delivered', 1);
-          }
-        }, 0);
         return;
       }
       
-      // Always show loading when searching
-      setIsSectionLoading(true);
+      console.log(`🔍 Starting real-time client-side filtering...`);
+      console.log(`🔍 Orders to search through:`, orders.map(o => ({
+        id: o.id,
+        customer_name: o.customer_name,
+        order_number: o.order_number,
+        contact_number: o.contact_number,
+        order_type: o.order_type,
+        status: o.status
+      })));
       
-      try {
-        console.log(`🔍 Real-time search for: "${searchValue}" in delivered orders`);
+      // Use client-side filtering (same logic as handleSearch)
+      const filtered = orders.filter(order => {
+        const searchLower = searchValue.toLowerCase();
+        const customerMatch = order.customer_name && order.customer_name.toLowerCase().includes(searchLower);
+        const idMatch = order.id && String(order.id).toLowerCase().includes(searchLower);
+        const orderNumberMatch = order.order_number && order.order_number.toString().includes(searchValue);
+        const contactMatch = order.contact_number && order.contact_number.includes(searchValue);
+        const typeMatch = order.order_type && order.order_type.toLowerCase().includes(searchLower);
+        const statusMatch = order.status && order.status.toLowerCase().includes(searchLower);
         
-        // Call backend search API
-        const response = await apiService.searchOrders('delivered', searchValue);
+        const isMatch = customerMatch || idMatch || orderNumberMatch || contactMatch || typeMatch || statusMatch;
         
-        if (response && response.success && response.orders) {
-          const searchResults = response.orders;
-          console.log(`🔍 Real-time results: ${searchResults.length} orders found`);
-          
-          // Update filtered orders with search results
-          setFilteredOrders(searchResults);
-          
-          // Update pagination info for search results
-          setPaginationInfo({
-            total: searchResults.length,
-            totalPages: Math.ceil(searchResults.length / ordersPerPage),
-            currentPage: 1
-          });
-          
-          // Don't clear orders state - just show search results
-          // setOrders([]); // Removed this line
-        } else {
-          console.log('🔍 No real-time results found');
-          setFilteredOrders([]);
-          setPaginationInfo({
-            total: 0,
-            totalPages: 0,
-            currentPage: 1
+        if (isMatch) {
+          console.log(`🔍 REAL-TIME MATCH FOUND:`, {
+            id: order.id,
+            customer_name: order.customer_name,
+            order_number: order.order_number,
+            contact_number: order.contact_number,
+            order_type: order.order_type,
+            status: order.status,
+            matches: {
+              customer: customerMatch,
+              id: idMatch,
+              orderNumber: orderNumberMatch,
+              contact: contactMatch,
+              type: typeMatch,
+              status: statusMatch
+            }
           });
         }
-      } catch (error) {
-        console.error('❌ Real-time search error:', error);
-        // Fallback to client-side filtering if search fails
-        const filtered = orders.filter(order => 
-          order.customer_name && order.customer_name.toLowerCase().includes(searchValue.toLowerCase()) ||
-          order.id && order.id.toLowerCase().includes(searchValue.toLowerCase()) ||
-          order.order_number && order.order_number.toString().includes(searchValue) ||
-          order.status && order.status.toLowerCase().includes(searchValue.toLowerCase())
-        );
-        setFilteredOrders(filtered);
-      } finally {
-        setIsSectionLoading(false);
-      }
+        
+        return isMatch;
+      });
+      
+      console.log(`🔍 Real-time client-side search results: ${filtered.length} orders found`);
+      console.log(`🔍 Real-time filtered orders:`, filtered.map(o => ({
+        id: o.id,
+        customer_name: o.customer_name,
+        order_number: o.order_number,
+        contact_number: o.contact_number,
+        order_type: o.order_type,
+        status: o.status
+      })));
+      
+      // Update filtered orders with search results
+      setFilteredOrders(filtered);
+      
+      // Update pagination info for search results
+      setPaginationInfo({
+        total: filtered.length,
+        totalPages: Math.ceil(filtered.length / ordersPerPage),
+        currentPage: 1
+      });
+      
+      console.log(`🔍 Updated real-time pagination info:`, {
+        total: filtered.length,
+        totalPages: Math.ceil(filtered.length / ordersPerPage),
+        currentPage: 1
+      });
+    } else {
+      console.log(`🔍 Not in delivered filter, skipping real-time search`);
     }
-  }, [filter, orders]);
+  }, [filter, orders, ordersPerPage]);
 
   // Debounced search function (Google-style)
   const debouncedSearch = useCallback(
