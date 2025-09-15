@@ -1,23 +1,39 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
-const dbPath = path.join(__dirname, '../database.sqlite');
-const db = new sqlite3.Database(dbPath);
+// Database path
+const dbPath = path.join(__dirname, '..', 'pos_database.db');
+
+// Create database connection
+const db = new sqlite3.Database(dbPath, (err) => {
+  if (err) {
+    console.error('Error opening database:', err.message);
+    process.exit(1);
+  }
+  console.log('Connected to SQLite database');
+});
 
 console.log('Initializing database...');
 
+// Clear existing data
 db.serialize(() => {
-  // Users table (for counter and delivery staff)
-  db.run(`CREATE TABLE IF NOT EXISTS users (
+  // Drop existing tables
+  db.run('DROP TABLE IF EXISTS order_items');
+  db.run('DROP TABLE IF EXISTS orders');
+  db.run('DROP TABLE IF EXISTS products');
+  db.run('DROP TABLE IF EXISTS users');
+
+  // Users table
+  db.run(`CREATE TABLE users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
-    role TEXT NOT NULL CHECK(role IN ('counter', 'delivery', 'admin')),
+    role TEXT NOT NULL CHECK(role IN ('admin', 'counter', 'delivery')),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
   // Products table
-  db.run(`CREATE TABLE IF NOT EXISTS products (
+  db.run(`CREATE TABLE products (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     description TEXT,
@@ -28,11 +44,11 @@ db.serialize(() => {
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
-  // Orders table
+  // Orders table - Updated to include contact_number
   db.run(`CREATE TABLE IF NOT EXISTS orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-
     customer_name TEXT,
+    contact_number TEXT,
     total_amount DECIMAL(10,2) NOT NULL,
     status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'preparing', 'ready', 'delivered', 'cancelled')),
     order_type TEXT NOT NULL DEFAULT 'dine-in' CHECK(order_type IN ('dine-in', 'takeaway', 'delivery')),
@@ -45,95 +61,51 @@ db.serialize(() => {
   )`);
 
   // Order items table
-  db.run(`CREATE TABLE IF NOT EXISTS order_items (
+  db.run(`CREATE TABLE order_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     order_id INTEGER NOT NULL,
     product_id INTEGER NOT NULL,
     quantity INTEGER NOT NULL,
     unit_price DECIMAL(10,2) NOT NULL,
     total_price DECIMAL(10,2) NOT NULL,
-    is_prepared BOOLEAN DEFAULT 0,
-    prepared_at DATETIME,
     prepared_quantity INTEGER DEFAULT 0,
-    FOREIGN KEY (order_id) REFERENCES orders (id),
+    FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE CASCADE,
     FOREIGN KEY (product_id) REFERENCES products (id)
-  )`);
-
-  // Transactions table for sales tracking
-  db.run(`CREATE TABLE IF NOT EXISTS transactions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    order_id INTEGER NOT NULL,
-    amount DECIMAL(10,2) NOT NULL,
-    payment_method TEXT DEFAULT 'cash',
-    transaction_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (order_id) REFERENCES orders (id)
   )`);
 
   // Insert sample users
   const bcrypt = require('bcryptjs');
-  const saltRounds = 10;
+  const hashedPassword = bcrypt.hashSync('admin123', 10);
   
-  // Create users synchronously within the serialize block
-  const counterHash = bcrypt.hashSync('counter123', saltRounds);
-  db.run('INSERT OR IGNORE INTO users (username, password, role) VALUES (?, ?, ?)', 
-         ['counter', counterHash, 'counter']);
+  db.run('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', ['admin', hashedPassword, 'admin']);
+  db.run('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', ['counter', hashedPassword, 'counter']);
+  db.run('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', ['delivery', hashedPassword, 'delivery']);
   
-  const deliveryHash = bcrypt.hashSync('delivery123', saltRounds);
-  db.run('INSERT OR IGNORE INTO users (username, password, role) VALUES (?, ?, ?)', 
-         ['delivery', deliveryHash, 'delivery']);
-  
-  const adminHash = bcrypt.hashSync('admin123', saltRounds);
-  db.run('INSERT OR IGNORE INTO users (username, password, role) VALUES (?, ?, ?)', 
-         ['admin', adminHash, 'admin']);
-
   console.log('Sample users created: counter, delivery, admin');
 
-  // Clear existing data and insert new ones
-  db.run('DELETE FROM transactions', [], (err) => {
-    if (err) {
-      console.error('Error clearing transactions:', err.message);
-    }
-  });
-  
-  db.run('DELETE FROM order_items', [], (err) => {
-    if (err) {
-      console.error('Error clearing order items:', err.message);
-    }
-  });
-  
-  db.run('DELETE FROM orders', [], (err) => {
-    if (err) {
-      console.error('Error clearing orders:', err.message);
-    }
-  });
-  
-  db.run('DELETE FROM products', [], (err) => {
-    if (err) {
-      console.error('Error clearing products:', err.message);
-    } else {
-      console.log('Existing data cleared');
-    }
-  });
+  // Insert sample products
+  const products = [
+    ['Coffee', 'Fresh brewed coffee', 50, '/images/coffee.jpg', 'Beverages'],
+    ['Tea', 'Aromatic tea', 30, '/images/tea.jpg', 'Beverages'],
+    ['Sandwich', 'Delicious sandwich', 120, '/images/sandwich.jpg', 'Food'],
+    ['Cake', 'Sweet cake slice', 80, '/images/cake.jpg', 'Dessert']
+  ];
 
-          // Insert sample products
-        const sampleProducts = [
-          ['Iced Tea', 'Refreshing iced tea with lemon', 89.00, '/images/iced-tea.jpg', 'Beverage'],
-          ['Hot Chocolate', 'Rich and creamy hot chocolate', 100.00, '/images/hot-chocolate.jpg', 'Beverage'],
-          ['Lemon Mint Cooler', 'Cool and refreshing lemon mint drink', 60.00, '/images/lemon-mint.jpg', 'Beverage']
-        ];
-
-  sampleProducts.forEach(product => {
-    db.run('INSERT OR REPLACE INTO products (name, description, price, image_url, category) VALUES (?, ?, ?, ?, ?)', 
-           product);
+  const stmt = db.prepare('INSERT INTO products (name, description, price, image_url, category) VALUES (?, ?, ?, ?, ?)');
+  products.forEach(product => {
+    stmt.run(product);
   });
-  
+  stmt.finalize();
+
   console.log('Sample products created');
+  console.log('Database initialized successfully!');
 });
 
+// Close database connection
 db.close((err) => {
   if (err) {
     console.error('Error closing database:', err.message);
   } else {
-    console.log('Database initialized successfully!');
+    console.log('Database connection closed');
   }
 });
