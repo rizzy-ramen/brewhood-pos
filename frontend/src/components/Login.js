@@ -74,12 +74,7 @@ const Login = ({ onLogin }) => {
                 className="w-16 h-16 object-contain"
               />
             </div>
-            <h1 className="text-4xl font-bold mb-2" style={{
-              background: 'linear-gradient(135deg, #7abbca 0%, #5a9bb8 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text'
-            }}>
+            <h1 className="text-4xl font-bold mb-2 text-white">
               BrewHood
             </h1>
             <p className="text-lg text-white/80 font-medium">
