@@ -234,10 +234,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         // Calculate notifications for fetched orders (smart calculation)
         calculateNotifications(sortedOrders);
         
-        // Mark current section as viewed and clear its notifications
-        if (currentFilter !== 'all') {
-          markSectionAsViewed(currentFilter);
-        }
+        // Don't clear notifications here - only clear when user actually views the tab
         
         // Update orders without clearing them first
         console.log('📋 Setting orders state:', sortedOrders.length, 'orders');
@@ -883,10 +880,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         // Calculate notifications for fetched orders
         calculateNotifications(sortedOrders);
         
-        // Mark current section as viewed and clear its notifications
-        if (currentFilter !== 'all') {
-          markSectionAsViewed(currentFilter);
-        }
+        // Don't clear notifications here - only clear when user actually views the tab
         
         // Update orders
         setOrders(sortedOrders);
@@ -1014,10 +1008,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         // Calculate notifications for fetched orders
         calculateNotifications(sortedOrders);
         
-        // Mark current section as viewed and clear its notifications
-        if (currentFilter !== 'all') {
-          markSectionAsViewed(currentFilter);
-        }
+        // Don't clear notifications here - only clear when user actually views the tab
         
         // Update orders
         setOrders(sortedOrders);
