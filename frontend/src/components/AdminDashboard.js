@@ -381,8 +381,76 @@ const AdminDashboard = ({ user, onLogout }) => {
   }
 
   return (
-    <div className="container">
-      <div className="header">
+    <div className="container" style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #7abbca 0%, #5a9bb8 25%, #4a8ba8 50%, #3a7b98 75%, #2a6b88 100%)',
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
+      {/* Animated background elements */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        overflow: 'hidden',
+        pointerEvents: 'none',
+        zIndex: 0
+      }}>
+        <div style={{
+          position: 'absolute',
+          top: '-10%',
+          right: '-10%',
+          width: '300px',
+          height: '300px',
+          background: 'rgba(122, 187, 202, 0.1)',
+          borderRadius: '50%',
+          animation: 'float 8s ease-in-out infinite',
+          filter: 'blur(40px)'
+        }}></div>
+        <div style={{
+          position: 'absolute',
+          bottom: '-10%',
+          left: '-10%',
+          width: '400px',
+          height: '400px',
+          background: 'rgba(90, 155, 184, 0.1)',
+          borderRadius: '50%',
+          animation: 'float 10s ease-in-out infinite 2s',
+          filter: 'blur(50px)'
+        }}></div>
+        <div style={{
+          position: 'absolute',
+          top: '20%',
+          left: '20%',
+          width: '200px',
+          height: '200px',
+          background: 'rgba(74, 139, 168, 0.1)',
+          borderRadius: '50%',
+          animation: 'float 12s ease-in-out infinite 4s',
+          filter: 'blur(30px)'
+        }}></div>
+        <div style={{
+          position: 'absolute',
+          top: '60%',
+          right: '20%',
+          width: '250px',
+          height: '250px',
+          background: 'rgba(58, 123, 152, 0.1)',
+          borderRadius: '50%',
+          animation: 'float 14s ease-in-out infinite 6s',
+          filter: 'blur(35px)'
+        }}></div>
+      </div>
+
+      <div className="header" style={{
+        background: 'rgba(255, 255, 255, 0.1)',
+        backdropFilter: 'blur(10px)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.2)',
+        position: 'relative',
+        zIndex: 1
+      }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <AdminHamburgerMenu 
             onLogout={onLogout}
@@ -1041,11 +1109,42 @@ const AdminDashboard = ({ user, onLogout }) => {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
         }
+
+        @keyframes float {
+          0%, 100% {
+            transform: translateY(0px) translateX(0px);
+            opacity: 0.1;
+          }
+          25% {
+            transform: translateY(-30px) translateX(20px);
+            opacity: 0.2;
+          }
+          50% {
+            transform: translateY(-15px) translateX(-25px);
+            opacity: 0.15;
+          }
+          75% {
+            transform: translateY(-40px) translateX(10px);
+            opacity: 0.1;
+          }
+        }
         
         /* Disabled button styles */
         .btn:disabled {
           opacity: 0.6;
           cursor: not-allowed;
+        }
+
+        /* Main content area styling */
+        .main-content {
+          position: relative;
+          z-index: 1;
+          background: rgba(255, 255, 255, 0.05);
+          backdrop-filter: blur(10px);
+          border-radius: 20px;
+          margin: 20px;
+          padding: 20px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
         }
         
         .btn:disabled:hover {
