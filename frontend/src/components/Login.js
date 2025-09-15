@@ -80,7 +80,7 @@ const Login = ({ onLogin }) => {
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text'
             }}>
-              Brewhood POS
+              BrewHood
             </h1>
             <p className="text-lg text-white/80 font-medium">
               Point of Sale System
