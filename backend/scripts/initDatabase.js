@@ -106,10 +106,10 @@ db.serialize(() => {
   // Insert sample products
   console.log('📦 Creating products...');
   const products = [
-    ['Coffee', 'Fresh brewed coffee', 50, '/images/coffee.jpg', 'Beverages'],
-    ['Tea', 'Aromatic tea', 30, '/images/tea.jpg', 'Beverages'],
-    ['Sandwich', 'Delicious sandwich', 120, '/images/sandwich.jpg', 'Food'],
-    ['Cake', 'Sweet cake slice', 80, '/images/cake.jpg', 'Dessert']
+    ['Hot Chocolate', 'Rich and creamy hot chocolate', 100, '/images/hot-chocolate.jpg', 'Beverages'],
+    ['Iced Tea', 'Refreshing iced tea', 60, '/images/iced-tea.jpg', 'Beverages'],
+    ['Lemon Mint', 'Fresh lemon mint drink', 80, '/images/lemon-mint.jpg', 'Beverages'],
+    ['Coffee', 'Fresh brewed coffee', 50, '/images/brewhood-logo.png', 'Beverages']
   ];
 
   const stmt = db.prepare('INSERT INTO products (name, description, price, image_url, category) VALUES (?, ?, ?, ?, ?)');
