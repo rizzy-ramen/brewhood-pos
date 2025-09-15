@@ -71,7 +71,7 @@ const Login = ({ onLogin }) => {
               <img 
                 src="/images/brewhood-logo.png" 
                 alt="Brewhood Logo" 
-                className="w-12 h-12 object-contain"
+                className="w-16 h-16 object-contain"
               />
             </div>
             <h1 className="text-4xl font-bold mb-2" style={{
