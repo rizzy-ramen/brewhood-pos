@@ -594,73 +594,42 @@ const DeliveryDashboard = ({ user, onLogout }) => {
   };
 
   // Pagination and search functions for delivered orders
-  const handleSearch = useCallback(async (searchValue) => {
+  const handleSearch = useCallback((searchValue) => {
     setSearchTerm(searchValue);
     setCurrentPage(1); // Reset to first page when searching
     
     if (filter === 'delivered') {
+      console.log(`🔍 Client-side search for: "${searchValue}" in delivered orders`);
+      
       if (searchValue.trim() === '') {
         // If search is empty, clear filtered results and show normal pagination
         setFilteredOrders([]);
-        // Trigger a normal fetch to show the first page
-        setTimeout(() => {
-          if (filter === 'delivered') {
-            fetchOrdersWithPage('delivered', 1);
-          }
-        }, 0);
         return;
       }
       
-      // Always show loading when searching
-      setIsSectionLoading(true);
+      // Use client-side filtering (same logic as OrdersStatusTable)
+      const filtered = orders.filter(order => 
+        order.customer_name && order.customer_name.toLowerCase().includes(searchValue.toLowerCase()) ||
+        order.id && String(order.id).toLowerCase().includes(searchValue.toLowerCase()) ||
+        order.order_number && order.order_number.toString().includes(searchValue) ||
+        order.contact_number && order.contact_number.includes(searchValue) ||
+        order.order_type && order.order_type.toLowerCase().includes(searchValue.toLowerCase()) ||
+        order.status && order.status.toLowerCase().includes(searchValue.toLowerCase())
+      );
       
-      try {
-        console.log(`🔍 Searching for: "${searchValue}" in delivered orders`);
-        
-        // Call backend search API
-        const response = await apiService.searchOrders('delivered', searchValue);
-        
-        if (response && response.success && response.orders) {
-          const searchResults = response.orders;
-          console.log(`🔍 Search results: ${searchResults.length} orders found`);
-          console.log(`🔍 Search results data:`, searchResults);
-          
-          // Update filtered orders with search results
-          setFilteredOrders(searchResults);
-          
-          // Update pagination info for search results
-          setPaginationInfo({
-            total: searchResults.length,
-            totalPages: Math.ceil(searchResults.length / ordersPerPage),
-            currentPage: 1
-          });
-          
-          // Don't clear orders state - just show search results
-          // setOrders([]); // Removed this line
-        } else {
-          console.log('🔍 No search results found');
-          setFilteredOrders([]);
-          setPaginationInfo({
-            total: 0,
-            totalPages: 0,
-            currentPage: 1
-          });
-        }
-      } catch (error) {
-        console.error('❌ Search error:', error);
-        // Fallback to client-side filtering if search fails
-        const filtered = orders.filter(order => 
-          order.customer_name && order.customer_name.toLowerCase().includes(searchValue.toLowerCase()) ||
-          order.id && order.id.toLowerCase().includes(searchValue.toLowerCase()) ||
-          order.order_number && order.order_number.toString().includes(searchValue) ||
-          order.status && order.status.toLowerCase().includes(searchValue.toLowerCase())
-        );
-        setFilteredOrders(filtered);
-      } finally {
-        setIsSectionLoading(false);
-      }
+      console.log(`🔍 Client-side search results: ${filtered.length} orders found`);
+      
+      // Update filtered orders with search results
+      setFilteredOrders(filtered);
+      
+      // Update pagination info for search results
+      setPaginationInfo({
+        total: filtered.length,
+        totalPages: Math.ceil(filtered.length / ordersPerPage),
+        currentPage: 1
+      });
     }
-  }, [filter, orders]);
+  }, [filter, orders, ordersPerPage]);
 
   // Google-style real-time search with debouncing
   const handleRealTimeSearch = useCallback(async (searchValue) => {
