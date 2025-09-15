@@ -49,22 +49,33 @@ const Login = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 relative overflow-hidden">
+    <div className="min-h-screen relative overflow-hidden" style={{
+      background: 'linear-gradient(135deg, #7abbca 0%, #5a9bb8 25%, #4a8ba8 50%, #3a7b98 75%, #2a6b88 100%)'
+    }}>
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-pulse"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-pink-500 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-pulse" style={{animationDelay: '2s'}}></div>
-        <div className="absolute top-40 left-40 w-60 h-60 bg-indigo-500 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-pulse" style={{animationDelay: '4s'}}></div>
+        <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full mix-blend-multiply filter blur-xl opacity-60 animate-pulse" style={{backgroundColor: '#7abbca'}}></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full mix-blend-multiply filter blur-xl opacity-60 animate-pulse" style={{backgroundColor: '#5a9bb8', animationDelay: '2s'}}></div>
+        <div className="absolute top-40 left-40 w-60 h-60 rounded-full mix-blend-multiply filter blur-xl opacity-60 animate-pulse" style={{backgroundColor: '#4a8ba8', animationDelay: '4s'}}></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full mix-blend-multiply filter blur-xl opacity-40 animate-pulse" style={{backgroundColor: '#3a7b98', animationDelay: '6s'}}></div>
       </div>
 
       <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
         <div className="bg-white/10 backdrop-blur-xl rounded-3xl shadow-2xl p-8 max-w-md w-full border border-white/20">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-amber-400 to-orange-500 rounded-full mb-6 shadow-lg">
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-6 shadow-lg" style={{
+              background: 'linear-gradient(135deg, #7abbca 0%, #5a9bb8 100%)',
+              boxShadow: '0 8px 25px rgba(122, 187, 202, 0.4)'
+            }}>
               <Coffee className="w-10 h-10 text-white" />
             </div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent mb-2">
+            <h1 className="text-4xl font-bold mb-2" style={{
+              background: 'linear-gradient(135deg, #7abbca 0%, #5a9bb8 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
+            }}>
               Brewhood POS
             </h1>
             <p className="text-lg text-white/80 font-medium">
@@ -89,7 +100,8 @@ const Login = ({ onLogin }) => {
                   onChange={handleInputChange}
                   placeholder="Enter username"
                   required
-                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition-all duration-300 backdrop-blur-sm"
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-300 backdrop-blur-sm"
+                  style={{'--tw-ring-color': '#7abbca'}}
                 />
               </div>
             </div>
@@ -109,7 +121,8 @@ const Login = ({ onLogin }) => {
                   onChange={handleInputChange}
                   placeholder="Enter password"
                   required
-                  className="w-full px-4 py-3 pr-12 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition-all duration-300 backdrop-blur-sm"
+                  className="w-full px-4 py-3 pr-12 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-300 backdrop-blur-sm"
+                  style={{'--tw-ring-color': '#7abbca'}}
                 />
                 <button
                   type="button"
@@ -125,7 +138,19 @@ const Login = ({ onLogin }) => {
             <button 
               type="submit" 
               disabled={loading}
-              className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-amber-500/50 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              className="w-full text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              style={{
+                background: 'linear-gradient(135deg, #7abbca 0%, #5a9bb8 100%)',
+                boxShadow: '0 4px 15px rgba(122, 187, 202, 0.3)'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = 'linear-gradient(135deg, #6aabba 0%, #4a9ba8 100%)';
+                e.target.style.boxShadow = '0 6px 20px rgba(122, 187, 202, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = 'linear-gradient(135deg, #7abbca 0%, #5a9bb8 100%)';
+                e.target.style.boxShadow = '0 4px 15px rgba(122, 187, 202, 0.3)';
+              }}
             >
               {loading ? (
                 <div className="flex items-center justify-center gap-2">
@@ -139,7 +164,10 @@ const Login = ({ onLogin }) => {
           </form>
           
           {/* Login Credentials */}
-          <div className="mt-8 bg-gradient-to-r from-amber-500/20 to-orange-500/20 backdrop-blur-sm border border-amber-400/30 rounded-2xl p-6">
+          <div className="mt-8 backdrop-blur-sm border rounded-2xl p-6" style={{
+            background: 'linear-gradient(135deg, rgba(122, 187, 202, 0.2) 0%, rgba(90, 155, 184, 0.2) 100%)',
+            borderColor: 'rgba(122, 187, 202, 0.3)'
+          }}>
             <h3 className="text-lg font-semibold text-white mb-4 text-center flex items-center justify-center gap-2">
               <span>🔑</span>
               Login Credentials
