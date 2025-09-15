@@ -601,6 +601,7 @@ app.get('/api/orders/search', authenticateToken, (req, res) => {
   const { status, q: searchTerm } = req.query;
   
   console.log(`🔍 Backend search - Status: ${status}, Search term: "${searchTerm}"`);
+  console.log(`🔍 Search params:`, [`${searchTerm}%`, searchTerm, `${searchTerm}%`, searchTerm, `${searchTerm}%`, searchTerm, searchTerm]);
   
   let query = `
     SELECT o.*, u1.username as created_by_user, u2.username as delivered_by_user
@@ -608,12 +609,15 @@ app.get('/api/orders/search', authenticateToken, (req, res) => {
     LEFT JOIN users u1 ON o.created_by = u1.id
     LEFT JOIN users u2 ON o.delivered_by = u2.id
     WHERE (LOWER(o.customer_name) LIKE LOWER(?) OR 
+           LOWER(o.customer_name) = LOWER(?) OR
            LOWER(o.contact_number) LIKE LOWER(?) OR 
+           LOWER(o.contact_number) = LOWER(?) OR
            LOWER(o.order_type) LIKE LOWER(?) OR
-           CAST(o.id AS TEXT) LIKE ?)
+           LOWER(o.order_type) = LOWER(?) OR
+           CAST(o.id AS TEXT) = ?)
   `;
   
-  const params = [`%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`];
+  const params = [`${searchTerm}%`, searchTerm, `${searchTerm}%`, searchTerm, `${searchTerm}%`, searchTerm, searchTerm];
   
   if (status && status !== 'all') {
     query += ' AND o.status = ?';
