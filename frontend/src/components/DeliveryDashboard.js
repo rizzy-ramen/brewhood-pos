@@ -89,10 +89,9 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     }
   }, []);
 
-  // Calculate notifications based on current orders
-  const calculateNotifications = useCallback((orders, currentViewedSections = viewedSections) => {
+  // Calculate notifications based on current orders - SIMPLIFIED VERSION
+  const calculateNotifications = useCallback((orders) => {
     console.log('🔄 calculateNotifications called with orders:', orders.length);
-    console.log('🔄 Current viewedSections:', Array.from(currentViewedSections));
     
     const counts = {
       pending: 0,
@@ -114,9 +113,8 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       const newNotifications = { ...prev };
       
       // Only update counts for sections that haven't been viewed
-      // Don't clear notifications for the current filter - let handleFilterChange do that
       Object.keys(counts).forEach(status => {
-        if (!currentViewedSections.has(status)) {
+        if (!viewedSections.has(status)) {
           newNotifications[status] = counts[status];
         }
       });
@@ -124,7 +122,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       console.log('🔄 New notifications:', newNotifications);
       return newNotifications;
     });
-  }, [viewedSections]); // Use viewedSections instead of filter
+  }, [viewedSections]);
 
   // Fetch orders function with stable state management
   const fetchOrders = useCallback(async (currentFilter = filter) => {
@@ -231,7 +229,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         }
         
         // Calculate notifications for fetched orders (smart calculation)
-        calculateNotifications(sortedOrders, viewedSections);
+        calculateNotifications(sortedOrders);
         
         // Don't clear notifications here - only clear when user actually views the tab
         
@@ -317,11 +315,13 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     websocketService.on('orderPlaced', (order) => {
       console.log('📦 DeliveryDashboard: Received orderPlaced event:', order);
       
-      // Update notification for pending section (new orders are always pending)
-      setNotifications(prev => ({
-        ...prev,
-        pending: (prev.pending || 0) + 1
-      }));
+      // Only update notification if pending section hasn't been viewed
+      if (!viewedSections.has('pending')) {
+        setNotifications(prev => ({
+          ...prev,
+          pending: (prev.pending || 0) + 1
+        }));
+      }
       
       // Only fetch orders if we're currently viewing the pending section
       const currentFilter = filterRef.current;
@@ -331,27 +331,28 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       } else {
         console.log('🔄 Not viewing pending section, notification badge updated');
       }
-      // Removed toast notification for cleaner UI
     });
       
       websocketService.on('orderStatusUpdated', (data) => {
         console.log('🔄 OrderStatusUpdated event received:', data);
         
-        // Update notifications based on status change
-        setNotifications(prev => {
-          const newNotifications = { ...prev };
-          
-          // Determine which section should get the notification
-          if (data.status === 'preparing') {
-            newNotifications.preparing = (newNotifications.preparing || 0) + 1;
-          } else if (data.status === 'ready') {
-            newNotifications.ready = (newNotifications.ready || 0) + 1;
-          } else if (data.status === 'delivered') {
-            newNotifications.delivered = (newNotifications.delivered || 0) + 1;
-          }
-          
-          return newNotifications;
-        });
+        // Only update notification if the target section hasn't been viewed
+        if (!viewedSections.has(data.status)) {
+          setNotifications(prev => {
+            const newNotifications = { ...prev };
+            
+            // Determine which section should get the notification
+            if (data.status === 'preparing') {
+              newNotifications.preparing = (newNotifications.preparing || 0) + 1;
+            } else if (data.status === 'ready') {
+              newNotifications.ready = (newNotifications.ready || 0) + 1;
+            } else if (data.status === 'delivered') {
+              newNotifications.delivered = (newNotifications.delivered || 0) + 1;
+            }
+            
+            return newNotifications;
+          });
+        }
         
         // Remove the order from the current section if we're viewing it
         // This prevents duplicate display until refresh
@@ -882,7 +883,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         }
         
         // Calculate notifications for fetched orders
-        calculateNotifications(sortedOrders, viewedSections);
+        calculateNotifications(sortedOrders);
         
         // Don't clear notifications here - only clear when user actually views the tab
         
@@ -1010,7 +1011,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         }
         
         // Calculate notifications for fetched orders
-        calculateNotifications(sortedOrders, viewedSections);
+        calculateNotifications(sortedOrders);
         
         // Don't clear notifications here - only clear when user actually views the tab
         
