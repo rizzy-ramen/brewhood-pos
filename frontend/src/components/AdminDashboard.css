@@ -230,16 +230,6 @@
   background: transparent !important;
 }
 
-/* Ensure gradient background shows through for admin dashboard */
-.admin-dashboard-container {
-  background: linear-gradient(135deg, #7abbca 0%, #5a9bb8 25%, #4a8ba8 50%, #3a7b98 75%, #2a6b88 100%) !important;
-}
-
-/* Ensure hamburger menu appears above all content */
-.menu-panel {
-  z-index: 999999 !important;
-}
-
 /* Admin Header and Stats Layout */
 .admin-header {
   display: flex;
