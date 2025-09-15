@@ -1029,7 +1029,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     } catch (error) {
       console.error('❌ Error in fetchOrdersDynamic:', error);
     }
-  }, [filter, calculateNotifications, markSectionAsViewed, currentPage, ordersPerPage, fetchOrdersWithPage]);
+  }, [filter, calculateNotifications, markSectionAsViewed, currentPage, ordersPerPage, fetchOrdersWithPage, viewedSections]);
 
   // Handle page change for pagination
   const handlePageChange = useCallback((pageNumber) => {
