@@ -119,12 +119,21 @@ const authenticateToken = (req, res, next) => {
 app.post('/api/auth/login', (req, res) => {
   const { username, password } = req.body;
   
+  console.log('🔐 Login attempt for username:', username);
+  
   db.get('SELECT * FROM users WHERE username = ?', [username], async (err, user) => {
     if (err) {
+      console.error('❌ Database error during login:', err.message);
       return res.status(500).json({ error: 'Database error' });
     }
     
+    console.log('👤 User found:', user ? 'Yes' : 'No');
+    if (user) {
+      console.log('👤 User details:', { id: user.id, username: user.username, role: user.role });
+    }
+    
     if (!user || !await bcrypt.compare(password, user.password)) {
+      console.log('❌ Invalid credentials for username:', username);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
     
@@ -134,6 +143,7 @@ app.post('/api/auth/login', (req, res) => {
       { expiresIn: '8h' }
     );
     
+    console.log('✅ Login successful for user:', username);
     res.json({
       token,
       user: {
