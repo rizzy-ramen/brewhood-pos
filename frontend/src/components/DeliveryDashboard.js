@@ -79,6 +79,16 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     }
   }, []);
 
+  // Clear notifications for a specific section
+  const clearSectionNotifications = useCallback((status) => {
+    if (status !== 'all') {
+      setNotifications(prev => ({
+        ...prev,
+        [status]: 0
+      }));
+    }
+  }, []);
+
   // Calculate notifications based on current orders
   const calculateNotifications = useCallback((orders) => {
     const counts = {
