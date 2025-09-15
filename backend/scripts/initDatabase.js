@@ -19,6 +19,7 @@ console.log('Initializing database...');
 db.serialize(() => {
   // Drop existing tables
   db.run('DROP TABLE IF EXISTS order_items');
+  db.run('DROP TABLE IF EXISTS transactions');
   db.run('DROP TABLE IF EXISTS orders');
   db.run('DROP TABLE IF EXISTS products');
   db.run('DROP TABLE IF EXISTS users');
@@ -86,13 +87,24 @@ db.serialize(() => {
   const bcrypt = require('bcryptjs');
   const hashedPassword = bcrypt.hashSync('admin123', 10);
   
-  db.run('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', ['admin', hashedPassword, 'admin']);
-  db.run('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', ['counter', hashedPassword, 'counter']);
-  db.run('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', ['delivery', hashedPassword, 'delivery']);
+  console.log('👥 Creating users...');
+  db.run('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', ['admin', hashedPassword, 'admin'], function(err) {
+    if (err) console.error('Error creating admin user:', err.message);
+    else console.log('✅ Admin user created');
+  });
+  db.run('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', ['counter', hashedPassword, 'counter'], function(err) {
+    if (err) console.error('Error creating counter user:', err.message);
+    else console.log('✅ Counter user created');
+  });
+  db.run('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', ['delivery', hashedPassword, 'delivery'], function(err) {
+    if (err) console.error('Error creating delivery user:', err.message);
+    else console.log('✅ Delivery user created');
+  });
   
   console.log('Sample users created: counter, delivery, admin');
 
   // Insert sample products
+  console.log('📦 Creating products...');
   const products = [
     ['Coffee', 'Fresh brewed coffee', 50, '/images/coffee.jpg', 'Beverages'],
     ['Tea', 'Aromatic tea', 30, '/images/tea.jpg', 'Beverages'],
@@ -101,8 +113,11 @@ db.serialize(() => {
   ];
 
   const stmt = db.prepare('INSERT INTO products (name, description, price, image_url, category) VALUES (?, ?, ?, ?, ?)');
-  products.forEach(product => {
-    stmt.run(product);
+  products.forEach((product, index) => {
+    stmt.run(product, function(err) {
+      if (err) console.error(`Error creating product ${product[0]}:`, err.message);
+      else console.log(`✅ Product created: ${product[0]}`);
+    });
   });
   stmt.finalize();
 
