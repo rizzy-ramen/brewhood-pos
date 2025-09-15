@@ -161,31 +161,6 @@ const Login = ({ onLogin }) => {
               )}
             </button>
           </form>
-          
-          {/* Login Credentials */}
-          <div className="mt-8 backdrop-blur-sm border rounded-2xl p-6" style={{
-            background: 'linear-gradient(135deg, rgba(122, 187, 202, 0.2) 0%, rgba(90, 155, 184, 0.2) 100%)',
-            borderColor: 'rgba(122, 187, 202, 0.3)'
-          }}>
-            <h3 className="text-lg font-semibold text-white mb-4 text-center flex items-center justify-center gap-2">
-              <span>🔑</span>
-              Login Credentials
-            </h3>
-            <div className="space-y-3 text-sm">
-              <div className="flex items-center justify-between bg-white/10 rounded-lg px-3 py-2">
-                <span className="text-white/80">Counter:</span>
-                <span className="text-amber-300 font-mono">counter / counter123</span>
-              </div>
-              <div className="flex items-center justify-between bg-white/10 rounded-lg px-3 py-2">
-                <span className="text-white/80">Delivery:</span>
-                <span className="text-amber-300 font-mono">delivery / delivery123</span>
-              </div>
-              <div className="flex items-center justify-between bg-white/10 rounded-lg px-3 py-2">
-                <span className="text-white/80">Admin:</span>
-                <span className="text-amber-300 font-mono">admin / admin123</span>
-              </div>
-            </div>
-          </div>
 
           {/* Footer */}
           <div className="mt-6 text-center">
