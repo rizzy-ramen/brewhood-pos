@@ -600,15 +600,20 @@ app.get('/api/analytics/sales', authenticateToken, (req, res) => {
 app.get('/api/orders/search', authenticateToken, (req, res) => {
   const { status, q: searchTerm } = req.query;
   
+  console.log(`🔍 Backend search - Status: ${status}, Search term: "${searchTerm}"`);
+  
   let query = `
     SELECT o.*, u1.username as created_by_user, u2.username as delivered_by_user
     FROM orders o
     LEFT JOIN users u1 ON o.created_by = u1.id
     LEFT JOIN users u2 ON o.delivered_by = u2.id
-    WHERE (o.customer_name LIKE ? OR o.id LIKE ?)
+    WHERE (LOWER(o.customer_name) LIKE LOWER(?) OR 
+           LOWER(o.contact_number) LIKE LOWER(?) OR 
+           LOWER(o.order_type) LIKE LOWER(?) OR
+           CAST(o.id AS TEXT) LIKE ?)
   `;
   
-  const params = [`%${searchTerm}%`, `%${searchTerm}%`];
+  const params = [`%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`];
   
   if (status && status !== 'all') {
     query += ' AND o.status = ?';
@@ -619,8 +624,20 @@ app.get('/api/orders/search', authenticateToken, (req, res) => {
   
   db.all(query, params, (err, orders) => {
     if (err) {
+      console.log(`❌ Backend search error:`, err.message);
       res.status(500).json({ error: err.message });
       return;
+    }
+    
+    console.log(`🔍 Backend search found ${orders.length} orders`);
+    if (orders.length > 0) {
+      console.log(`🔍 Sample order:`, {
+        id: orders[0].id,
+        customer_name: orders[0].customer_name,
+        contact_number: orders[0].contact_number,
+        order_type: orders[0].order_type,
+        status: orders[0].status
+      });
     }
     
     // Fetch items for each order
