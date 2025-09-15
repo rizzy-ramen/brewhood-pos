@@ -84,7 +84,7 @@ io.on('connection', (socket) => {
 });
 
 // Database connection
-const dbPath = path.join(__dirname, 'database.sqlite');
+const dbPath = path.join(__dirname, 'pos_database.db');
 const db = new sqlite3.Database(dbPath);
 
 console.log('📊 Database connected:', dbPath);
