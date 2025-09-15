@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, Coffee, Lock, User } from 'lucide-react';
+import { Eye, EyeOff, Lock, User } from 'lucide-react';
 import { loginUser } from '../services/backendAuth';
 import toast from 'react-hot-toast';
 
@@ -68,7 +68,11 @@ const Login = ({ onLogin }) => {
               background: 'linear-gradient(135deg, #7abbca 0%, #5a9bb8 100%)',
               boxShadow: '0 8px 25px rgba(122, 187, 202, 0.4)'
             }}>
-              <Coffee className="w-10 h-10 text-white" />
+              <img 
+                src="/images/brewhood-logo.png" 
+                alt="Brewhood Logo" 
+                className="w-10 h-10 object-contain"
+              />
             </div>
             <h1 className="text-4xl font-bold mb-2" style={{
               background: 'linear-gradient(135deg, #7abbca 0%, #5a9bb8 100%)',
