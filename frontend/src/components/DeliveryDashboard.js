@@ -90,9 +90,9 @@ const DeliveryDashboard = ({ user, onLogout }) => {
   }, []);
 
   // Calculate notifications based on current orders
-  const calculateNotifications = useCallback((orders) => {
+  const calculateNotifications = useCallback((orders, currentViewedSections = viewedSections) => {
     console.log('🔄 calculateNotifications called with orders:', orders.length);
-    console.log('🔄 Current viewedSections:', Array.from(viewedSections));
+    console.log('🔄 Current viewedSections:', Array.from(currentViewedSections));
     
     const counts = {
       pending: 0,
@@ -116,7 +116,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       // Only update counts for sections that haven't been viewed
       // Don't clear notifications for the current filter - let handleFilterChange do that
       Object.keys(counts).forEach(status => {
-        if (!viewedSections.has(status)) {
+        if (!currentViewedSections.has(status)) {
           newNotifications[status] = counts[status];
         }
       });
@@ -231,7 +231,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         }
         
         // Calculate notifications for fetched orders (smart calculation)
-        calculateNotifications(sortedOrders);
+        calculateNotifications(sortedOrders, viewedSections);
         
         // Don't clear notifications here - only clear when user actually views the tab
         
@@ -882,7 +882,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         }
         
         // Calculate notifications for fetched orders
-        calculateNotifications(sortedOrders);
+        calculateNotifications(sortedOrders, viewedSections);
         
         // Don't clear notifications here - only clear when user actually views the tab
         
@@ -1010,7 +1010,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         }
         
         // Calculate notifications for fetched orders
-        calculateNotifications(sortedOrders);
+        calculateNotifications(sortedOrders, viewedSections);
         
         // Don't clear notifications here - only clear when user actually views the tab
         
