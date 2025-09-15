@@ -510,7 +510,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
   useEffect(() => {
     // When filter changes, refetch data for the new filter
     fetchOrders(filter);
-  }, [filter, fetchOrders]); // Include fetchOrders in dependencies
+  }, [filter]); // Remove fetchOrders from dependencies to prevent circular dependency
 
 
 
