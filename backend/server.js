@@ -275,7 +275,7 @@ app.get('/api/products/:id', (req, res) => {
 
 // Order Routes
 app.post('/api/orders', authenticateToken, (req, res) => {
-  const { customer_name, items, order_type = 'dine-in' } = req.body;
+  const { customer_name, contact_number, items, order_type = 'dine-in' } = req.body;
 
   const created_by = req.user.id;
   
@@ -314,8 +314,8 @@ app.post('/api/orders', authenticateToken, (req, res) => {
     
     // Insert order
     db.run(
-      'INSERT INTO orders (customer_name, total_amount, order_type, created_by) VALUES (?, ?, ?, ?)',
-      [customer_name, total_amount, order_type, created_by],
+      'INSERT INTO orders (customer_name, contact_number, total_amount, order_type, created_by) VALUES (?, ?, ?, ?, ?)',
+      [customer_name, contact_number, total_amount, order_type, created_by],
       function(err) {
         if (err) {
           res.status(500).json({ error: err.message });
