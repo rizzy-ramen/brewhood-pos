@@ -487,7 +487,16 @@ const AdminDashboard = ({ user, onLogout }) => {
           {/* Unified Admin Dashboard Card */}
           <div className="admin-dashboard-card">
         {/* Stats Section */}
-        <div className="stats-section">
+        <div className="stats-section" style={{
+          position: 'relative',
+          zIndex: 1,
+          background: 'rgba(255, 255, 255, 0.05)',
+          backdropFilter: 'blur(10px)',
+          borderRadius: '20px',
+          margin: '20px',
+          padding: '20px',
+          border: '1px solid rgba(255, 255, 255, 0.1)'
+        }}>
           <div className="admin-stats">
             <div 
               className={`stat-circle active-products ${activeSection === 'active' ? 'active' : ''}`}
@@ -525,7 +534,16 @@ const AdminDashboard = ({ user, onLogout }) => {
         </div>
 
         {/* Products Section */}
-        <div className="products-section">
+        <div className="products-section" style={{
+          position: 'relative',
+          zIndex: 1,
+          background: 'rgba(255, 255, 255, 0.05)',
+          backdropFilter: 'blur(10px)',
+          borderRadius: '20px',
+          margin: '20px',
+          padding: '20px',
+          border: '1px solid rgba(255, 255, 255, 0.1)'
+        }}>
           {/* Active Products Section */}
           {activeSection === 'active' && (
             <div className="active-products-section">

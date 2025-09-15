@@ -1185,7 +1185,19 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         <span>🌐 Backend Status: Check the indicator in the top-right corner</span>
       </div>
 
-      <div className="delivery-main-layout" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}>
+      <div className="delivery-main-layout" style={{ 
+        display: 'grid', 
+        gridTemplateColumns: '1fr', 
+        gap: '20px',
+        position: 'relative',
+        zIndex: 1,
+        background: 'rgba(255, 255, 255, 0.05)',
+        backdropFilter: 'blur(10px)',
+        borderRadius: '20px',
+        margin: '20px',
+        padding: '20px',
+        border: '1px solid rgba(255, 255, 255, 0.1)'
+      }}>
         <div>
           {/* Filter Tabs - Now using the new component */}
           <FilterTabs 
