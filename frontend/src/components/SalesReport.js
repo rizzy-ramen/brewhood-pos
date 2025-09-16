@@ -171,12 +171,12 @@ const SalesReport = ({ onClose }) => {
         
         return [
           String(order.id || 'N/A'),
-          order.order_number || 'N/A',
-          order.customer_name || 'N/A',
+        order.order_number || 'N/A',
+        order.customer_name || 'N/A',
           order.contact_number || 'N/A',
-          order.order_type || 'N/A',
-          order.status || 'N/A',
-          order.total_amount || 0,
+        order.order_type || 'N/A',
+        order.status || 'N/A',
+        order.total_amount || 0,
           itemsText,
           order.created_at ? new Date(order.created_at).toLocaleString() : 'N/A'
         ];
@@ -556,7 +556,7 @@ const SalesReport = ({ onClose }) => {
                     const color = colors[index % colors.length];
                     
                     return (
-                      <div key={type} style={{
+                    <div key={type} style={{
                         padding: '20px',
                         background: color,
                         borderRadius: '12px',
@@ -579,14 +579,14 @@ const SalesReport = ({ onClose }) => {
                           textTransform: 'capitalize',
                           marginBottom: '8px'
                         }}>
-                          {type}
-                        </div>
+                        {type}
+                      </div>
                         <div style={{ 
                           fontSize: '28px', 
                           fontWeight: 'bold',
                           marginBottom: '8px'
                         }}>
-                          {count}
+                        {count}
                         </div>
                         <div style={{ 
                           fontSize: '14px', 
@@ -655,7 +655,7 @@ const SalesReport = ({ onClose }) => {
                     const icon = statusIcons[status.toLowerCase()] || '📊';
                     
                     return (
-                      <div key={status} style={{
+                    <div key={status} style={{
                         padding: '20px',
                         background: color,
                         borderRadius: '12px',
@@ -684,15 +684,15 @@ const SalesReport = ({ onClose }) => {
                           gap: '8px'
                         }}>
                           <span style={{ fontSize: '20px' }}>{icon}</span>
-                          {status}
-                        </div>
+                        {status}
+                      </div>
                         <div style={{ 
                           fontSize: '28px', 
                           fontWeight: 'bold',
                           marginBottom: '8px',
                           color: '#2c3e50'
                         }}>
-                          {count}
+                        {count}
                         </div>
                         <div style={{ 
                           fontSize: '14px', 

@@ -144,3 +144,4 @@ db.all(`SELECT id, price FROM products WHERE id IN (${placeholders})`, productId
     }
   );
 });
+

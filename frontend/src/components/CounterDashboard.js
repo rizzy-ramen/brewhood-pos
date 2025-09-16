@@ -354,14 +354,176 @@ const CounterDashboard = ({ user, onLogout }) => {
       // Create WhatsApp URL
       const whatsappUrl = `https://wa.me/91${phoneNumber}?text=${encodedMessage}`;
       
-      // Open WhatsApp in a new tab
-      window.open(whatsappUrl, '_blank');
+      // Open WhatsApp in a popup window
+      const popup = window.open(
+        whatsappUrl, 
+        'whatsapp-bill', 
+        'width=800,height=600,scrollbars=yes,resizable=yes,status=yes,location=yes,toolbar=no,menubar=no'
+      );
       
-      toast.success('WhatsApp bill sent!');
+      // Check if popup was blocked or failed to open
+      if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+        // Fallback: Show the bill message in a modal/popup for manual copying
+        showBillModal(billMessage, phoneNumber);
+      } else {
+        // Focus the popup window
+        popup.focus();
+        toast.success('WhatsApp bill opened!');
+      }
     } catch (error) {
       console.error('Error sending WhatsApp bill:', error);
       toast.error('Failed to send WhatsApp bill');
     }
+  };
+
+  // Function to show bill in a modal when WhatsApp is not available
+  const showBillModal = (billMessage, phoneNumber) => {
+    // Create modal element
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10000;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    `;
+
+    const modalContent = document.createElement('div');
+    modalContent.style.cssText = `
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    `;
+
+    modalContent.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h3 style="margin: 0; color: #1f2937; font-size: 20px; font-weight: 600;">📱 WhatsApp Bill</h3>
+        <button id="closeModal" style="
+          background: none;
+          border: none;
+          font-size: 24px;
+          cursor: pointer;
+          color: #6b7280;
+          padding: 0;
+          width: 30px;
+          height: 30px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          transition: background-color 0.2s;
+        " onmouseover="this.style.backgroundColor='#f3f4f6'" onmouseout="this.style.backgroundColor='transparent'">×</button>
+      </div>
+      
+      <div style="margin-bottom: 20px;">
+        <p style="margin: 0 0 12px 0; color: #6b7280; font-size: 14px;">
+          WhatsApp is not available or popup was blocked. You can copy the bill message below:
+        </p>
+        <div style="
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
+          padding: 16px;
+          font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+          font-size: 13px;
+          line-height: 1.5;
+          white-space: pre-wrap;
+          word-break: break-word;
+          max-height: 300px;
+          overflow-y: auto;
+          color: #374151;
+        ">${billMessage}</div>
+      </div>
+      
+      <div style="display: flex; gap: 12px; justify-content: flex-end;">
+        <button id="copyBill" style="
+          background: #10b981;
+          color: white;
+          border: none;
+          padding: 10px 20px;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 14px;
+          font-weight: 500;
+          transition: background-color 0.2s;
+        " onmouseover="this.style.backgroundColor='#059669'" onmouseout="this.style.backgroundColor='#10b981'">
+          📋 Copy Bill
+        </button>
+        <button id="openWhatsApp" style="
+          background: #25d366;
+          color: white;
+          border: none;
+          padding: 10px 20px;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 14px;
+          font-weight: 500;
+          transition: background-color 0.2s;
+        " onmouseover="this.style.backgroundColor='#128c7e'" onmouseout="this.style.backgroundColor='#25d366'">
+          📱 Open WhatsApp
+        </button>
+      </div>
+    `;
+
+    modal.appendChild(modalContent);
+    document.body.appendChild(modal);
+
+    // Add event listeners
+    const closeModal = () => {
+      document.body.removeChild(modal);
+    };
+
+    const copyBill = async () => {
+      try {
+        await navigator.clipboard.writeText(billMessage);
+        toast.success('Bill copied to clipboard!');
+      } catch (err) {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = billMessage;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        toast.success('Bill copied to clipboard!');
+      }
+    };
+
+    const openWhatsApp = () => {
+      const whatsappUrl = `https://wa.me/91${phoneNumber}?text=${encodeURIComponent(billMessage)}`;
+      window.open(whatsappUrl, '_blank');
+      closeModal();
+    };
+
+    // Event listeners
+    modal.querySelector('#closeModal').onclick = closeModal;
+    modal.querySelector('#copyBill').onclick = copyBill;
+    modal.querySelector('#openWhatsApp').onclick = openWhatsApp;
+
+    // Close modal when clicking outside
+    modal.onclick = (e) => {
+      if (e.target === modal) closeModal();
+    };
+
+    // Close modal with Escape key
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        closeModal();
+        document.removeEventListener('keydown', handleEscape);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
   };
 
   const formatBillMessage = (orderData) => {
@@ -377,13 +539,18 @@ const CounterDashboard = ({ user, onLogout }) => {
     let message = `🍽️ *BrewHood Order Receipt*\n\n`;
     message += `📋 *Order #${orderData.order_number || orderData.id}*\n`;
     message += `👤 *Customer:* ${orderData.customer_name}\n`;
-    message += `📞 *Contact:* ${orderData.contact_number}\n`;
     message += `📦 *Type:* ${orderData.order_type}\n`;
     message += `🕐 *Time:* ${currentTime}\n\n`;
     message += `📝 *Items:*\n`;
     
     orderData.items.forEach((item, index) => {
-      message += `${index + 1}. ${item.name} x${item.quantity} = ₹${(item.price * item.quantity).toFixed(2)}\n`;
+      // Handle both possible property names from backend response
+      const itemName = item.name || item.product_name || 'Unknown Item';
+      const itemPrice = item.price || item.unit_price || 0;
+      const quantity = item.quantity || 1;
+      const totalPrice = itemPrice * quantity;
+      
+      message += `${index + 1}. ${itemName} x${quantity} = ₹${totalPrice.toFixed(2)}\n`;
     });
     
     message += `\n💰 *Total: ₹${orderData.total_amount.toFixed(2)}*\n\n`;

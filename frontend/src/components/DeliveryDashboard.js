@@ -90,7 +90,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
   }, []);
 
   // Calculate notifications based on current orders - EXACT MAIN BRANCH VERSION
-  const calculateNotifications = useCallback((orders) => {
+  const calculateNotifications = useCallback((orders, currentFilter = filter) => {
     const counts = {
       pending: 0,
       preparing: 0,
@@ -108,8 +108,8 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     const smartCounts = { ...counts };
     
     // Clear notifications for current filter (user is already viewing this section)
-    if (filter !== 'all') {
-      smartCounts[filter] = 0;
+    if (currentFilter !== 'all') {
+      smartCounts[currentFilter] = 0;
     }
     
     // Clear notifications for sections that have been viewed
@@ -119,13 +119,25 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     
     // Only update notifications if they've actually changed to prevent flickering
     setNotifications(prev => {
-      const hasChanged = JSON.stringify(prev) !== JSON.stringify(smartCounts);
+      // Only update notifications for the current filter to avoid clearing other sections
+      const newNotifications = { ...prev };
+      if (currentFilter !== 'all') {
+        newNotifications[currentFilter] = smartCounts[currentFilter];
+      } else {
+        // If viewing all orders, update all notifications
+        Object.keys(smartCounts).forEach(status => {
+          newNotifications[status] = smartCounts[status];
+        });
+      }
+      
+      const hasChanged = JSON.stringify(prev) !== JSON.stringify(newNotifications);
       if (hasChanged) {
-        return smartCounts;
+        console.log('🔔 Notifications updated for filter:', currentFilter, 'new counts:', newNotifications);
+        return newNotifications;
       }
       return prev;
     });
-  }, []); // Removed dependencies to prevent constant recreation
+  }, [filter, viewedSections]); // Include dependencies for proper updates
 
   // Fetch orders function with stable state management
   const fetchOrders = useCallback(async (currentFilter = filter) => {
@@ -232,7 +244,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         }
         
         // Calculate notifications for fetched orders (smart calculation)
-        calculateNotifications(sortedOrders);
+        calculateNotifications(sortedOrders, currentFilter);
         
         // Mark current section as viewed and clear its notifications
         if (currentFilter !== 'all') {
@@ -867,7 +879,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         }
         
         // Calculate notifications for fetched orders
-        calculateNotifications(sortedOrders);
+        calculateNotifications(sortedOrders, currentFilter);
         
         // Mark current section as viewed and clear its notifications
         if (currentFilter !== 'all') {
@@ -998,7 +1010,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         }
         
         // Calculate notifications for fetched orders
-        calculateNotifications(sortedOrders);
+        calculateNotifications(sortedOrders, currentFilter);
         
         // Mark current section as viewed and clear its notifications
         if (currentFilter !== 'all') {
