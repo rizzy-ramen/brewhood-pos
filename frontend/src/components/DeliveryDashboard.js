@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { Package, CheckCircle, User, LogOut, Clock, RefreshCw, X, Search } from 'lucide-react';
+import { Package, CheckCircle, LogOut, Clock, RefreshCw, X, Search } from 'lucide-react';
 import { apiService } from '../services/api';
 import websocketService from '../services/websocketService';
 import LoadingScreen from './LoadingScreen';
@@ -10,6 +10,7 @@ import SearchBar from './SearchBar';
 import OrdersTable from './OrdersTable';
 import FilterTabs from './FilterTabs';
 import OrderCard from './OrderCard';
+import OrderDetailModal from './OrderDetailModal';
 
 
 // Debounce utility function (Google-style search delay)
@@ -58,6 +59,13 @@ const DeliveryDashboard = ({ user, onLogout }) => {
   });
   const [pageCursors, setPageCursors] = useState({});
   const pageCursorsRef = useRef({}); // Store cursors for each page
+  
+  // Order detail modal state
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // Event deduplication - track processed events
+  const processedEvents = useRef(new Set());
 
   // Set minimum loading time for better UX
   useEffect(() => {
@@ -89,55 +97,31 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     }
   }, []);
 
-  // Calculate notifications based on current orders - EXACT MAIN BRANCH VERSION
+  // Calculate notifications - MODIFIED TO PRESERVE WEBSOCKET INCREMENTS
   const calculateNotifications = useCallback((orders, currentFilter = filter) => {
-    const counts = {
-      pending: 0,
-      preparing: 0,
-      ready: 0,
-      delivered: 0
-    };
-    
-    orders.forEach(order => {
-      if (counts.hasOwnProperty(order.status)) {
-        counts[order.status]++;
-      }
-    });
-    
-    // Only show notifications for sections that haven't been viewed yet
-    const smartCounts = { ...counts };
-    
-    // Clear notifications for current filter (user is already viewing this section)
-    if (currentFilter !== 'all') {
-      smartCounts[currentFilter] = 0;
-    }
-    
-    // Clear notifications for sections that have been viewed
-    viewedSections.forEach(viewedSection => {
-      smartCounts[viewedSection] = 0;
-    });
-    
-    // Only update notifications if they've actually changed to prevent flickering
+    // Only clear the notification for the current section being viewed
+    // This preserves WebSocket-based increments for other sections
     setNotifications(prev => {
-      // Only update notifications for the current filter to avoid clearing other sections
       const newNotifications = { ...prev };
+      
+      // Clear notification only for the section the user is currently viewing
       if (currentFilter !== 'all') {
-        newNotifications[currentFilter] = smartCounts[currentFilter];
-      } else {
-        // If viewing all orders, update all notifications
-        Object.keys(smartCounts).forEach(status => {
-          newNotifications[status] = smartCounts[status];
-        });
+        newNotifications[currentFilter] = 0;
+        console.log(`🔔 Cleared ${currentFilter} notifications (user viewing this section)`);
       }
       
-      const hasChanged = JSON.stringify(prev) !== JSON.stringify(newNotifications);
-      if (hasChanged) {
-        console.log('🔔 Notifications updated for filter:', currentFilter, 'new counts:', newNotifications);
-        return newNotifications;
-      }
-      return prev;
+      // Clear notifications for sections that have been viewed
+      viewedSections.forEach(viewedSection => {
+        if (viewedSection !== currentFilter) {
+          newNotifications[viewedSection] = 0;
+          console.log(`🔔 Cleared ${viewedSection} notifications (previously viewed)`);
+        }
+      });
+      
+      console.log('🔔 Notifications updated for filter:', currentFilter, 'new counts:', newNotifications);
+      return newNotifications;
     });
-  }, [filter, viewedSections]); // Include dependencies for proper updates
+  }, [filter, viewedSections]);
 
   // Fetch orders function with stable state management
   const fetchOrders = useCallback(async (currentFilter = filter) => {
@@ -150,30 +134,11 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       // Always show loading when fetching orders (this indicates a section change or refresh)
       setIsSectionLoading(true);
       
-      // Use pagination for delivered orders, regular fetch for others
+      // Fetch all orders at once, just like the counter app
       let response;
       if (currentFilter === 'delivered') {
-        // For delivered orders, use fetchOrdersWithPage to ensure cursor storage
-        // But only if we're not already in fetchOrdersWithPage to prevent recursion
-        if (currentPage === 1) {
-          // For page 1, fetch directly and store cursor
-          response = await apiService.getOrders(currentFilter, ordersPerPage, currentPage);
-          
-          // Store cursor for page 2 if we have a response
-          if (response && response.lastDocumentId) {
-            const newCursors = {
-              ...pageCursorsRef.current,
-              1: response.lastDocumentId
-            };
-            setPageCursors(newCursors);
-            pageCursorsRef.current = newCursors;
-            console.log(`💾 fetchOrders: Stored cursor for page 2:`, response.lastDocumentId);
-          }
-        } else {
-          // For other pages, use fetchOrdersWithPage
-          await fetchOrdersWithPage(currentFilter, currentPage);
-          return; // Exit early since fetchOrdersWithPage handles everything
-        }
+        // Fetch all delivered orders at once (up to 1000, like counter app)
+        response = await apiService.getOrders(currentFilter, 1000);
       } else {
         response = await apiService.getOrders(currentFilter);
       }
@@ -257,12 +222,15 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         setOrders(sortedOrders);
         
         // Update pagination info for delivered orders
-        if (currentFilter === 'delivered' && response.total !== undefined) {
+        if (currentFilter === 'delivered') {
+          const total = sortedOrders.length; // Use actual orders length since we fetch all
+          const totalPages = Math.ceil(total / ordersPerPage);
           setPaginationInfo({
-            total: response.total,
-            totalPages: response.totalPages || Math.ceil(response.total / ordersPerPage),
-            currentPage: response.page || currentPage
+            total: total,
+            totalPages: totalPages,
+            currentPage: 1 // Always start at page 1 since we fetch all orders
           });
+          console.log('📊 Updated pagination info:', { total, totalPages, currentPage: 1 });
         }
       }
     } catch (error) {
@@ -333,11 +301,32 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     websocketService.on('orderPlaced', (order) => {
       console.log('📦 DeliveryDashboard: Received orderPlaced event:', order);
       
+      // Create unique event identifier for deduplication
+      const orderEventId = `orderPlaced-${order.id}`;
+      
+      // Check if we've already processed this event recently (within 1 second)
+      if (processedEvents.current.has(orderEventId)) {
+        console.log('⚠️ Duplicate orderPlaced event detected, skipping:', orderEventId);
+        return;
+      }
+      
+      // Add to processed events and clean up old ones
+      processedEvents.current.add(orderEventId);
+      setTimeout(() => {
+        processedEvents.current.delete(orderEventId);
+      }, 1000); // Clean up after 1 second
+      
+      console.log('✅ Processing unique orderPlaced event:', orderEventId);
+      
       // Update notification for pending section (new orders are always pending)
-      setNotifications(prev => ({
-        ...prev,
-        pending: (prev.pending || 0) + 1
-      }));
+      setNotifications(prev => {
+        const newNotifications = {
+          ...prev,
+          pending: (prev.pending || 0) + 1
+        };
+        console.log('🔔 OrderPlaced notification count updated:', newNotifications);
+        return newNotifications;
+      });
       
       // Only fetch orders if we're currently viewing the pending section
       const currentFilter = filterRef.current;
@@ -353,6 +342,24 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       websocketService.on('orderStatusUpdated', (data) => {
         console.log('🔄 OrderStatusUpdated event received:', data);
         
+        // Create unique event identifier for deduplication
+        const eventId = `${data.orderId}-${data.status}-${Date.now()}`;
+        const recentEventId = `${data.orderId}-${data.status}`;
+        
+        // Check if we've already processed this event recently (within 1 second)
+        if (processedEvents.current.has(recentEventId)) {
+          console.log('⚠️ Duplicate event detected, skipping:', recentEventId);
+          return;
+        }
+        
+        // Add to processed events and clean up old ones
+        processedEvents.current.add(recentEventId);
+        setTimeout(() => {
+          processedEvents.current.delete(recentEventId);
+        }, 1000); // Clean up after 1 second
+        
+        console.log('✅ Processing unique event:', recentEventId);
+        
         // Update notifications based on status change
         setNotifications(prev => {
           const newNotifications = { ...prev };
@@ -366,6 +373,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
             newNotifications.delivered = (newNotifications.delivered || 0) + 1;
           }
           
+          console.log('🔔 Notification count updated:', newNotifications);
           return newNotifications;
         });
         
@@ -803,17 +811,11 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       // Always show loading when fetching orders (this indicates a section change or refresh)
       setIsSectionLoading(true);
       
-      // Use pagination for delivered orders, regular fetch for others
+      // Fetch all orders at once, just like the counter app
       let response;
       if (currentFilter === 'delivered') {
-        // For cursor-based pagination, we need the last document ID from the previous page
-        // Use the ref to get the current cursors state immediately
-        const currentCursors = pageCursorsRef.current;
-        const lastDocId = pageNumber > 1 ? currentCursors[pageNumber - 1] : null;
-        console.log(`🔄 Fetching page ${pageNumber} with cursor:`, lastDocId);
-        console.log(`🔍 Available cursors:`, currentCursors);
-        console.log(`🔍 Looking for cursor at key:`, pageNumber - 1);
-        response = await apiService.getOrders(currentFilter, ordersPerPage, pageNumber, lastDocId);
+        // Fetch all delivered orders at once (up to 1000, like counter app)
+        response = await apiService.getOrders(currentFilter, 1000);
       } else {
         response = await apiService.getOrders(currentFilter);
       }
@@ -932,27 +934,11 @@ const DeliveryDashboard = ({ user, onLogout }) => {
     try {
       console.log('🔄 fetchOrdersDynamic called with filter:', currentFilter);
       
-      // Use pagination for delivered orders, regular fetch for others
+      // Fetch all orders at once, just like the counter app
       let response;
       if (currentFilter === 'delivered') {
-        // For delivered orders, use fetchOrdersWithPage to ensure cursor storage
-        if (currentPage === 1) {
-          response = await apiService.getOrders(currentFilter, ordersPerPage, currentPage);
-          
-          // Store cursor for page 2 if we have a response
-          if (response && response.lastDocumentId) {
-            const newCursors = {
-              ...pageCursorsRef.current,
-              1: response.lastDocumentId
-            };
-            setPageCursors(newCursors);
-            pageCursorsRef.current = newCursors;
-          }
-        } else {
-          // For other pages, use fetchOrdersWithPage
-          await fetchOrdersWithPage(currentFilter, currentPage);
-          return;
-        }
+        // Fetch all delivered orders at once (up to 1000, like counter app)
+        response = await apiService.getOrders(currentFilter, 1000);
       } else {
         response = await apiService.getOrders(currentFilter);
       }
@@ -1021,12 +1007,15 @@ const DeliveryDashboard = ({ user, onLogout }) => {
         setOrders(sortedOrders);
         
         // Update pagination info for delivered orders
-        if (currentFilter === 'delivered' && response.total !== undefined) {
+        if (currentFilter === 'delivered') {
+          const total = sortedOrders.length; // Use actual orders length since we fetch all
+          const totalPages = Math.ceil(total / ordersPerPage);
           setPaginationInfo({
-            total: response.total,
-            totalPages: response.totalPages || Math.ceil(response.total / ordersPerPage),
-            currentPage: response.page || currentPage
+            total: total,
+            totalPages: totalPages,
+            currentPage: 1 // Always start at page 1 since we fetch all orders
           });
+          console.log('📊 Updated pagination info:', { total, totalPages, currentPage: 1 });
         }
       }
     } catch (error) {
@@ -1037,19 +1026,28 @@ const DeliveryDashboard = ({ user, onLogout }) => {
   // Handle page change for pagination
   const handlePageChange = useCallback((pageNumber) => {
     setCurrentPage(pageNumber);
-    // Fetch orders for the new page
-    if (filter === 'delivered') {
-      // Call fetchOrders with the new page number directly
-      fetchOrdersWithPage('delivered', pageNumber);
-    }
-  }, [filter, fetchOrdersWithPage]);
+    // No need to fetch from server since we have all orders loaded
+    console.log('📄 Page changed to:', pageNumber);
+  }, []);
+
+  // Handle viewing order details
+  const handleViewOrder = useCallback((order) => {
+    console.log('👁️ Viewing order details:', order);
+    setSelectedOrder(order);
+    setIsModalOpen(true);
+  }, []);
+
+  // Handle closing order detail modal
+  const handleCloseModal = useCallback(() => {
+    setIsModalOpen(false);
+    setSelectedOrder(null);
+  }, []);
 
   // Calculate pagination for delivered orders
   const getPaginatedOrders = useCallback(() => {
     if (filter !== 'delivered') return orders;
     
-    // For delivered orders, the backend already returns the correct page
-    // No need to slice since we're getting exactly what we need
+    // For search results, return filtered orders
     if (searchTerm && filteredOrders.length > 0) {
       console.log('🔍 getPaginatedOrders: Returning filtered orders:', filteredOrders.length);
       console.log('🔍 Filtered orders data:', filteredOrders);
@@ -1070,9 +1068,22 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       return validResults;
     }
     
-    console.log('🔍 getPaginatedOrders: Returning orders from backend:', orders.length, 'currentPage:', currentPage);
-    return orders;
-  }, [filter, orders, searchTerm, filteredOrders, currentPage]);
+    // For delivered orders, implement client-side pagination
+    const startIndex = (currentPage - 1) * ordersPerPage;
+    const endIndex = startIndex + ordersPerPage;
+    const paginatedOrders = orders.slice(startIndex, endIndex);
+    
+    console.log('🔍 getPaginatedOrders: Client-side pagination:', {
+      totalOrders: orders.length,
+      currentPage,
+      ordersPerPage,
+      startIndex,
+      endIndex,
+      paginatedOrdersLength: paginatedOrders.length
+    });
+    
+    return paginatedOrders;
+  }, [filter, orders, searchTerm, filteredOrders, currentPage, ordersPerPage]);
 
   // Reset pagination when filter changes
   useEffect(() => {
@@ -1109,8 +1120,6 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       <div className="header">
         <h1 className="header-title">Delivery Dashboard</h1>
         <div className="user-info">
-          <div className="role-badge">Delivery</div>
-          
           {/* WebSocket Status Indicator */}
           <div className="flex items-center space-x-2 px-3 py-1 rounded-lg text-sm mr-3">
             <div className={`w-2 h-2 rounded-full ${
@@ -1126,10 +1135,6 @@ const DeliveryDashboard = ({ user, onLogout }) => {
             </span>
           </div>
           
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <User size={18} />
-            <span>{user.username}</span>
-          </div>
           <button className="btn btn-secondary" onClick={onLogout}>
             <LogOut size={18} />
             Logout
@@ -1138,18 +1143,6 @@ const DeliveryDashboard = ({ user, onLogout }) => {
       </div>
 
       {/* Backend Status Info - Now handled by global indicator */}
-      <div style={{ 
-        padding: '12px', 
-        marginBottom: '20px', 
-        borderRadius: '8px', 
-        backgroundColor: '#e3f2fd',
-        border: '1px solid #90caf9',
-        color: '#1565c0',
-        fontSize: '14px',
-        textAlign: 'center'
-      }}>
-        <span>🌐 Backend Status: Check the indicator in the top-right corner</span>
-      </div>
 
       <div className="delivery-main-layout" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}>
         <div>
@@ -1203,7 +1196,7 @@ const DeliveryDashboard = ({ user, onLogout }) => {
                     paginationInfo={paginationInfo}
                     ordersPerPage={ordersPerPage}
                     handlePageChange={handlePageChange}
-
+                    onViewOrder={handleViewOrder}
                   />
                 </div>
               ) : (
@@ -1322,6 +1315,13 @@ const DeliveryDashboard = ({ user, onLogout }) => {
           </div>
         </div>
       )}
+      
+      {/* Order Detail Modal */}
+      <OrderDetailModal 
+        order={selectedOrder}
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+      />
     </div>
   );
 };

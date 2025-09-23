@@ -9,6 +9,9 @@ class WebSocketService {
     this.maxReconnectAttempts = 5;
     this.reconnectDelay = 1000;
     this.eventListeners = new Map();
+    
+    // Auto-connect when the service is created
+    this.connect();
   }
 
   // Connect to the backend WebSocket

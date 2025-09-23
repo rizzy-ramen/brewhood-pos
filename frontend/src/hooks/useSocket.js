@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import io from 'socket.io-client';
+import { WEBSOCKET_BASE_URL } from '../config/api';
 
 const useSocket = (onOrderCreated, onOrderStatusUpdated, onItemPreparationUpdated, onProductCreated, onProductUpdated, onProductDeleted) => {
   const socketRef = useRef(null);
@@ -9,7 +10,7 @@ const useSocket = (onOrderCreated, onOrderStatusUpdated, onItemPreparationUpdate
     const getSocketUrl = () => {
       const host = window.location.hostname;
       if (host === 'localhost' || host === '127.0.0.1') {
-        return 'https://brave-relate-travelers-fs.trycloudflare.com';
+        return WEBSOCKET_BASE_URL;
       } else {
         // Use the same host as the frontend for network access
         return `http://${host}:5000`;

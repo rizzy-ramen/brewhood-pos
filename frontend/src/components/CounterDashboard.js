@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { ShoppingCart, Plus, Minus, X, Package, Edit, Trash2 } from 'lucide-react';
 import { apiService } from '../services/api';
 import websocketService from '../services/websocketService';
+import { BACKEND_BASE_URL } from '../config/api';
 import LoadingScreen from './LoadingScreen';
 
 // Import reusable components
 import HamburgerMenu from './HamburgerMenu';
 import OrdersStatusTable from './OrdersStatusTable';
+import OrderDetailModal from './OrderDetailModal';
 
 const CounterDashboard = ({ user, onLogout }) => {
   const [products, setProducts] = useState([]);
@@ -39,6 +41,10 @@ const CounterDashboard = ({ user, onLogout }) => {
   const [contactNumberError, setContactNumberError] = useState('');
   const [isContactNumberValid, setIsContactNumberValid] = useState(false);
   const [hasContactNumberBeenTouched, setHasContactNumberBeenTouched] = useState(false);
+  
+  // Order detail modal state
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
 
   // Set minimum loading time for better UX
@@ -287,14 +293,57 @@ const CounterDashboard = ({ user, onLogout }) => {
     // If it's a local path, construct the proper URL for Firebase Hosting
     if (product.image_url.startsWith('/images/')) {
       // Use the backend server URL from the tunnel
-      const backendUrl = 'https://brave-relate-travelers-fs.trycloudflare.com';
-      return `${backendUrl}${product.image_url}`;
+      return `${BACKEND_BASE_URL}${product.image_url}`;
     }
     
     return '🍽️'; // Fallback emoji
   };
 
-  const addToCart = (product) => {
+  const addToCart = (product, event) => {
+    // Add visual feedback classes
+    const button = event.target.closest('.add-to-cart-btn');
+    if (button) {
+      // Store original text if not already stored
+      if (!button.dataset.originalText) {
+        button.dataset.originalText = button.innerHTML;
+      }
+      
+      // Clear any existing timers
+      if (button.restoreTimer) {
+        clearTimeout(button.restoreTimer);
+      }
+      if (button.successTimer) {
+        clearTimeout(button.successTimer);
+      }
+      if (button.clickedTimer) {
+        clearTimeout(button.clickedTimer);
+      }
+      
+      // Reset classes
+      button.classList.remove('clicked', 'success');
+      
+      // Add clicked animation
+      button.classList.add('clicked');
+      
+      // Change button text temporarily
+      button.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg> Added!`;
+      
+      // Remove clicked class after animation
+      button.clickedTimer = setTimeout(() => {
+        button.classList.remove('clicked');
+      }, 600);
+      
+      // Add success state briefly
+      button.successTimer = setTimeout(() => {
+        button.classList.add('success');
+        button.restoreTimer = setTimeout(() => {
+          button.classList.remove('success');
+          button.innerHTML = button.dataset.originalText; // Restore original text
+        }, 800);
+      }, 100);
+    }
+    
+    // Original cart logic
     const existingItem = cart.find(item => item.product_id === product.id);
     if (existingItem) {
       setCart(cart.map(item =>
@@ -307,6 +356,33 @@ const CounterDashboard = ({ user, onLogout }) => {
         price: product.price,
         quantity: 1
       }]);
+    }
+    
+    // Optional: Haptic feedback for mobile devices
+    if ('vibrate' in navigator) {
+      navigator.vibrate(50);
+    }
+    
+    // Optional: Audio feedback (very subtle)
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+      oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.1);
+      
+      gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+      gainNode.gain.linearRampToValueAtTime(0.1, audioContext.currentTime + 0.01);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.2);
+    } catch (error) {
+      // Audio feedback failed, continue silently
     }
   };
 
@@ -336,6 +412,18 @@ const CounterDashboard = ({ user, onLogout }) => {
   const handleViewAllOrders = () => {
     setCurrentView('all-orders');
   };
+
+  // Handle viewing order details
+  const handleViewOrder = useCallback((order) => {
+    setSelectedOrder(order);
+    setIsModalOpen(true);
+  }, []);
+
+  // Handle closing order detail modal
+  const handleCloseModal = useCallback(() => {
+    setIsModalOpen(false);
+    setSelectedOrder(null);
+  }, []);
 
   const handleCloseOrdersTable = () => {
     setCurrentView('take-orders');
@@ -526,6 +614,7 @@ const CounterDashboard = ({ user, onLogout }) => {
     document.addEventListener('keydown', handleEscape);
   };
 
+
   const formatBillMessage = (orderData) => {
     const currentTime = new Date().toLocaleString('en-IN', {
       year: 'numeric',
@@ -536,12 +625,14 @@ const CounterDashboard = ({ user, onLogout }) => {
       timeZone: 'Asia/Kolkata'
     });
     
-    let message = `🍽️ *BrewHood Order Receipt*\n\n`;
-    message += `📋 *Order #${orderData.order_number || orderData.id}*\n`;
-    message += `👤 *Customer:* ${orderData.customer_name}\n`;
-    message += `📦 *Type:* ${orderData.order_type}\n`;
-    message += `🕐 *Time:* ${currentTime}\n\n`;
-    message += `📝 *Items:*\n`;
+    // Using simple text with symbols that are more WhatsApp-friendly
+    let message = `--- BREWHOOD ORDER RECEIPT ---\n\n`;
+    message += `Order #${orderData.order_number || orderData.id}\n`;
+    message += `Customer: ${orderData.customer_name}\n`;
+    message += `Type: ${orderData.order_type.toUpperCase()}\n`;
+    message += `Time: ${currentTime}\n\n`;
+    message += `ITEMS:\n`;
+    message += `${'-'.repeat(30)}\n`;
     
     orderData.items.forEach((item, index) => {
       // Handle both possible property names from backend response
@@ -550,12 +641,16 @@ const CounterDashboard = ({ user, onLogout }) => {
       const quantity = item.quantity || 1;
       const totalPrice = itemPrice * quantity;
       
-      message += `${index + 1}. ${itemName} x${quantity} = ₹${totalPrice.toFixed(2)}\n`;
+      message += `${index + 1}. ${itemName}\n`;
+      message += `   Qty: ${quantity} x Rs.${itemPrice.toFixed(2)} = Rs.${totalPrice.toFixed(2)}\n\n`;
     });
     
-    message += `\n💰 *Total: ₹${orderData.total_amount.toFixed(2)}*\n\n`;
-    message += `Thank you for choosing BrewHood! 🙏\n`;
-    message += `Your order will be ready soon.`;
+    message += `${'-'.repeat(30)}\n`;
+    message += `TOTAL: Rs.${orderData.total_amount.toFixed(2)}\n`;
+    message += `${'-'.repeat(30)}\n\n`;
+    message += `Thank you for choosing BrewHood!\n`;
+    message += `Your order will be ready soon.\n\n`;
+    message += `Visit us again for more delicious treats!`;
     
     return message;
   };
@@ -789,7 +884,7 @@ const CounterDashboard = ({ user, onLogout }) => {
                       <div className="product-price">₹{product.price}</div>
                       <button 
                         className="btn btn-primary add-to-cart-btn"
-                        onClick={() => addToCart(product)}
+                        onClick={(event) => addToCart(product, event)}
                       >
                         <Plus size={16} />
                         Add to Cart
@@ -893,8 +988,18 @@ const CounterDashboard = ({ user, onLogout }) => {
         </div>
       ) : (
         // All Orders View
-        <OrdersStatusTable onClose={handleCloseOrdersTable} />
+        <OrdersStatusTable 
+          onClose={handleCloseOrdersTable} 
+          onViewOrder={handleViewOrder}
+        />
       )}
+
+      {/* Order Detail Modal */}
+      <OrderDetailModal 
+        order={selectedOrder}
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+      />
 
       <style jsx>{`
         @keyframes spin {
@@ -925,6 +1030,16 @@ const CounterDashboard = ({ user, onLogout }) => {
           to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
+
+
+      {/* Order Detail Modal */}
+      {isModalOpen && selectedOrder && (
+        <OrderDetailModal
+          order={selectedOrder}
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+        />
+      )}
     </div>
   );
 };

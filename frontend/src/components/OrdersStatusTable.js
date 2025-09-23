@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, Search, X, Package } from 'lucide-react';
+import { RefreshCw, Search, X, Package, Calendar } from 'lucide-react';
 import { apiService } from '../services/api';
 
 // Debounce utility function
@@ -13,6 +13,7 @@ const debounce = (func, delay) => {
 
 const OrdersStatusTable = ({ 
   onClose,
+  onViewOrder,
   className = '',
   style = {}
 }) => {
@@ -22,6 +23,18 @@ const OrdersStatusTable = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [searchInput, setSearchInput] = useState(''); // Separate state for input display
   const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedDate, setSelectedDate] = useState(() => {
+    // Default to today's date in YYYY-MM-DD format
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  });
+  const [allOrders, setAllOrders] = useState([]); // Store all orders for search functionality
+  const [orderDates, setOrderDates] = useState(new Set()); // Store dates with orders for calendar highlighting
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [calendarViewDate, setCalendarViewDate] = useState(() => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  });
 
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -123,7 +136,19 @@ const OrdersStatusTable = ({
         }, 3000);
       }
       
-      setOrders(sortedOrders);
+      setAllOrders(sortedOrders); // Store all orders for search functionality
+      setOrders(sortedOrders); // This will be filtered by date in applyFilters
+      
+      // Extract unique dates with orders for calendar highlighting
+      const datesWithOrders = new Set();
+      sortedOrders.forEach(order => {
+        if (order.created_at) {
+          const orderDate = new Date(order.created_at).toISOString().split('T')[0];
+          datesWithOrders.add(orderDate);
+        }
+      });
+      setOrderDates(datesWithOrders);
+      
       setLastUpdated(new Date());
       setPreviousOrderCount(sortedOrders.length);
     } catch (error) {
@@ -137,27 +162,39 @@ const OrdersStatusTable = ({
     }
   };
 
-  // Apply filters (search + status)
+  // Helper function to check if order matches selected date
+  const isOrderFromSelectedDate = (order) => {
+    const orderDate = new Date(order.created_at).toISOString().split('T')[0];
+    return orderDate === selectedDate;
+  };
+
+  // Apply filters (date + search + status)
   const applyFilters = () => {
-    console.log('🔍 applyFilters called with searchTerm:', searchTerm, 'statusFilter:', statusFilter);
-    let filtered = orders;
+    console.log('🔍 applyFilters called with searchTerm:', searchTerm, 'statusFilter:', statusFilter, 'selectedDate:', selectedDate);
+    
+    let filtered;
+    
+    // If search is active, search across ALL orders regardless of date
+    if (searchTerm.trim() !== '') {
+      console.log('🔍 Applying search filter across all orders for term:', searchTerm);
+      filtered = allOrders.filter(order => 
+        (order.customer_name && order.customer_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (order.id && String(order.id).toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (order.order_number && order.order_number.toString().includes(searchTerm)) ||
+        (order.status && order.status.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+      console.log('🔍 Search results count (from all orders):', filtered.length);
+    } else {
+      // If no search, filter by selected date first
+      console.log('🗓️ Filtering orders for date:', selectedDate);
+      filtered = allOrders.filter(isOrderFromSelectedDate);
+      console.log('🗓️ Orders for selected date:', filtered.length);
+    }
     
     // Apply status filter
     if (statusFilter !== 'all') {
       filtered = filtered.filter(order => order.status === statusFilter);
-    }
-    
-    // Apply search filter
-    if (searchTerm.trim() !== '') {
-      console.log('🔍 Applying search filter for term:', searchTerm);
-      filtered = filtered.filter(order => 
-        order.customer_name && order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.id && String(order.id).toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.order_number && order.order_number.toString().includes(searchTerm) ||
-
-        order.status && order.status.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      console.log('🔍 Filtered results count:', filtered.length);
+      console.log('🔍 After status filter:', filtered.length);
     }
     
     setFilteredOrders(filtered);
@@ -166,6 +203,7 @@ const OrdersStatusTable = ({
       totalPages: Math.ceil(filtered.length / ordersPerPage),
       currentPage: 1
     });
+    setCurrentPage(1);
   };
 
   // Search functionality
@@ -182,6 +220,13 @@ const OrdersStatusTable = ({
     applyFilters();
   };
 
+  // Date filter functionality
+  const handleDateChange = (date) => {
+    setSelectedDate(date);
+    setCurrentPage(1);
+    // applyFilters() will be called by useEffect when selectedDate changes
+  };
+
   // Debounced search - only updates the actual search term after delay
   const debouncedSearch = debounce((value) => {
     console.log('🔍 Debounced search executing with value:', value);
@@ -195,6 +240,246 @@ const OrdersStatusTable = ({
     const startIndex = (currentPage - 1) * ordersPerPage;
     const endIndex = startIndex + ordersPerPage;
     return filteredOrders.slice(startIndex, endIndex);
+  };
+
+  // Custom Calendar Component
+  const CustomCalendar = () => {
+    const currentDate = new Date(calendarViewDate);
+    const currentMonth = currentDate.getMonth();
+    const currentYear = currentDate.getFullYear();
+    
+    // Get first day of the month and number of days
+    const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
+    const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
+    const daysInMonth = lastDayOfMonth.getDate();
+    const startingDayOfWeek = firstDayOfMonth.getDay();
+    
+    // Month names
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    
+    // Generate calendar days
+    const calendarDays = [];
+    
+    // Add empty cells for days before the first day of the month
+    for (let i = 0; i < startingDayOfWeek; i++) {
+      calendarDays.push(null);
+    }
+    
+    // Add days of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateString = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      calendarDays.push({
+        day,
+        dateString,
+        hasOrders: orderDates.has(dateString),
+        isSelected: dateString === selectedDate,
+        isToday: dateString === new Date().toISOString().split('T')[0]
+      });
+    }
+    
+    const navigateMonth = (direction) => {
+      const newDate = new Date(currentYear, currentMonth + direction, 1);
+      const year = newDate.getFullYear();
+      const month = String(newDate.getMonth() + 1).padStart(2, '0');
+      const day = String(newDate.getDate()).padStart(2, '0');
+      const newDateString = `${year}-${month}-${day}`;
+      setCalendarViewDate(newDateString);
+    };
+    
+    return (
+      <div style={{
+        position: 'absolute',
+        top: '100%',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        backgroundColor: 'white',
+        border: '1px solid #e9ecef',
+        borderRadius: '8px',
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+        padding: '20px',
+        zIndex: 1000,
+        width: '320px'
+      }}>
+        {/* Calendar Header */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '16px'
+        }}>
+          <button
+            onClick={() => navigateMonth(-1)}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              fontSize: '18px'
+            }}
+          >
+            ‹
+          </button>
+          <div style={{
+            fontWeight: '600',
+            fontSize: '16px',
+            color: '#333'
+          }}>
+            {monthNames[currentMonth]} {currentYear}
+          </div>
+          <button
+            onClick={() => navigateMonth(1)}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              fontSize: '18px'
+            }}
+          >
+            ›
+          </button>
+        </div>
+        
+        {/* Days of week header */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(7, 1fr)',
+          gap: '2px',
+          marginBottom: '8px'
+        }}>
+          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+            <div key={day} style={{
+              textAlign: 'center',
+              fontSize: '12px',
+              fontWeight: '600',
+              color: '#666',
+              padding: '8px 4px'
+            }}>
+              {day}
+            </div>
+          ))}
+        </div>
+        
+        {/* Calendar Grid */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(7, 1fr)',
+          gap: '2px'
+        }}>
+          {calendarDays.map((dayData, index) => (
+            <div key={index} style={{
+              minHeight: '36px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              position: 'relative'
+            }}>
+              {dayData && (
+                <button
+                  onClick={() => {
+                    handleDateChange(dayData.dateString);
+                    setShowCalendar(false);
+                  }}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: dayData.isSelected ? '600' : '400',
+                    backgroundColor: dayData.isSelected 
+                      ? '#007bff' 
+                      : dayData.isToday 
+                        ? '#e3f2fd' 
+                        : dayData.hasOrders 
+                          ? '#e8f5e8' 
+                          : 'transparent',
+                    color: dayData.isSelected 
+                      ? 'white' 
+                      : dayData.isToday 
+                        ? '#1976d2' 
+                        : dayData.hasOrders 
+                          ? '#2e7d32' 
+                          : '#333',
+                    border: dayData.hasOrders && !dayData.isSelected 
+                      ? '2px solid #4caf50' 
+                      : dayData.isToday && !dayData.isSelected 
+                        ? '2px solid #2196f3' 
+                        : '2px solid transparent',
+                    transition: 'all 0.2s ease',
+                    position: 'relative'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!dayData.isSelected) {
+                      e.target.style.backgroundColor = dayData.hasOrders ? '#c8e6c9' : '#f5f5f5';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!dayData.isSelected) {
+                      e.target.style.backgroundColor = dayData.isToday 
+                        ? '#e3f2fd' 
+                        : dayData.hasOrders 
+                          ? '#e8f5e8' 
+                          : 'transparent';
+                    }
+                  }}
+                >
+                  {dayData.day}
+                  {dayData.hasOrders && (
+                    <div style={{
+                      position: 'absolute',
+                      bottom: '2px',
+                      right: '2px',
+                      width: '6px',
+                      height: '6px',
+                      backgroundColor: dayData.isSelected ? 'white' : '#4caf50',
+                      borderRadius: '50%'
+                    }} />
+                  )}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+        
+        {/* Legend */}
+        <div style={{
+          marginTop: '16px',
+          fontSize: '12px',
+          color: '#666',
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: '16px',
+          justifyContent: 'center'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <div style={{
+              width: '12px',
+              height: '12px',
+              backgroundColor: '#e3f2fd',
+              border: '2px solid #2196f3',
+              borderRadius: '4px'
+            }} />
+            <span>Today</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <div style={{
+              width: '12px',
+              height: '12px',
+              backgroundColor: '#e8f5e8',
+              border: '2px solid #4caf50',
+              borderRadius: '4px'
+            }} />
+            <span>Has Orders</span>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   // Handle page change
@@ -291,6 +576,29 @@ const OrdersStatusTable = ({
       applyFilters();
     }
   }, [searchTerm]);
+
+  // Apply filters when selected date changes
+  useEffect(() => {
+    if (allOrders.length > 0) {
+      applyFilters();
+    }
+  }, [selectedDate]);
+
+  // Handle clicks outside calendar to close it
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showCalendar && !event.target.closest('.calendar-container')) {
+        setShowCalendar(false);
+      }
+    };
+
+    if (showCalendar) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showCalendar]);
 
   // Auto-refresh orders every 5 minutes (reduced from 30 seconds)
   useEffect(() => {
@@ -489,7 +797,6 @@ const OrdersStatusTable = ({
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <h2 style={{ margin: 0, color: '#333' }}>All Orders Status</h2>
-            <h2 style={{ margin: 0, color: '#333' }}>All Orders Status</h2>
           </div>
           <button
             onClick={onClose}
@@ -514,6 +821,102 @@ const OrdersStatusTable = ({
           >
             <X size={24} />
           </button>
+        </div>
+
+        {/* Date Filter */}
+        <div style={{
+          padding: '20px',
+          borderBottom: '1px solid #e9ecef',
+          backgroundColor: '#f8f9fa'
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            flexWrap: 'wrap'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <Calendar size={18} style={{ color: '#666' }} />
+              <span style={{ fontSize: '14px', color: '#666', fontWeight: '500' }}>View orders for:</span>
+            </div>
+            <div className="calendar-container" style={{ position: 'relative' }}>
+              <button
+                onClick={() => {
+                  if (!showCalendar) {
+                    setCalendarViewDate(selectedDate);
+                  }
+                  setShowCalendar(!showCalendar);
+                }}
+                style={{
+                  padding: '8px 12px',
+                  border: '1px solid #ced4da',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  backgroundColor: 'white',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  minWidth: '140px'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.borderColor = '#007bff';
+                  e.target.style.boxShadow = '0 0 0 3px rgba(0,123,255,0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.borderColor = '#ced4da';
+                  e.target.style.boxShadow = 'none';
+                }}
+              >
+                <span>{new Date(selectedDate).toLocaleDateString('en-US', { 
+                  year: 'numeric', 
+                  month: 'short', 
+                  day: 'numeric' 
+                })}</span>
+                <Calendar size={16} style={{ 
+                  color: '#666',
+                  transform: showCalendar ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.2s ease'
+                }} />
+              </button>
+              
+              {showCalendar && <CustomCalendar key={calendarViewDate} />}
+            </div>
+            <button
+              onClick={() => {
+                const today = new Date().toISOString().split('T')[0];
+                handleDateChange(today);
+              }}
+              style={{
+                padding: '8px 16px',
+                border: '1px solid #007bff',
+                borderRadius: '6px',
+                background: selectedDate === new Date().toISOString().split('T')[0] ? '#007bff' : 'white',
+                color: selectedDate === new Date().toISOString().split('T')[0] ? 'white' : '#007bff',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: '500',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                if (selectedDate !== new Date().toISOString().split('T')[0]) {
+                  e.target.style.backgroundColor = '#e3f2fd';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (selectedDate !== new Date().toISOString().split('T')[0]) {
+                  e.target.style.backgroundColor = 'white';
+                }
+              }}
+            >
+              Today
+            </button>
+          </div>
         </div>
 
         {/* Status Filter */}
@@ -641,12 +1044,23 @@ const OrdersStatusTable = ({
               fontSize: '14px',
               color: '#666'
             }}>
+            {!searchTerm && (
+              <span style={{ marginRight: '16px' }}>
+                Date: <strong style={{ color: '#007bff' }}>
+                  {new Date(selectedDate).toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                  })}
+                </strong>
+              </span>
+            )}
             {statusFilter !== 'all' && (
               <span style={{ marginRight: '16px' }}>
                 Status: <strong style={{ color: getStatusColor(statusFilter) }}>{statusFilter}</strong>
               </span>
             )}
-            Showing {filteredOrders.length} of {orders.length} total orders
+            Showing {filteredOrders.length} of {searchTerm ? allOrders.length : `${allOrders.filter(isOrderFromSelectedDate).length} (${selectedDate})`} total orders
             {lastUpdated && (
               <span style={{ marginLeft: '16px' }}>
                 • Last updated: <strong>{lastUpdated.toLocaleTimeString()}</strong>
@@ -654,7 +1068,7 @@ const OrdersStatusTable = ({
             )}
             {searchTerm && (
               <span style={{ marginLeft: '16px' }}>
-                • Search: <strong>"{searchTerm}"</strong>
+                • Search: <strong>"{searchTerm}"</strong> (across all dates)
               </span>
             )}
           </div>
@@ -761,6 +1175,7 @@ const OrdersStatusTable = ({
                       <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', borderBottom: '1px solid #e9ecef' }}>Items</th>
                       <th style={{ padding: '12px', textAlign: 'right', fontWeight: '600', borderBottom: '1px solid #e9ecef' }}>Total</th>
                       <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', borderBottom: '1px solid #e9ecef' }}>Date & Time</th>
+                      <th style={{ padding: '12px', textAlign: 'center', fontWeight: '600', borderBottom: '1px solid #e9ecef' }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -860,7 +1275,8 @@ const OrdersStatusTable = ({
                     <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Status</th>
                     <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Items</th>
                     <th style={{ padding: '12px', textAlign: 'right', fontWeight: '600' }}>Total</th>
-                                            <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Date & Time</th>
+                    <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Date & Time</th>
+                    <th style={{ padding: '12px', textAlign: 'center', fontWeight: '600' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -942,6 +1358,19 @@ const OrdersStatusTable = ({
                       </td>
                       <td style={{ padding: '12px', fontSize: '12px', color: '#666' }}>
                         {parseOrderDate(order.created_at)}
+                      </td>
+                      <td style={{ padding: '12px', textAlign: 'center' }}>
+                        <button
+                          className="btn btn-sm btn-outline"
+                          title="View Details"
+                          style={{ padding: '6px 12px', fontSize: '12px' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onViewOrder && onViewOrder(order);
+                          }}
+                        >
+                          View
+                        </button>
                       </td>
                     </tr>
                   ))}

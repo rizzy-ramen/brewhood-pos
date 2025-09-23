@@ -9,6 +9,39 @@ const SalesReport = ({ onClose }) => {
   const [loading, setLoading] = useState(false);
   const [reportData, setReportData] = useState(null);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [salesDates, setSalesDates] = useState(new Set());
+  const [allOrdersLoading, setAllOrdersLoading] = useState(false);
+  const [calendarViewDate, setCalendarViewDate] = useState(new Date().toISOString().split('T')[0]);
+
+  // Fetch all orders to identify dates with sales data
+  const fetchAllOrdersForCalendar = async () => {
+    setAllOrdersLoading(true);
+    try {
+      const response = await apiService.getOrders('all', 1000);
+      let allOrders = [];
+      
+      if (response && response.orders) {
+        allOrders = response.orders;
+      } else if (Array.isArray(response)) {
+        allOrders = response;
+      }
+
+      // Extract unique dates with sales
+      const datesWithSales = new Set();
+      allOrders.forEach(order => {
+        if (order.created_at) {
+          const orderDate = new Date(order.created_at).toISOString().split('T')[0];
+          datesWithSales.add(orderDate);
+        }
+      });
+
+      setSalesDates(datesWithSales);
+    } catch (error) {
+      console.error('Error fetching all orders for calendar:', error);
+    } finally {
+      setAllOrdersLoading(false);
+    }
+  };
 
   // Fetch orders for selected date
   const fetchOrdersForDate = async (date) => {
@@ -238,10 +271,280 @@ const SalesReport = ({ onClose }) => {
     // fetchOrdersForDate will be called automatically by useEffect when selectedDate changes
   };
 
+  // Custom Calendar Component
+  const CustomCalendar = () => {
+    const currentDate = new Date(calendarViewDate);
+    const currentMonth = currentDate.getMonth();
+    const currentYear = currentDate.getFullYear();
+    
+    // Get first day of the month and number of days
+    const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
+    const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
+    const daysInMonth = lastDayOfMonth.getDate();
+    const startingDayOfWeek = firstDayOfMonth.getDay();
+    
+    // Month names
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    
+    // Generate calendar days
+    const calendarDays = [];
+    
+    // Add empty cells for days before the first day of the month
+    for (let i = 0; i < startingDayOfWeek; i++) {
+      calendarDays.push(null);
+    }
+    
+    // Add days of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateString = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      calendarDays.push({
+        day,
+        dateString,
+        hasSales: salesDates.has(dateString),
+        isSelected: dateString === selectedDate,
+        isToday: dateString === new Date().toISOString().split('T')[0]
+      });
+    }
+    
+    const navigateMonth = (direction) => {
+      // Create new date for the first day of the target month
+      const newDate = new Date(currentYear, currentMonth + direction, 1);
+      
+      // Format date manually to avoid timezone issues
+      const year = newDate.getFullYear();
+      const month = String(newDate.getMonth() + 1).padStart(2, '0');
+      const day = String(newDate.getDate()).padStart(2, '0');
+      const newDateString = `${year}-${month}-${day}`;
+      
+      // Update calendar view date, not selected date
+      setCalendarViewDate(newDateString);
+    };
+    
+    return (
+      <div style={{
+        position: 'absolute',
+        top: '100%',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        backgroundColor: 'white',
+        border: '1px solid #e9ecef',
+        borderRadius: '8px',
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+        padding: '20px',
+        zIndex: 1000,
+        width: '380px'
+      }}>
+        {/* Calendar Header */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '16px'
+        }}>
+          <button
+            onClick={() => navigateMonth(-1)}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              fontSize: '18px'
+            }}
+          >
+            ‹
+          </button>
+          <div style={{
+            fontWeight: '600',
+            fontSize: '16px',
+            color: '#333'
+          }}>
+            {monthNames[currentMonth]} {currentYear}
+          </div>
+          <button
+            onClick={() => navigateMonth(1)}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              fontSize: '18px'
+            }}
+          >
+            ›
+          </button>
+        </div>
+        
+        {/* Days of week header */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(7, 1fr)',
+          gap: '2px',
+          marginBottom: '8px'
+        }}>
+          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+            <div key={day} style={{
+              textAlign: 'center',
+              fontSize: '12px',
+              fontWeight: '600',
+              color: '#666',
+              padding: '8px 4px'
+            }}>
+              {day}
+            </div>
+          ))}
+        </div>
+        
+        {/* Calendar Grid */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(7, 1fr)',
+          gap: '2px'
+        }}>
+          {calendarDays.map((dayData, index) => (
+            <div key={index} style={{
+              minHeight: '36px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              position: 'relative'
+            }}>
+              {dayData && (
+                <button
+                  onClick={() => handleDateChange(dayData.dateString)}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: dayData.isSelected ? '600' : '400',
+                    backgroundColor: dayData.isSelected 
+                      ? '#007bff' 
+                      : dayData.isToday 
+                        ? '#e3f2fd' 
+                        : dayData.hasSales 
+                          ? '#e8f5e8' 
+                          : 'transparent',
+                    color: dayData.isSelected 
+                      ? 'white' 
+                      : dayData.isToday 
+                        ? '#1976d2' 
+                        : dayData.hasSales 
+                          ? '#2e7d32' 
+                          : '#333',
+                    border: dayData.hasSales && !dayData.isSelected 
+                      ? '2px solid #4caf50' 
+                      : dayData.isToday && !dayData.isSelected 
+                        ? '2px solid #2196f3' 
+                        : '2px solid transparent',
+                    transition: 'all 0.2s ease',
+                    position: 'relative'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!dayData.isSelected) {
+                      e.target.style.backgroundColor = dayData.hasSales ? '#c8e6c9' : '#f5f5f5';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!dayData.isSelected) {
+                      e.target.style.backgroundColor = dayData.isToday 
+                        ? '#e3f2fd' 
+                        : dayData.hasSales 
+                          ? '#e8f5e8' 
+                          : 'transparent';
+                    }
+                  }}
+                >
+                  {dayData.day}
+                  {dayData.hasSales && (
+                    <div style={{
+                      position: 'absolute',
+                      bottom: '2px',
+                      right: '2px',
+                      width: '6px',
+                      height: '6px',
+                      backgroundColor: dayData.isSelected ? 'rgba(255,255,255,0.8)' : '#4caf50',
+                      borderRadius: '50%'
+                    }} />
+                  )}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+        
+        {/* Legend */}
+        <div style={{
+          marginTop: '16px',
+          paddingTop: '12px',
+          borderTop: '1px solid #e9ecef',
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: '12px',
+          fontSize: '12px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <div style={{
+              width: '12px',
+              height: '12px',
+              backgroundColor: '#e8f5e8',
+              border: '2px solid #4caf50',
+              borderRadius: '3px'
+            }} />
+            <span>Has Sales</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <div style={{
+              width: '12px',
+              height: '12px',
+              backgroundColor: '#e3f2fd',
+              border: '2px solid #2196f3',
+              borderRadius: '3px'
+            }} />
+            <span>Today</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <div style={{
+              width: '12px',
+              height: '12px',
+              backgroundColor: '#007bff',
+              borderRadius: '3px'
+            }} />
+            <span>Selected</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Initial load
   useEffect(() => {
     fetchOrdersForDate(selectedDate);
   }, [selectedDate]);
+
+  // Load all orders for calendar highlighting on component mount
+  useEffect(() => {
+    fetchAllOrdersForCalendar();
+  }, []);
+
+  // Close calendar when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showCalendar && !event.target.closest('.calendar-container')) {
+        setShowCalendar(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showCalendar]);
 
   return (
     <div style={{
@@ -262,8 +565,8 @@ const SalesReport = ({ onClose }) => {
         borderRadius: '12px',
         boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)',
         width: '100%',
-        maxWidth: '900px',
-        maxHeight: '90vh',
+        maxWidth: '1100px',
+        maxHeight: '95vh',
         overflow: 'auto'
       }}>
         {/* Header */}
@@ -319,24 +622,83 @@ const SalesReport = ({ onClose }) => {
               <span style={{ fontWeight: '500', color: '#333' }}>Select Date:</span>
             </div>
             
-            <div style={{ position: 'relative' }}>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => handleDateChange(e.target.value)}
+            <div className="calendar-container" style={{ position: 'relative' }}>
+              <button
+                onClick={() => {
+                  if (!showCalendar) {
+                    // When opening calendar, set view to the month of selected date
+                    setCalendarViewDate(selectedDate);
+                  }
+                  setShowCalendar(!showCalendar);
+                }}
                 style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
                   padding: '10px 12px',
                   border: '1px solid #ced4da',
                   borderRadius: '6px',
                   fontSize: '14px',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  backgroundColor: 'white',
+                  minWidth: '160px',
+                  justifyContent: 'space-between'
                 }}
-              />
+              >
+                <span>{new Date(selectedDate).toLocaleDateString('en-US', { 
+                  year: 'numeric', 
+                  month: 'short', 
+                  day: 'numeric' 
+                })}</span>
+                <Calendar size={16} style={{ 
+                  color: '#666',
+                  transform: showCalendar ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.2s ease'
+                }} />
+              </button>
+              
+              {showCalendar && <CustomCalendar key={calendarViewDate} />}
+              
+              {/* Loading indicator for calendar data */}
+              {allOrdersLoading && (
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  backgroundColor: 'white',
+                  border: '1px solid #e9ecef',
+                  borderRadius: '8px',
+                  padding: '20px',
+                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+                  zIndex: 1000,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '14px',
+                  color: '#666'
+                }}>
+                  <div style={{
+                    width: '16px',
+                    height: '16px',
+                    border: '2px solid #f3f3f3',
+                    borderTop: '2px solid #007bff',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite'
+                  }}></div>
+                  Loading sales dates...
+                </div>
+              )}
             </div>
 
             <button
               onClick={exportToExcel}
-              disabled={!reportData || loading}
+              disabled={!reportData || loading || !reportData?.totalOrders || reportData.totalOrders === 0}
+              title={
+                loading ? 'Loading sales data...' :
+                !reportData ? 'No data available' :
+                (!reportData?.totalOrders || reportData.totalOrders === 0) ? 'No sales data available for this date' :
+                'Export sales report to Excel'
+              }
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -346,19 +708,19 @@ const SalesReport = ({ onClose }) => {
                 color: 'white',
                 border: 'none',
                 borderRadius: '6px',
-                cursor: reportData && !loading ? 'pointer' : 'not-allowed',
-                opacity: reportData && !loading ? 1 : 0.6,
+                cursor: (reportData && !loading && reportData?.totalOrders > 0) ? 'pointer' : 'not-allowed',
+                opacity: (reportData && !loading && reportData?.totalOrders > 0) ? 1 : 0.6,
                 transition: 'all 0.2s ease',
                 fontSize: '14px',
                 fontWeight: '500'
               }}
               onMouseEnter={(e) => {
-                if (reportData && !loading) {
+                if (reportData && !loading && reportData?.totalOrders > 0) {
                   e.target.style.backgroundColor = '#218838';
                 }
               }}
               onMouseLeave={(e) => {
-                if (reportData && !loading) {
+                if (reportData && !loading && reportData?.totalOrders > 0) {
                   e.target.style.backgroundColor = '#28a745';
                 }
               }}

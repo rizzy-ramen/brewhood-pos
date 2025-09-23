@@ -1,6 +1,8 @@
 // API Service for communicating with your internet-accessible backend
-// Your backend is now accessible via Cloudflare Tunnel: https://brave-relate-travelers-fs.trycloudflare.com
-export const API_BASE_URL = 'https://brave-relate-travelers-fs.trycloudflare.com/api';
+import { API_BASE_URL, BACKEND_BASE_URL } from '../config/api';
+
+// Export for backward compatibility
+export { API_BASE_URL };
 
 // Generate a simple demo token (replace with proper JWT in production)
 const getAuthToken = () => {
@@ -364,7 +366,7 @@ export const config = {
   // Update this to your local backend IP address
   // For local development: http://localhost:5000
   // For network access: http://YOUR_IP_ADDRESS:5000
-  backendUrl: 'https://brave-relate-travelers-fs.trycloudflare.com',
+  backendUrl: BACKEND_BASE_URL,
   
   // Update this when you want to access from other devices
   // Example: http://192.168.1.100:5000 (your PC's IP address)

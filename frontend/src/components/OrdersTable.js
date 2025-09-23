@@ -10,7 +10,8 @@ const OrdersTable = ({
   currentPage, 
   paginationInfo, 
   ordersPerPage, 
-  handlePageChange
+  handlePageChange,
+  onViewOrder
 }) => {
   // Utility function to parse dates from various formats
   const parseOrderDate = (createdAt) => {
@@ -206,6 +207,7 @@ const OrdersTable = ({
                         className="btn btn-sm btn-outline"
                         title="View Details"
                         style={{ padding: '6px 12px', fontSize: '12px' }}
+                        onClick={() => onViewOrder && onViewOrder(order)}
                       >
                         View
                       </button>
@@ -218,34 +220,47 @@ const OrdersTable = ({
         </div>
       )}
 
-      {/* Pagination - Only show when table has content */}
-      {!isSectionLoading && paginationInfo.totalPages > 1 && (
+      {/* Pagination - Show when there are more orders than can fit on one page */}
+      {!isSectionLoading && (paginationInfo.totalPages > 1 || paginationInfo.total > ordersPerPage) && (
         <div style={{ 
           display: 'flex', 
           justifyContent: 'center', 
           alignItems: 'center', 
           gap: '10px',
           marginTop: '20px',
-          padding: '20px 0'
+          padding: '20px 0',
+          flexWrap: 'wrap'
         }}>
           <button
             className="btn btn-sm btn-outline"
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
+            style={{ minWidth: '80px' }}
           >
-            Previous
+            ← Previous
           </button>
           
-          <span style={{ fontSize: '14px', color: '#666' }}>
-            Page {currentPage} of {paginationInfo.totalPages}
-          </span>
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '5px',
+            fontSize: '14px', 
+            color: '#666',
+            minWidth: '120px',
+            justifyContent: 'center'
+          }}>
+            <span>Page {currentPage}</span>
+            <span>of</span>
+            <span>{paginationInfo.totalPages || Math.ceil(orders.length / ordersPerPage)}</span>
+          </div>
           
           <button
             className="btn btn-sm btn-outline"
             onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage === paginationInfo.totalPages}
+            disabled={currentPage === (paginationInfo.totalPages || Math.ceil(orders.length / ordersPerPage))}
+            style={{ minWidth: '80px' }}
           >
-            Next
+            Next →
           </button>
         </div>
       )}
@@ -260,7 +275,7 @@ const OrdersTable = ({
           borderTop: '1px solid #e9ecef',
           marginTop: '20px'
         }}>
-          Showing {((currentPage - 1) * ordersPerPage) + 1} to {Math.min(currentPage * ordersPerPage, orders.length)} of {searchTerm ? filteredOrders.length : paginationInfo.total} delivered orders
+          Showing {((currentPage - 1) * ordersPerPage) + 1} to {Math.min(currentPage * ordersPerPage, orders.length)} of {searchTerm ? filteredOrders.length : (paginationInfo.total || orders.length)} delivered orders
         </div>
       )}
     </div>

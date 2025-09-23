@@ -819,8 +819,13 @@ app.post('/api/admin/products', authenticateToken, (req, res) => {
           return;
         }
         
-        // Emit real-time update to all clients
-        io.emit('productCreated', product);
+        // Emit real-time update to all clients (prevent duplicates)
+        if (product && product.id) {
+          console.log(`📦 Emitting productCreated event for product ID: ${product.id}`);
+          io.emit('productCreated', product);
+        } else {
+          console.warn('⚠️ Skipping productCreated emission - invalid product data');
+        }
         
         res.status(201).json({
           message: 'Product created successfully',

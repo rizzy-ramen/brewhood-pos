@@ -56,6 +56,62 @@ const OrderCard = ({
         <p><strong>Customer:</strong> {order.customer_name}</p>
         <p><strong>Type:</strong> {order.order_type}</p>
         <p><strong>Items:</strong> {order.items.length}</p>
+        
+        {/* Items to Prepare - For Pending Orders */}
+        {order.status === 'pending' && (
+          <div style={{ marginTop: '16px' }}>
+            <div style={{ 
+              fontSize: '13px', 
+              fontWeight: '600', 
+              color: '#333',
+              marginBottom: '12px'
+            }}>
+              📋 Items to Prepare
+            </div>
+            
+            <div style={{ 
+              backgroundColor: '#f8f9fa',
+              border: '1px solid #e9ecef',
+              borderRadius: '8px',
+              padding: '12px'
+            }}>
+              {order.items.map((item, index) => (
+                <div 
+                  key={item.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: '#333',
+                    marginBottom: index < order.items.length - 1 ? '6px' : '0',
+                    padding: '2px 0'
+                  }}
+                >
+                  <span style={{
+                    width: '20px',
+                    height: '20px',
+                    borderRadius: '50%',
+                    backgroundColor: '#ffc107',
+                    color: '#333',
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: '10px',
+                    flexShrink: 0
+                  }}>
+                    {item.quantity}
+                  </span>
+                  <span style={{ flex: 1 }}>
+                    {item.product_name}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         {order.status === 'preparing' && (
           <div style={{ marginTop: '10px' }}>
             <div style={{ 
@@ -288,9 +344,75 @@ const OrderCard = ({
             ⚠️ Complete all item preparation to enable "Mark Ready"
           </div>
         )}
+        
+        {/* Items to Deliver - For Ready Orders */}
+        {order.status === 'ready' && (
+          <div style={{ marginTop: '16px' }}>
+            <div style={{ 
+              fontSize: '13px', 
+              fontWeight: '600', 
+              color: '#333',
+              marginBottom: '12px'
+            }}>
+              📦 Items to Deliver
+            </div>
+            
+            <div style={{ 
+              backgroundColor: '#f0f8f0',
+              border: '1px solid #d4edda',
+              borderRadius: '8px',
+              padding: '12px'
+            }}>
+              {order.items.map((item, index) => (
+                <div 
+                  key={item.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: '#333',
+                    marginBottom: index < order.items.length - 1 ? '6px' : '0',
+                    padding: '2px 0'
+                  }}
+                >
+                  <span style={{
+                    width: '20px',
+                    height: '20px',
+                    borderRadius: '50%',
+                    backgroundColor: '#28a745',
+                    color: 'white',
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: '10px',
+                    flexShrink: 0
+                  }}>
+                    {item.quantity}
+                  </span>
+                  <span style={{ flex: 1 }}>
+                    {item.product_name}
+                  </span>
+                  <span style={{
+                    fontSize: '12px',
+                    color: '#28a745',
+                    fontWeight: '600',
+                    marginLeft: '8px'
+                  }}>
+                    ✓ Ready
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        
         {order.status === 'ready' && (
           <button
             className="btn btn-success"
+            style={{ marginTop: '16px' }}
             onClick={(e) => {
               e.stopPropagation();
               markOrderDelivered(order.id);

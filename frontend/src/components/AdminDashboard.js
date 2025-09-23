@@ -3,10 +3,12 @@ import { toast } from 'react-hot-toast';
 import './AdminDashboard.css';
 import { apiService } from '../services/api';
 import { websocketService } from '../services/websocketService';
+import { BACKEND_BASE_URL } from '../config/api';
 import LoadingScreen from './LoadingScreen';
 import AdminHamburgerMenu from './AdminHamburgerMenu';
 import AdminOrdersTable from './AdminOrdersTable';
 import SalesReport from './SalesReport';
+import ImageEditor from './ImageEditor';
 import { 
   Plus, 
   Edit, 
@@ -19,7 +21,6 @@ import {
   DollarSign,
   FileText,
   Image as ImageIcon,
-  User
 } from 'lucide-react';
 
 const AdminDashboard = ({ user, onLogout }) => {
@@ -34,6 +35,7 @@ const AdminDashboard = ({ user, onLogout }) => {
   const [activeSection, setActiveSection] = useState('active'); // 'active', 'hidden', 'total'
   const [currentView, setCurrentView] = useState('products'); // 'products', 'orders', 'sales'
   const [showSalesReport, setShowSalesReport] = useState(false);
+  const [showImageEditor, setShowImageEditor] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -67,6 +69,24 @@ const AdminDashboard = ({ user, onLogout }) => {
     setShowSalesReport(false);
   };
 
+  // Image editor handlers
+  const handleOpenImageEditor = () => {
+    setShowImageEditor(true);
+  };
+
+  const handleCloseImageEditor = () => {
+    setShowImageEditor(false);
+  };
+
+  const handleImageSave = (imageDataUrl) => {
+    setFormData(prev => ({
+      ...prev,
+      image_url: imageDataUrl
+    }));
+    setShowImageEditor(false);
+    toast.success('Image processed successfully!');
+  };
+
   // Function to get proper image URL or fallback
   const getImageUrl = (product) => {
     if (!product.image_url || product.image_url === '') return null;
@@ -79,8 +99,7 @@ const AdminDashboard = ({ user, onLogout }) => {
     // If it's a local path, construct the proper URL for Firebase Hosting
     if (product.image_url.startsWith('/images/')) {
       // Use the backend server URL from the tunnel
-        const backendUrl = 'https://brave-relate-travelers-fs.trycloudflare.com';
-      return `${backendUrl}${product.image_url}`;
+      return `${BACKEND_BASE_URL}${product.image_url}`;
     }
     
     return null;
@@ -143,10 +162,20 @@ const AdminDashboard = ({ user, onLogout }) => {
     // Register as admin dashboard (connect if needed)
     const registerDashboard = async () => {
       try {
+        // Ensure WebSocket is connected first
+        if (!websocketService.isConnected) {
+          console.log('🔌 WebSocket not connected, attempting to connect...');
+          websocketService.connect();
+          
+          // Wait a bit for connection to establish
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+        
         await websocketService.registerDashboard('admin');
         console.log('✅ AdminDashboard: Registered successfully');
       } catch (error) {
         console.error('❌ AdminDashboard: Registration failed:', error);
+        // Continue without WebSocket - the app will still work with manual refresh
       }
     };
     
@@ -162,12 +191,30 @@ const AdminDashboard = ({ user, onLogout }) => {
 
     const handleProductCreated = (product) => {
       console.log('🔄 Admin Dashboard received productCreated event:', product);
-      setProducts(prevProducts => [...prevProducts, product]);
+      setProducts(prevProducts => {
+        // Check if product already exists to prevent duplicates
+        const existingProduct = prevProducts.find(p => p.id === product.id);
+        if (existingProduct) {
+          console.log('⚠️ Product already exists, skipping duplicate:', product.id);
+          return prevProducts; // Don't add duplicate
+        }
+        console.log('✅ Adding new product to state:', product.id);
+        return [...prevProducts, product];
+      });
     };
 
-    const handleProductDeleted = (productId) => {
-      console.log('🔄 Admin Dashboard received productDeleted event:', productId);
-      setProducts(prevProducts => prevProducts.filter(p => p.id !== productId));
+    const handleProductDeleted = (eventData) => {
+      console.log('🔄 Admin Dashboard received productDeleted event:', eventData);
+      // Handle both formats: direct ID or object with productId/id
+      const productId = typeof eventData === 'number' ? eventData : 
+                       eventData?.productId || eventData?.id;
+      
+      if (productId) {
+        setProducts(prevProducts => prevProducts.filter(p => p.id !== productId));
+        console.log('✅ Product removed from frontend state:', productId);
+      } else {
+        console.warn('⚠️ Could not extract product ID from event:', eventData);
+      }
     };
 
     // Set up WebSocket listeners
@@ -274,11 +321,31 @@ const AdminDashboard = ({ user, onLogout }) => {
 
     try {
       console.log('🗑️ Deleting product with ID:', productId);
-                      await apiService.deleteProduct(productId);
-        toast.success('Product deleted permanently');
-        // Refresh products immediately since we're not using real-time listeners
+      console.log('🔍 Current products before deletion:', products.length);
+      
+      const response = await apiService.deleteProduct(productId);
+      console.log('🗑️ Delete response:', response);
+      
+      // Check if the product was actually deleted or just marked as unavailable
+      if (response.message && response.message.includes('marked as unavailable')) {
+        // Product was marked as unavailable instead of deleted
+        toast.success('Product marked as unavailable (cannot delete products with order history)');
+        
+        // Refresh products to get the updated status
         await fetchProducts();
-      console.log('✅ Product deleted, waiting for real-time update...');
+      } else {
+        // Product was actually deleted
+        toast.success('Product deleted permanently');
+        
+        // Optimistically remove the product from UI
+        setProducts(prevProducts => {
+          const updatedProducts = prevProducts.filter(p => p.id !== productId);
+          console.log('🔄 Removed deleted product from UI, new count:', updatedProducts.length);
+          return updatedProducts;
+        });
+      }
+      
+      console.log('✅ Product deletion/unavailability handled successfully');
     } catch (error) {
       console.error('❌ Error deleting product:', error);
       toast.error('Failed to delete product');
@@ -391,13 +458,6 @@ const AdminDashboard = ({ user, onLogout }) => {
             user={user}
           />
           <h1 className="header-title">Admin Dashboard</h1>
-        </div>
-        <div className="user-info">
-          <div className="role-badge admin">Admin</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <User size={18} />
-            <span>{user.username}</span>
-          </div>
         </div>
       </div>
 
@@ -1003,16 +1063,86 @@ const AdminDashboard = ({ user, onLogout }) => {
                 <div className="form-group">
                   <label className="form-label">
                     <ImageIcon size={16} />
-                    Image URL
+                    Image
                   </label>
-                  <input
-                    type="text"
-                    name="image_url"
-                    value={formData.image_url}
-                    onChange={handleInputChange}
-                    className="form-input"
-                    placeholder="/images/product-name.jpg"
-                  />
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1 }}>
+                      <input
+                        type="text"
+                        name="image_url"
+                        value={formData.image_url}
+                        onChange={handleInputChange}
+                        className="form-input"
+                        placeholder="/images/product-name.jpg or data:image/..."
+                        style={{ marginBottom: '8px' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleOpenImageEditor}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '8px 16px',
+                          border: '2px dashed #007bff',
+                          borderRadius: '6px',
+                          background: 'transparent',
+                          color: '#007bff',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          width: '100%',
+                          justifyContent: 'center'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.target.style.backgroundColor = '#e3f2fd';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.backgroundColor = 'transparent';
+                        }}
+                      >
+                        <ImageIcon size={16} />
+                        Upload & Edit Image
+                      </button>
+                    </div>
+                    {formData.image_url && (
+                      <div style={{
+                        width: '80px',
+                        height: '80px',
+                        border: '1px solid #e9ecef',
+                        borderRadius: '6px',
+                        overflow: 'hidden',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: '#f8f9fa'
+                      }}>
+                        <img
+                          src={formData.image_url}
+                          alt="Preview"
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover'
+                          }}
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'flex';
+                          }}
+                        />
+                        <div
+                          style={{
+                            display: 'none',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#666',
+                            fontSize: '12px'
+                          }}
+                        >
+                          No Preview
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -1033,6 +1163,15 @@ const AdminDashboard = ({ user, onLogout }) => {
       {/* Sales Report Modal */}
       {showSalesReport && (
         <SalesReport onClose={handleCloseSalesReport} />
+      )}
+
+      {/* Image Editor Modal */}
+      {showImageEditor && (
+        <ImageEditor 
+          onImageSave={handleImageSave}
+          onClose={handleCloseImageEditor}
+          initialImageUrl={formData.image_url || null}
+        />
       )}
 
       {/* CSS for loading states and animations */}

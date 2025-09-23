@@ -1,7 +1,6 @@
 // Backend Authentication Service
 // This replaces Firebase Auth with your SQLite backend authentication
-
-const API_BASE_URL = 'https://brave-relate-travelers-fs.trycloudflare.com/api';
+import { API_BASE_URL } from '../config/api';
 
 // Login function using backend API
 export const loginUser = async (username, password) => {

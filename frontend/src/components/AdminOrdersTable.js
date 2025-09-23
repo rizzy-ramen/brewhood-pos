@@ -87,13 +87,13 @@ const AdminOrdersTable = ({
     // Apply search filter
     if (searchTerm.trim() !== '') {
       filtered = filtered.filter(order => 
-        order.customer_name && order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.id && order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.order_number && order.order_number.toString().includes(searchTerm) ||
-        order.status && order.status.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.items && order.items.some(item => 
+        (order.customer_name && order.customer_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (order.id && order.id.toString().toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (order.order_number && order.order_number.toString().includes(searchTerm)) ||
+        (order.status && order.status.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (order.items && order.items.some(item => 
           item.product_name && item.product_name.toLowerCase().includes(searchTerm.toLowerCase())
-        )
+        ))
       );
     }
     

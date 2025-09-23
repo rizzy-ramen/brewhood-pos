@@ -1,5 +1,5 @@
 // Updated to use SQLite backend instead of Firestore
-const API_BASE_URL = 'https://brave-relate-travelers-fs.trycloudflare.com/api';
+import { API_BASE_URL } from '../config/api';
 
 // Custom login function that works with your SQLite backend
 export const loginUser = async (username, password) => {
